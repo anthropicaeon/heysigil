@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sigil — Claim Pool Rewards",
+  title: "Sigil — Stamp Your Approval, Earn While You Build",
   description:
-    "Prove you own a project and claim your pool rewards. Chat with Sigil to verify, trade, and manage your crypto.",
+    "Funding for dev projects without the weight of handling a community. Stamp your Sigil to earn USDC fees from LPs while your native tokens remain locked.",
 };
 
 export default function RootLayout({

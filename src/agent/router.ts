@@ -66,7 +66,7 @@ const handlers: Record<string, ActionHandler> = {
     const { method, projectId } = params;
     return {
       success: true,
-      message: `Starting ${method} verification for "${projectId}".\n\nVisit the verification page to complete the flow, or provide your wallet address to generate a challenge here.`,
+      message: `Starting ${method} verification for "${projectId}".\n\nOnce verified, you can stamp your Sigil — your on-chain seal of approval. You'll earn USDC fees from LP activity while your native tokens stay locked until the community votes on milestones.\n\nVisit the Stamp page to complete the flow, or provide your wallet address to generate a challenge here.`,
       data: { method, projectId, redirectUrl: `/verify?method=${method}&project=${projectId}` },
     };
   },
@@ -75,7 +75,7 @@ const handlers: Record<string, ActionHandler> = {
     const { projectId } = params;
     return {
       success: true,
-      message: `Claiming pool rewards for "${projectId}".\n\nYou need a verified EAS attestation first. If you haven't verified yet, say "verify ${projectId}".`,
+      message: `Stamping your Sigil for "${projectId}".\n\nYou need a verified EAS attestation first. If you haven't verified yet, say "verify ${projectId}".\n\nOnce stamped, you'll earn USDC fees from LP activity. Your native tokens remain locked until the community votes to unlock them via milestones.`,
       data: { projectId, status: "needs_attestation" },
     };
   },
@@ -93,17 +93,19 @@ const handlers: Record<string, ActionHandler> = {
   help: async (params) => {
     const { topic } = params;
     const helpText = [
-      "I'm Sigil, your AI crypto assistant. Here's what I can do:\n",
+      "I'm Sigil. Funding for dev projects without the weight of handling a community.\n",
+      "**Stamp Your Sigil:**",
+      '  "verify github.com/org/repo" — prove you own a project',
+      '  "stamp my sigil" — create your on-chain seal of approval',
+      '  "pool status for myproject" — check LP fees and pool balance\n',
+      "Your Sigil = your stamp of approval. You earn USDC fees from LPs.",
+      "Your native tokens stay locked until the community votes on milestones.\n",
       "**Trading:**",
       '  "swap 0.1 ETH to USDC" — swap tokens on any chain',
       '  "bridge 100 USDC from ethereum to base" — cross-chain bridge',
       '  "send 50 USDC to 0x..." — send tokens',
       '  "price ETH" — check token prices',
       '  "balance" — check your wallet balance\n',
-      "**Pool Rewards:**",
-      '  "verify github.com/org/repo" — prove project ownership',
-      '  "claim rewards for myproject" — claim pool rewards',
-      '  "pool status for myproject" — check pool balance\n',
       "**Token Launches:**",
       '  "launch token called MyToken (MTK)" — deploy a new token\n',
       "Use natural language — I'll figure out what you mean.",
