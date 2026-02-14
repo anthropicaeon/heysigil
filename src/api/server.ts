@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { verify } from "./routes/verify.js";
 import { claim } from "./routes/claim.js";
+import { chat } from "./routes/chat.js";
 import { getEnv } from "../config/env.js";
 
 export function createApp() {
@@ -25,6 +26,7 @@ export function createApp() {
   app.get("/health", (c) => c.json({ status: "ok", timestamp: new Date().toISOString() }));
 
   // API routes
+  app.route("/api/chat", chat);
   app.route("/api/verify", verify);
   app.route("/api/claim", claim);
 

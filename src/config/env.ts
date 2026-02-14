@@ -18,6 +18,9 @@ const envSchema = z.object({
   RECLAIM_APP_ID: z.string().default(""),
   RECLAIM_APP_SECRET: z.string().default(""),
 
+  // LLM (chat agent)
+  ANTHROPIC_API_KEY: z.string().default(""),
+
   // Database
   DATABASE_URL: z.string().url(),
 

@@ -51,12 +51,24 @@ export default function Home() {
   return (
     <div className="container">
       <div style={{ marginBottom: "2.5rem" }}>
-        <h1>OpenClaw Verify</h1>
+        <h1>Sigil</h1>
         <p style={{ marginTop: "0.5rem", maxWidth: "540px" }}>
-          Prove you own a project and claim your pool rewards. No X API
-          dependency — verify through GitHub, your domain, a tweet, or social
-          accounts.
+          AI-powered crypto assistant. Verify project ownership, claim pool
+          rewards, trade, swap, and bridge — all through chat. No X API needed.
         </p>
+      </div>
+
+      <div style={{ display: "flex", gap: "0.75rem", marginBottom: "2.5rem" }}>
+        <Link href="/chat">
+          <button className="btn-primary" style={{ padding: "0.85rem 2rem" }}>
+            Chat with Sigil
+          </button>
+        </Link>
+        <Link href="/verify">
+          <button className="btn-secondary" style={{ padding: "0.85rem 2rem" }}>
+            Verify Ownership
+          </button>
+        </Link>
       </div>
 
       <h2>Verification Methods</h2>
@@ -86,14 +98,6 @@ export default function Home() {
         ))}
       </div>
 
-      <div style={{ marginTop: "2rem" }}>
-        <Link href="/verify">
-          <button className="btn-primary" style={{ width: "100%", padding: "0.85rem" }}>
-            Start Verification
-          </button>
-        </Link>
-      </div>
-
       <div
         style={{
           marginTop: "3rem",
@@ -114,7 +118,7 @@ export default function Home() {
             lineHeight: "1.8",
           }}
         >
-          <li>Choose a verification method</li>
+          <li>Chat with Sigil or choose a verification method</li>
           <li>Prove you own the project (GitHub repo, domain, social account)</li>
           <li>An EAS attestation is created on Base linking your wallet to the project</li>
           <li>Use the attestation to claim pool rewards from the smart contract</li>

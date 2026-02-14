@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "OpenClaw Verify — Claim Pool Rewards",
+  title: "Sigil — Claim Pool Rewards",
   description:
-    "Prove you own a project and claim your pool rewards. Verify via GitHub, domain, tweet, or social accounts.",
+    "Prove you own a project and claim your pool rewards. Chat with Sigil to verify, trade, and manage your crypto.",
 };
 
 export default function RootLayout({
