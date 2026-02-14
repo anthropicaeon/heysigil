@@ -1,10 +1,11 @@
 {
   "version": 2,
-  "name": "openclaw-verify",
+  "name": "sigil",
   "framework": "nextjs",
   "buildCommand": "next build",
   "outputDirectory": ".next",
   "installCommand": "bun install",
+  "ignoreCommand": "exit 1",
   "env": {
     "NEXT_PUBLIC_API_URL": ""
   }

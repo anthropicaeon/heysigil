@@ -1,19 +1,44 @@
-# Bankr.bot Fork — No X API Dependency
+# Sigil
 
-## The Real Problem
+## What Is Sigil?
 
-Bankr.bot lets crypto users deploy tokens about new tech projects. The **pool rewards**
-incentivize early deployers — but the actual project developer needs to **claim** those
-rewards later. Today, claiming is tied to X/Twitter identity verification (proving you
-own the @handle associated with the project). This breaks because:
+**Funding for dev projects without the weight of handling a community.**
 
-1. X API costs ~$50k/month at enterprise scale
-2. X has suspended Bankr before (platform risk)
-3. Not all project devs are primarily on X
-4. Single point of failure for the entire claim flow
+Sigil doesn't mean you need to run your coin community. You provide your Sigil as a
+stamp of approval to earn fees, then you continue doing what you do best — build.
 
-**Core goal:** Build alternative ways for project developers to prove they own a project
-and claim pool rewards — without relying on X API.
+### The Model
+
+1. **Community deploys tokens** about tech projects they believe in
+2. **Developer verifies** they own the project (GitHub, domain, tweet, social)
+3. **Developer stamps their Sigil** — an on-chain seal of approval (EAS attestation)
+4. **Developer earns USDC fees** from LP activity. Native tokens remain **locked**.
+5. **Community votes on milestones** to decide if the developer gets tokens unlocked
+6. **Either way, the developer retains USDC payments** — they keep building, keep earning
+
+### Why This Works
+
+| Stakeholder | Incentive |
+|------------|-----------|
+| **Developers** | Get funded without running a community. Stamp = approval. USDC fees flow immediately. Focus on building. |
+| **Community** | Deploy tokens for projects they believe in. Milestone voting gives them control over token unlocks. |
+| **LPs** | Provide liquidity for stamped (developer-approved) projects. Fee split incentivizes quality projects. |
+
+### Key Principle
+
+> Stamping your Sigil means your stamp of approval. You gain USDC fees from LPs while
+> your native tokens remain locked. Community gets to choose if you get your tokens
+> unlocked based on milestones. Otherwise you retain USDC payments.
+
+---
+
+## How It Differs From Bankr
+
+Bankr.bot ties everything to X/Twitter API — identity, discovery, claiming. This breaks
+because X API costs ~$50k/month, X has suspended Bankr before, and not all devs are on X.
+
+Sigil removes the X API dependency entirely. 5 alternative verification methods, an
+AI chat agent, and on-chain attestations replace everything X was doing.
 
 ---
 
