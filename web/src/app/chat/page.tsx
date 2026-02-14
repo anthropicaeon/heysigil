@@ -89,7 +89,7 @@ export default function ChatPage() {
         <div>
           <h1 style={{ fontSize: "1.25rem", marginBottom: "0.15rem" }}>Sigil</h1>
           <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-            AI crypto assistant — trade, verify, claim
+            Stamp your approval, earn while you build
           </p>
         </div>
         <a href="/" style={{ color: "var(--text-secondary)", fontSize: "0.8rem", textDecoration: "none" }}>
@@ -123,10 +123,10 @@ export default function ChatPage() {
               }}
             >
               {[
-                "swap 0.1 ETH to USDC",
+                "stamp my sigil",
                 "verify github.com/my-org/my-repo",
                 "check pool status",
-                "price ETH",
+                "swap 0.1 ETH to USDC",
                 "help",
               ].map((suggestion) => (
                 <button
