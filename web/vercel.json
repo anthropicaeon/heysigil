@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "name": "openclaw-verify",
+  "framework": "nextjs",
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
+  "installCommand": "bun install",
+  "env": {
+    "NEXT_PUBLIC_API_URL": ""
+  }
+}
