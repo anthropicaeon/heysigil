@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-verify-web",
+  "name": "sigil-web",
   "version": "0.1.0",
   "private": true,
   "scripts": {
