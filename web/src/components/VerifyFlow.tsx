@@ -209,7 +209,7 @@ export default function VerifyFlow() {
           3. Verify
         </div>
         <div className={`step ${step === "result" ? "active" : ""}`}>
-          4. Claim
+          4. Stamp
         </div>
       </div>
 
@@ -334,7 +334,7 @@ export default function VerifyFlow() {
       {/* Step 4: Result + claim */}
       {step === "result" && checkResult && (
         <div>
-          <h2>Verification Complete</h2>
+          <h2>Sigil Stamped</h2>
           <div className="result-box result-success">
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.5rem" }}>
               <span className="status-badge status-verified">Verified</span>
@@ -345,11 +345,12 @@ export default function VerifyFlow() {
           </div>
           <div className="card" style={{ marginTop: "1rem" }}>
             <h3 style={{ fontSize: "0.95rem", marginBottom: "0.5rem" }}>
-              Claim On-Chain Attestation
+              Stamp Your Sigil On-Chain
             </h3>
             <p style={{ fontSize: "0.85rem", marginBottom: "1rem" }}>
-              Issue an EAS attestation on Base that proves your project ownership.
-              This attestation is used by the pool reward contract to release your tokens.
+              Create an EAS attestation on Base — your on-chain stamp of approval.
+              This starts your USDC fee earnings from LP activity. Your native
+              tokens remain locked until the community votes on milestones.
             </p>
             <button
               className="btn-primary"
@@ -357,17 +358,18 @@ export default function VerifyFlow() {
               onClick={claimAttestation}
               style={{ width: "100%" }}
             >
-              {loading ? "Creating Attestation..." : "Create EAS Attestation"}
+              {loading ? "Stamping..." : "Stamp Sigil"}
             </button>
           </div>
           {(checkResult as any).attestationUid && (
             <div className="result-box result-success" style={{ marginTop: "1rem" }}>
               <p style={{ color: "var(--success)", fontSize: "0.85rem" }}>
-                Attestation created! UID: <code>{(checkResult as any).attestationUid}</code>
+                Sigil stamped! UID: <code>{(checkResult as any).attestationUid}</code>
               </p>
               <p style={{ fontSize: "0.8rem", marginTop: "0.5rem", color: "var(--text-secondary)" }}>
-                You can now use this attestation UID to call <code>claimReward()</code> on
-                the pool reward contract.
+                Your stamp of approval is on-chain. USDC fees from LP activity will
+                flow to your wallet. Your native tokens remain locked until community
+                milestone votes pass.
               </p>
             </div>
           )}

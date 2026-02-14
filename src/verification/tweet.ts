@@ -32,7 +32,7 @@ export function createTweetChallenge(
     instructions: [
       `1. Post this tweet from the @${projectId} account:`,
       ``,
-      `   "Verifying project ownership for OpenClaw. Code: ${code} Wallet: ${walletAddress}"`,
+      `   "Verifying project ownership for Sigil. Code: ${code} Wallet: ${walletAddress}"`,
       ``,
       `2. After posting, open the tweet in your browser`,
       `3. Use the Reclaim Protocol browser extension to generate a proof`,

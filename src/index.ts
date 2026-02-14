@@ -5,7 +5,7 @@ import { getEnv } from "./config/env.js";
 const env = getEnv();
 const app = createApp();
 
-console.log(`OpenClaw Verify starting on port ${env.PORT}`);
+console.log(`Sigil starting on port ${env.PORT}`);
 console.log(`Frontend URL: ${env.FRONTEND_URL}`);
 console.log(`Base URL: ${env.BASE_URL}`);
 
