@@ -5,16 +5,17 @@ import Link from "next/link";
 export default function LandingPage() {
   return (
     <main>
-      {/* Hero */}
+      {/* ── Hero ── */}
       <section
         style={{
           textAlign: "center",
           padding: "var(--space-32) 0 var(--space-24)",
-          background: "linear-gradient(180deg, var(--lavender) 0%, var(--white) 100%)",
+          background:
+            "linear-gradient(180deg, var(--lavender) 0%, var(--white) 100%)",
         }}
       >
         <div className="container">
-          <div className="hero-eyebrow">Sigil</div>
+          <div className="hero-eyebrow">We Fund Builders</div>
           <h1
             style={{
               fontSize: "var(--text-6xl)",
@@ -25,31 +26,94 @@ export default function LandingPage() {
               margin: "0 auto var(--space-6)",
             }}
           >
-            We fund projects that matter.
+            Fund your favorite developer.
           </h1>
           <p
             style={{
               fontSize: "var(--text-xl)",
-              maxWidth: 540,
+              maxWidth: 560,
               margin: "0 auto",
               lineHeight: 1.55,
               color: "var(--text-secondary)",
             }}
           >
-            Developers build. Sigil handles the funding, the community, and the complexity of crypto. So builders can stay focused on what they do best.
+            Deploy a token for any project you believe in. Every developer is
+            verified on-chain. Community votes govern milestones. Your capital
+            goes somewhere real.
           </p>
-          <div className="hero-actions" style={{ marginTop: "var(--space-10)" }}>
-            <Link href="/verify">
-              <button className="btn-primary btn-lg">Get Started</button>
-            </Link>
+          <div
+            className="hero-actions"
+            style={{ marginTop: "var(--space-10)" }}
+          >
             <Link href="/chat">
-              <button className="btn-outline btn-lg">Talk to Sigil</button>
+              <button className="btn-primary btn-lg">Launch a Token</button>
+            </Link>
+            <Link href="/developers">
+              <button className="btn-outline btn-lg">I'm a Developer</button>
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Core positioning */}
+      {/* ── Trust bar ── */}
+      <section
+        style={{
+          padding: "var(--space-10) 0",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        <div className="container" style={{ textAlign: "center" }}>
+          <p
+            style={{
+              fontSize: "var(--text-sm)",
+              fontWeight: 600,
+              color: "var(--purple)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginBottom: "var(--space-4)",
+            }}
+          >
+            Every project is verified
+          </p>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              flexWrap: "wrap",
+              gap: "var(--space-6)",
+              fontSize: "var(--text-sm)",
+              color: "var(--text-secondary)",
+            }}
+          >
+            <span>GitHub OAuth</span>
+            <span style={{ opacity: 0.3 }}>·</span>
+            <span>Domain DNS</span>
+            <span style={{ opacity: 0.3 }}>·</span>
+            <span>File Verification</span>
+            <span style={{ opacity: 0.3 }}>·</span>
+            <span>Meta Tags</span>
+            <span style={{ opacity: 0.3 }}>·</span>
+            <span>Twitter + zkTLS</span>
+            <span style={{ opacity: 0.3 }}>·</span>
+            <span>Instagram</span>
+            <span style={{ opacity: 0.3 }}>·</span>
+            <span>Facebook</span>
+            <span style={{ opacity: 0.3 }}>·</span>
+            <span>Well-Known File</span>
+          </div>
+          <p
+            style={{
+              fontSize: "var(--text-xs)",
+              color: "var(--text-tertiary)",
+              marginTop: "var(--space-2)",
+            }}
+          >
+            Eight independent verification methods. No single point of failure.
+          </p>
+        </div>
+      </section>
+
+      {/* ── How it works (supporter perspective) ── */}
       <section className="section-lg">
         <div className="container" style={{ textAlign: "center" }}>
           <p
@@ -62,61 +126,158 @@ export default function LandingPage() {
               marginBottom: "var(--space-4)",
             }}
           >
-            The problem
+            How it works
           </p>
           <h2
             style={{
               fontSize: "var(--text-3xl)",
               letterSpacing: "-0.03em",
-              maxWidth: 640,
-              margin: "0 auto var(--space-6)",
+              marginBottom: "var(--space-12)",
             }}
           >
-            Developers are being set up to fail.
+            Three steps to fund a builder.
           </h2>
-          <p
-            style={{
-              fontSize: "var(--text-lg)",
-              maxWidth: 600,
-              margin: "0 auto",
-              lineHeight: 1.65,
-            }}
-          >
-            Current launchpads entice developers with fee claims, then vanish. No community support. No guidance through the complexity of crypto. Platforms revoke API access without warning. Builders end up managing Discord servers instead of shipping code. Some have faced real personal stress from this cycle.
-          </p>
-        </div>
-      </section>
-
-      {/* Three problems in detail */}
-      <section className="section section-sage">
-        <div className="container">
-          <div
-            className="grid grid-3"
-            style={{ textAlign: "left" }}
-          >
-            <div style={{ padding: "var(--space-8) 0" }}>
-              <h3 style={{ marginBottom: "var(--space-3)" }}>Verification fragility</h3>
+          <div className="grid grid-3">
+            <div style={{ padding: "var(--space-6) 0", textAlign: "left" }}>
+              <p
+                style={{
+                  fontSize: "var(--text-4xl)",
+                  fontWeight: 700,
+                  color: "var(--purple)",
+                  opacity: 0.2,
+                  marginBottom: "var(--space-3)",
+                }}
+              >
+                01
+              </p>
+              <h3 style={{ marginBottom: "var(--space-2)" }}>
+                Pick a project
+              </h3>
               <p style={{ fontSize: "var(--text-sm)", lineHeight: 1.7 }}>
-                When a platform depends on a single API for verification, one policy change locks you out permanently. Your stamp of authentication disappears overnight. Sigil provides eight independent verification methods. If one goes down, seven remain.
+                Find a developer or project you believe in. GitHub repos,
+                Instagram creators, open-source tools. If they build it, you can
+                fund it.
               </p>
             </div>
-            <div style={{ padding: "var(--space-8) 0" }}>
-              <h3 style={{ marginBottom: "var(--space-3)" }}>Post-launch abandonment</h3>
+            <div style={{ padding: "var(--space-6) 0", textAlign: "left" }}>
+              <p
+                style={{
+                  fontSize: "var(--text-4xl)",
+                  fontWeight: 700,
+                  color: "var(--purple)",
+                  opacity: 0.2,
+                  marginBottom: "var(--space-3)",
+                }}
+              >
+                02
+              </p>
+              <h3 style={{ marginBottom: "var(--space-2)" }}>
+                Deploy a token
+              </h3>
               <p style={{ fontSize: "var(--text-sm)", lineHeight: 1.7 }}>
-                The current model is transactional. Claim fees, then you are on your own. This has created documented stress for developers who suddenly find themselves responsible for a community they never intended to build. Sigil provides ongoing support: community management agents, human specialists, and clear guidance.
+                Launch a token for that project through Sigil. It takes seconds.
+                The token is deployed on Base with built-in LP and fee
+                distribution.
               </p>
             </div>
-            <div style={{ padding: "var(--space-8) 0" }}>
-              <h3 style={{ marginBottom: "var(--space-3)" }}>Builders forced into roles they did not choose</h3>
+            <div style={{ padding: "var(--space-6) 0", textAlign: "left" }}>
+              <p
+                style={{
+                  fontSize: "var(--text-4xl)",
+                  fontWeight: 700,
+                  color: "var(--purple)",
+                  opacity: 0.2,
+                  marginBottom: "var(--space-3)",
+                }}
+              >
+                03
+              </p>
+              <h3 style={{ marginBottom: "var(--space-2)" }}>
+                Developer stamps their Sigil
+              </h3>
               <p style={{ fontSize: "var(--text-sm)", lineHeight: 1.7 }}>
-                A developer should not need to become a community manager, a crypto strategist, or a marketing lead. These are distinct skill sets. Sigil separates them cleanly: you build, we handle everything else.
+                The developer verifies ownership and stamps their Sigil. USDC
+                fees flow to them. Community votes unlock native tokens as
+                milestones are met.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Positioning statement */}
+      {/* ── Why Sigil (supporter confidence) ── */}
+      <section className="section section-sage">
+        <div className="container">
+          <div
+            style={{ textAlign: "center", marginBottom: "var(--space-12)" }}
+          >
+            <p
+              style={{
+                fontSize: "var(--text-sm)",
+                fontWeight: 600,
+                color: "var(--purple)",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                marginBottom: "var(--space-4)",
+              }}
+            >
+              Why Sigil
+            </p>
+            <h2
+              style={{
+                fontSize: "var(--text-3xl)",
+                letterSpacing: "-0.03em",
+                maxWidth: 600,
+                margin: "0 auto",
+              }}
+            >
+              Your capital funds real, verified development.
+            </h2>
+          </div>
+          <div className="grid grid-2" style={{ maxWidth: 800, margin: "0 auto" }}>
+            <div className="feature-card" style={{ background: "var(--white)" }}>
+              <h3 style={{ marginBottom: "var(--space-2)" }}>
+                Verified developers
+              </h3>
+              <p style={{ fontSize: "var(--text-sm)" }}>
+                Every project is verified through on-chain EAS attestations.
+                Eight independent methods ensure no single API revocation can
+                erase proof of ownership.
+              </p>
+            </div>
+            <div className="feature-card" style={{ background: "var(--white)" }}>
+              <h3 style={{ marginBottom: "var(--space-2)" }}>
+                Milestone governance
+              </h3>
+              <p style={{ fontSize: "var(--text-sm)" }}>
+                Native tokens stay locked. The community votes on milestones
+                before tokens unlock. Real progress gates real rewards.
+              </p>
+            </div>
+            <div className="feature-card" style={{ background: "var(--white)" }}>
+              <h3 style={{ marginBottom: "var(--space-2)" }}>
+                USDC earnings
+              </h3>
+              <p style={{ fontSize: "var(--text-sm)" }}>
+                LP fees flow as USDC directly to verified developers. Clear,
+                immediate, transparent. No hidden terms or surprise conditions.
+              </p>
+            </div>
+            <div className="feature-card" style={{ background: "var(--white)" }}>
+              <h3 style={{ marginBottom: "var(--space-2)" }}>
+                Supported builders
+              </h3>
+              <p style={{ fontSize: "var(--text-sm)" }}>
+                Developers on Sigil get community management agents and human
+                specialists. They stay focused on code. The projects you fund
+                keep shipping.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Positioning statement ── */}
       <section className="section-lg">
         <div className="container" style={{ textAlign: "center" }}>
           <div
@@ -131,7 +292,8 @@ export default function LandingPage() {
               margin: "0 auto var(--space-6)",
             }}
           >
-            Sigil is the funding and support layer for developers entering crypto.
+            The projects you fund are verified. The developers are real. The
+            milestones are on-chain.
           </h2>
           <p
             style={{
@@ -141,214 +303,19 @@ export default function LandingPage() {
               lineHeight: 1.65,
             }}
           >
-            We fund projects that matter. We provide verification that cannot be revoked. We handle community so builders can build. This is not a launchpad. It is infrastructure for developer-led projects in crypto.
+            Sigil connects supporters to builders through verified funding
+            infrastructure. On-chain attestations, milestone governance, and
+            ongoing support for every project.
           </p>
         </div>
       </section>
 
-      {/* Three messaging angles */}
-      <section className="section section-gray">
-        <div className="container">
-          <div style={{ textAlign: "center", marginBottom: "var(--space-12)" }}>
-            <p
-              style={{
-                fontSize: "var(--text-sm)",
-                fontWeight: 600,
-                color: "var(--purple)",
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                marginBottom: "var(--space-4)",
-              }}
-            >
-              Three ways in
-            </p>
-            <h2
-              style={{
-                fontSize: "var(--text-3xl)",
-                letterSpacing: "-0.03em",
-              }}
-            >
-              Fund. Build. Belong.
-            </h2>
-          </div>
-          <div className="grid grid-3">
-            <div
-              className="feature-card"
-              style={{
-                background: "var(--lavender)",
-                border: "none",
-                padding: "var(--space-10)",
-              }}
-            >
-              <p
-                style={{
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 600,
-                  color: "var(--purple)",
-                  marginBottom: "var(--space-3)",
-                }}
-              >
-                01
-              </p>
-              <h3
-                style={{
-                  fontSize: "var(--text-2xl)",
-                  letterSpacing: "-0.02em",
-                  marginBottom: "var(--space-3)",
-                }}
-              >
-                Fund your favorite developer
-              </h3>
-              <p>
-                Deploy a token for a project you believe in. When the developer stamps their Sigil, it is their seal of approval. The community decides through milestones whether the full token allocation unlocks.
-              </p>
-            </div>
-            <div
-              className="feature-card"
-              style={{
-                background: "var(--sage)",
-                border: "none",
-                padding: "var(--space-10)",
-              }}
-            >
-              <p
-                style={{
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 600,
-                  color: "var(--success)",
-                  marginBottom: "var(--space-3)",
-                }}
-              >
-                02
-              </p>
-              <h3
-                style={{
-                  fontSize: "var(--text-2xl)",
-                  letterSpacing: "-0.02em",
-                  marginBottom: "var(--space-3)",
-                }}
-              >
-                Create new ideas and get funded
-              </h3>
-              <p>
-                Have an idea worth building? Sigil provides the mechanism to get funded without the burden of managing a token community. You write code. The funding structure handles the rest.
-              </p>
-            </div>
-            <div
-              className="feature-card"
-              style={{
-                background: "var(--rose)",
-                border: "none",
-                padding: "var(--space-10)",
-              }}
-            >
-              <p
-                style={{
-                  fontSize: "var(--text-sm)",
-                  fontWeight: 600,
-                  color: "var(--error)",
-                  marginBottom: "var(--space-3)",
-                }}
-              >
-                03
-              </p>
-              <h3
-                style={{
-                  fontSize: "var(--text-2xl)",
-                  letterSpacing: "-0.02em",
-                  marginBottom: "var(--space-3)",
-                }}
-              >
-                Get support in a new world
-              </h3>
-              <p>
-                Crypto can be overwhelming. Sigil provides community management agents and human specialists. We make the unfamiliar clear, the technical accessible, and the transition manageable.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Headlines section */}
-      <section className="section-lg">
-        <div className="container" style={{ textAlign: "center" }}>
-          <p
-            style={{
-              fontSize: "var(--text-sm)",
-              fontWeight: 600,
-              color: "var(--purple)",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              marginBottom: "var(--space-6)",
-            }}
-          >
-            What we stand for
-          </p>
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "var(--space-12)",
-              maxWidth: 700,
-              margin: "0 auto",
-            }}
-          >
-            <div>
-              <h2
-                style={{
-                  fontSize: "var(--text-3xl)",
-                  letterSpacing: "-0.03em",
-                  marginBottom: "var(--space-3)",
-                }}
-              >
-                Build what matters. We handle the rest.
-              </h2>
-              <p style={{ fontSize: "var(--text-lg)" }}>
-                Developer funding with community support built in. Not bolted on. Not an afterthought.
-              </p>
-            </div>
-            <div
-              className="divider divider-center"
-            />
-            <div>
-              <h2
-                style={{
-                  fontSize: "var(--text-3xl)",
-                  letterSpacing: "-0.03em",
-                  marginBottom: "var(--space-3)",
-                }}
-              >
-                Your stamp. Your proof. Your terms.
-              </h2>
-              <p style={{ fontSize: "var(--text-lg)" }}>
-                Eight ways to verify ownership. Zero dependence on any single platform.
-              </p>
-            </div>
-            <div
-              className="divider divider-center"
-            />
-            <div>
-              <h2
-                style={{
-                  fontSize: "var(--text-3xl)",
-                  letterSpacing: "-0.03em",
-                  marginBottom: "var(--space-3)",
-                }}
-              >
-                Funded, not abandoned.
-              </h2>
-              <p style={{ fontSize: "var(--text-lg)" }}>
-                We stay after launch. Community management agents, human specialists, and ongoing support for builders who want it.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How the flywheel works */}
+      {/* ── The flywheel ── */}
       <section className="section section-cream">
         <div className="container">
-          <div style={{ textAlign: "center", marginBottom: "var(--space-12)" }}>
+          <div
+            style={{ textAlign: "center", marginBottom: "var(--space-12)" }}
+          >
             <p
               style={{
                 fontSize: "var(--text-sm)",
@@ -369,105 +336,58 @@ export default function LandingPage() {
                 margin: "0 auto",
               }}
             >
-              A flywheel that rewards builders
+              A flywheel that rewards everyone.
             </h2>
           </div>
-          <div className="grid grid-2" style={{ maxWidth: 800, margin: "0 auto" }}>
+          <div
+            className="grid grid-2"
+            style={{ maxWidth: 800, margin: "0 auto" }}
+          >
             <div>
-              <h4 style={{ marginBottom: "var(--space-2)" }}>Developer earnings</h4>
+              <h4 style={{ marginBottom: "var(--space-2)" }}>
+                Your token funds development
+              </h4>
               <p style={{ fontSize: "var(--text-sm)" }}>
-                USDC fees from LP activity flow directly to verified developers. Native tokens remain locked, creating aligned incentives between builders and supporters.
+                When you deploy a token for a project, USDC fees from LP
+                activity flow directly to the verified developer. Your capital
+                goes to building, not marketing.
               </p>
             </div>
             <div>
-              <h4 style={{ marginBottom: "var(--space-2)" }}>Premium services</h4>
+              <h4 style={{ marginBottom: "var(--space-2)" }}>
+                Developers stay supported
+              </h4>
               <p style={{ fontSize: "var(--text-sm)" }}>
-                Developers who opt into community management agents and human specialist support share a small portion of fees. This funds the tools that support them.
+                Community management agents and human specialists handle the
+                work that drains developer energy. The projects you back keep
+                shipping real updates.
               </p>
             </div>
             <div>
-              <h4 style={{ marginBottom: "var(--space-2)" }}>SIGIL buyback</h4>
+              <h4 style={{ marginBottom: "var(--space-2)" }}>
+                SIGIL buyback
+              </h4>
               <p style={{ fontSize: "var(--text-sm)" }}>
-                Premium service fees flow back to SIGIL token buybacks. More developers succeeding means more demand for support, which strengthens the token.
+                Premium support services generate fees that buy back SIGIL
+                tokens. More successful projects means more demand for support,
+                which strengthens the ecosystem.
               </p>
             </div>
             <div>
-              <h4 style={{ marginBottom: "var(--space-2)" }}>Milestone governance</h4>
+              <h4 style={{ marginBottom: "var(--space-2)" }}>
+                Milestone accountability
+              </h4>
               <p style={{ fontSize: "var(--text-sm)" }}>
-                Community votes unlock native tokens as developers hit milestones. This keeps the relationship accountable and rewards sustained effort over speculation.
+                Community votes unlock native tokens as developers hit
+                milestones. The relationship between funder and builder stays
+                accountable throughout.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Trust signals */}
-      <section className="section-lg">
-        <div className="container" style={{ textAlign: "center" }}>
-          <p
-            style={{
-              fontSize: "var(--text-sm)",
-              fontWeight: 600,
-              color: "var(--purple)",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              marginBottom: "var(--space-4)",
-            }}
-          >
-            Built different
-          </p>
-          <h2
-            style={{
-              fontSize: "var(--text-3xl)",
-              letterSpacing: "-0.03em",
-              maxWidth: 600,
-              margin: "0 auto var(--space-12)",
-            }}
-          >
-            High-trust. Signal-dense. Founder-led.
-          </h2>
-          <div className="grid grid-3" style={{ textAlign: "left" }}>
-            <div className="feature-card">
-              <h3 style={{ marginBottom: "var(--space-2)" }}>On-chain verification</h3>
-              <p style={{ fontSize: "var(--text-sm)" }}>
-                EAS attestations on Base. Immutable proof of project ownership. Not a database entry that can be edited or deleted.
-              </p>
-            </div>
-            <div className="feature-card">
-              <h3 style={{ marginBottom: "var(--space-2)" }}>No single point of failure</h3>
-              <p style={{ fontSize: "var(--text-sm)" }}>
-                GitHub, domain DNS, domain file, meta tags, tweet with zkTLS, Facebook, Instagram. Eight methods. If one disappears, you have seven more.
-              </p>
-            </div>
-            <div className="feature-card">
-              <h3 style={{ marginBottom: "var(--space-2)" }}>Developer-first design</h3>
-              <p style={{ fontSize: "var(--text-sm)" }}>
-                Built by builders, for builders. Every decision filters through one question: does this let developers focus more on code and less on everything else?
-              </p>
-            </div>
-            <div className="feature-card">
-              <h3 style={{ marginBottom: "var(--space-2)" }}>Transparent incentives</h3>
-              <p style={{ fontSize: "var(--text-sm)" }}>
-                USDC earnings are direct. Token lockups are clear. Milestone governance is on-chain. No hidden terms, no surprise conditions.
-              </p>
-            </div>
-            <div className="feature-card">
-              <h3 style={{ marginBottom: "var(--space-2)" }}>Community without the burden</h3>
-              <p style={{ fontSize: "var(--text-sm)" }}>
-                Community management agents and human specialists handle the work that drains developer energy. Engagement, moderation, communication. Handled.
-              </p>
-            </div>
-            <div className="feature-card">
-              <h3 style={{ marginBottom: "var(--space-2)" }}>Clear separation from predecessors</h3>
-              <p style={{ fontSize: "var(--text-sm)" }}>
-                We learned from what went wrong. Bankr, Bags, and others caused real developer stress. Sigil exists because that was unacceptable.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Final CTA */}
+      {/* ── Final CTA ── */}
       <section
         className="cta-section"
         style={{
@@ -485,7 +405,7 @@ export default function LandingPage() {
               marginBottom: "var(--space-4)",
             }}
           >
-            Start building.
+            Fund a project that matters.
           </h2>
           <p
             style={{
@@ -495,7 +415,8 @@ export default function LandingPage() {
               margin: "0 auto var(--space-10)",
             }}
           >
-            Stamp your Sigil. Get funded. Let us handle the community and the crypto. You do what you do best.
+            Pick a developer. Deploy a token. Let Sigil handle verification,
+            community, and support.
           </p>
           <div
             style={{
@@ -504,7 +425,7 @@ export default function LandingPage() {
               justifyContent: "center",
             }}
           >
-            <Link href="/verify">
+            <Link href="/chat">
               <button
                 className="btn-lg"
                 style={{
@@ -514,10 +435,10 @@ export default function LandingPage() {
                   borderRadius: "var(--radius-full)",
                 }}
               >
-                Stamp Your Sigil
+                Launch a Token
               </button>
             </Link>
-            <Link href="/chat">
+            <Link href="/developers">
               <button
                 className="btn-lg"
                 style={{
@@ -528,7 +449,7 @@ export default function LandingPage() {
                   borderRadius: "var(--radius-full)",
                 }}
               >
-                Talk to Us
+                Developer? Start here
               </button>
             </Link>
           </div>
