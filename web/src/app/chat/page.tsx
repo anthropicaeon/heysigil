@@ -9,6 +9,14 @@ interface Message {
   content: string;
 }
 
+const SUGGESTIONS = [
+  "stamp my sigil",
+  "verify github.com/my-org/my-repo",
+  "check pool status",
+  "swap 0.1 ETH to USDC",
+  "help",
+];
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -38,10 +46,7 @@ export default function ChatPage() {
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          sessionId,
-        }),
+        body: JSON.stringify({ message: text, sessionId }),
       });
 
       const data = await res.json();
@@ -66,77 +71,37 @@ export default function ChatPage() {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        maxWidth: "720px",
-        margin: "0 auto",
-        padding: "0 1rem",
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          padding: "1rem 0",
-          borderBottom: "1px solid var(--border)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div>
-          <h1 style={{ fontSize: "1.25rem", marginBottom: "0.15rem" }}>Sigil</h1>
-          <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-            Stamp your approval, earn while you build
-          </p>
-        </div>
-        <a href="/" style={{ color: "var(--text-secondary)", fontSize: "0.8rem", textDecoration: "none" }}>
-          Home
-        </a>
-      </div>
-
+    <div className="chat-container">
       {/* Messages */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "1.5rem 0",
-          display: "flex",
-          flexDirection: "column",
-          gap: "1rem",
-        }}
-      >
+      <div className="chat-messages">
         {messages.length === 0 && (
-          <div style={{ textAlign: "center", marginTop: "4rem" }}>
-            <p style={{ fontSize: "1.1rem", marginBottom: "0.5rem" }}>
-              What can I help you with?
-            </p>
+          <div className="chat-empty">
             <div
               style={{
+                width: 56,
+                height: 56,
+                background: "var(--purple)",
+                borderRadius: "var(--radius-md)",
                 display: "flex",
-                flexWrap: "wrap",
-                gap: "0.5rem",
+                alignItems: "center",
                 justifyContent: "center",
-                marginTop: "1.5rem",
+                color: "white",
+                fontWeight: 700,
+                fontSize: "var(--text-xl)",
+                margin: "0 auto var(--space-4)",
               }}
             >
-              {[
-                "stamp my sigil",
-                "verify github.com/my-org/my-repo",
-                "check pool status",
-                "swap 0.1 ETH to USDC",
-                "help",
-              ].map((suggestion) => (
+              S
+            </div>
+            <p>What can I help you with?</p>
+            <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", marginTop: "var(--space-1)" }}>
+              Stamp your Sigil, verify projects, swap tokens, and more.
+            </p>
+            <div className="chat-suggestions">
+              {SUGGESTIONS.map((suggestion) => (
                 <button
                   key={suggestion}
-                  className="btn-secondary"
-                  style={{
-                    fontSize: "0.8rem",
-                    padding: "0.45rem 0.85rem",
-                    borderRadius: "99px",
-                  }}
+                  className="btn-secondary btn-sm"
                   onClick={() => {
                     setInput(suggestion);
                     inputRef.current?.focus();
@@ -158,17 +123,9 @@ export default function ChatPage() {
             }}
           >
             <div
-              style={{
-                maxWidth: "85%",
-                padding: "0.75rem 1rem",
-                borderRadius: msg.role === "user" ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
-                background: msg.role === "user" ? "var(--accent)" : "var(--bg-card)",
-                border: msg.role === "user" ? "none" : "1px solid var(--border)",
-                color: "var(--text)",
-                fontSize: "0.9rem",
-                lineHeight: "1.6",
-                whiteSpace: "pre-wrap",
-              }}
+              className={`chat-bubble ${
+                msg.role === "user" ? "chat-bubble-user" : "chat-bubble-assistant"
+              }`}
             >
               {msg.content}
             </div>
@@ -177,17 +134,8 @@ export default function ChatPage() {
 
         {loading && (
           <div style={{ display: "flex", justifyContent: "flex-start" }}>
-            <div
-              style={{
-                padding: "0.75rem 1rem",
-                borderRadius: "12px 12px 12px 2px",
-                background: "var(--bg-card)",
-                border: "1px solid var(--border)",
-                color: "var(--text-secondary)",
-                fontSize: "0.9rem",
-              }}
-            >
-              Thinking...
+            <div className="chat-bubble chat-bubble-assistant">
+              <span style={{ color: "var(--text-tertiary)" }}>Thinking...</span>
             </div>
           </div>
         )}
@@ -196,23 +144,14 @@ export default function ChatPage() {
       </div>
 
       {/* Input */}
-      <form
-        onSubmit={sendMessage}
-        style={{
-          padding: "1rem 0",
-          borderTop: "1px solid var(--border)",
-          display: "flex",
-          gap: "0.5rem",
-        }}
-      >
+      <form onSubmit={sendMessage} className="chat-input-area">
         <input
           ref={inputRef}
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="swap 0.1 ETH to USDC..."
+          placeholder="Ask anything..."
           disabled={loading}
-          style={{ flex: 1 }}
         />
         <button
           type="submit"
