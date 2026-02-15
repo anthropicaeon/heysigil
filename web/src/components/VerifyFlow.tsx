@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -93,7 +93,22 @@ interface CheckResult {
 
 const STEP_LABELS = ["Method", "Details", "Verify", "Stamp"];
 
+// Try to get Privy auth — returns null if Privy not configured
+function useOptionalPrivy() {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { usePrivy } = require("@privy-io/react-auth");
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return usePrivy();
+  } catch {
+    return null;
+  }
+}
+
 export default function VerifyFlow() {
+  const privy = useOptionalPrivy();
+  const address = privy?.user?.wallet?.address ?? null;
+  const isConnected = !!address;
   const [step, setStep] = useState<Step>("method");
   const [selectedMethod, setSelectedMethod] = useState<Method | null>(null);
   const [projectId, setProjectId] = useState("");
@@ -102,6 +117,11 @@ export default function VerifyFlow() {
   const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Auto-fill wallet address from connected wallet
+  useEffect(() => {
+    if (address) setWalletAddress(address);
+  }, [address]);
 
   const stepIndex = ["method", "details", "challenge", "result"].indexOf(step);
 
@@ -271,17 +291,52 @@ export default function VerifyFlow() {
             </div>
             <div className="form-group">
               <label>Wallet Address</label>
-              <input
-                type="text"
-                placeholder="0x..."
-                value={walletAddress}
-                onChange={(e) => setWalletAddress(e.target.value)}
-              />
+              {isConnected && address ? (
+                <div style={{
+                  padding: "var(--space-3)",
+                  background: "var(--bg-tertiary)",
+                  borderRadius: "var(--radius-md)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "var(--text-sm)",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--border)",
+                }}>
+                  {address}
+                </div>
+              ) : (
+                <div>
+                  <input
+                    type="text"
+                    placeholder="0x... (or sign in to auto-fill)"
+                    value={walletAddress}
+                    onChange={(e) => setWalletAddress(e.target.value)}
+                  />
+                  {privy && !privy.authenticated && (
+                    <div style={{ marginTop: "var(--space-2)" }}>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() => privy.login?.()}
+                        style={{ fontSize: "var(--text-xs)", padding: "var(--space-1) var(--space-3)" }}
+                      >
+                        Sign In to Auto-fill
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
           {error && (
-            <div className="result-box result-error">
-              <p style={{ color: "var(--error)", fontSize: "var(--text-sm)" }}>{error}</p>
+            <div className="result-box result-error" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <p style={{ color: "var(--error)", fontSize: "var(--text-sm)", margin: 0 }}>{error}</p>
+              <button
+                onClick={() => setError("")}
+                style={{ background: "none", border: "none", color: "var(--error)", cursor: "pointer", fontSize: "1.2em", padding: "0 var(--space-1)" }}
+                aria-label="Dismiss error"
+              >
+                ×
+              </button>
             </div>
           )}
           <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>

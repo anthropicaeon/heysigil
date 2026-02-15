@@ -14,3 +14,15 @@ fs_permissions = [{ access = "read-write", path = ".forge-snapshots/" }]
 line_length = 120
 tab_width = 4
 bracket_spacing = false
+
+# ─── RPC Endpoints ───────────────────────────────────
+# Set these via env vars: BASE_MAINNET_RPC, BASE_SEPOLIA_RPC
+[rpc_endpoints]
+base_mainnet = "${BASE_MAINNET_RPC}"
+base_sepolia = "${BASE_SEPOLIA_RPC}"
+
+# ─── Etherscan / Basescan Verification ───────────────
+[etherscan]
+base_mainnet = { key = "${BASESCAN_API_KEY}", url = "https://api.basescan.org/api", chain = 8453 }
+base_sepolia = { key = "${BASESCAN_API_KEY}", url = "https://api-sepolia.basescan.org/api", chain = 84532 }
+

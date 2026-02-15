@@ -10,6 +10,7 @@ import {BalanceDelta} from "@uniswap/v4-core/src/types/BalanceDelta.sol";
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "@uniswap/v4-core/src/types/BeforeSwapDelta.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {SafeCast} from "@uniswap/v4-core/src/libraries/SafeCast.sol";
+import {ModifyLiquidityParams, SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 
 import {ISigilFeeVault} from "./interfaces/ISigilFeeVault.sol";
 
@@ -165,7 +166,7 @@ contract SigilHook is BaseHook {
     function _beforeAddLiquidity(
         address sender,
         PoolKey calldata key,
-        IPoolManager.ModifyLiquidityParams calldata,
+        ModifyLiquidityParams calldata,
         bytes calldata
     ) internal view override returns (bytes4) {
         // Only factory can add liquidity (initial placement)
@@ -178,7 +179,7 @@ contract SigilHook is BaseHook {
     function _beforeRemoveLiquidity(
         address,
         PoolKey calldata,
-        IPoolManager.ModifyLiquidityParams calldata,
+        ModifyLiquidityParams calldata,
         bytes calldata
     ) internal pure override returns (bytes4) {
         // Permanently locked — nobody can remove liquidity
@@ -190,7 +191,7 @@ contract SigilHook is BaseHook {
     function _afterSwap(
         address,
         PoolKey calldata key,
-        IPoolManager.SwapParams calldata params,
+        SwapParams calldata params,
         BalanceDelta delta,
         bytes calldata
     ) internal override returns (bytes4, int128) {

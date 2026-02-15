@@ -7,6 +7,7 @@ import {PoolId, PoolIdLibrary} from "@uniswap/v4-core/src/types/PoolId.sol";
 import {Currency} from "@uniswap/v4-core/src/types/Currency.sol";
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";
 import {IHooks} from "@uniswap/v4-core/src/interfaces/IHooks.sol";
+import {ModifyLiquidityParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 
 import {SigilToken} from "./SigilToken.sol";
 import {SigilHook} from "./SigilHook.sol";
@@ -253,7 +254,7 @@ contract SigilFactory {
             // In V4, this goes through the PoolManager's modifyLiquidity
             poolManager.modifyLiquidity(
                 key,
-                IPoolManager.ModifyLiquidityParams({
+                ModifyLiquidityParams({
                     tickLower: tickLower,
                     tickUpper: tickUpper,
                     liquidityDelta: int256(amountPerBand),
