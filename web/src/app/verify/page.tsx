@@ -2,13 +2,13 @@ import VerifyFlow from "@/components/VerifyFlow";
 
 export default function VerifyPage() {
   return (
-    <div className="container">
-      <div style={{ marginBottom: "1.5rem" }}>
-        <h1>Stamp Your Sigil</h1>
-        <p style={{ marginTop: "0.35rem" }}>
-          Prove you own a project. Your Sigil is your stamp of approval — earn
-          USDC fees from LPs while your native tokens remain locked until the
-          community unlocks them via milestones.
+    <div className="container-narrow" style={{ padding: "var(--space-12) var(--space-6)" }}>
+      <div style={{ marginBottom: "var(--space-8)" }}>
+        <h1 style={{ fontSize: "var(--text-3xl)", marginBottom: "var(--space-3)" }}>
+          Stamp Your Sigil
+        </h1>
+        <p style={{ fontSize: "var(--text-lg)", maxWidth: 520 }}>
+          Prove you own a project. Your Sigil is your on-chain seal of approval. Earn USDC fees while your native tokens remain locked until the community unlocks them.
         </p>
       </div>
       <VerifyFlow />
