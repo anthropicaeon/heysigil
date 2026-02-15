@@ -9,3 +9,4 @@ web/node_modules/
 contracts/out/
 contracts/cache/
 *.tsbuildinfo
+yarn.lock
