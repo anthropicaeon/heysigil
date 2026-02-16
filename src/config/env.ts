@@ -49,7 +49,17 @@ const envSchema = z.object({
     PORT: z.coerce.number().default(3001),
     BASE_URL: z.string().url().default("http://localhost:3001"),
     FRONTEND_URL: z.string().url().default("http://localhost:3000"),
+
+    // Environment
+    NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
+
+/**
+ * Check if running in production environment.
+ */
+export function isProduction(): boolean {
+    return getEnv().NODE_ENV === "production";
+}
 
 export type Env = z.infer<typeof envSchema>;
 
