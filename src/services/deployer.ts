@@ -11,6 +11,7 @@ import { ethers } from "ethers";
 import { getEnv } from "../config/env.js";
 import { createPhantomIdentity, findByPlatformId, findUserByPlatform } from "./identity.js";
 import { checkDeployRateLimit } from "../middleware/rate-limit.js";
+import { linkPoolToProject } from "../db/repositories/index.js";
 
 // ─── ABI ────────────────────────────────────────────────
 // Minimal ABI for SigilFactory.launch()
@@ -193,6 +194,21 @@ export async function deployToken(params: DeployParams, sessionId?: string): Pro
     console.log(`[deployer] ✅ Token deployed: ${tokenAddress}`);
     console.log(`[deployer]    Pool ID: ${poolId}`);
     console.log(`[deployer]    Explorer: ${result.explorerUrl}`);
+
+    // Link fee distributions to this project (async, fire-and-forget)
+    if (poolId && params.projectId) {
+        linkPoolToProject(poolId, params.projectId)
+            .then((count) => {
+                if (count > 0) {
+                    console.log(
+                        `[deployer] Linked ${count} fee distributions to project ${params.projectId}`,
+                    );
+                }
+            })
+            .catch((err) => {
+                console.error(`[deployer] Failed to link fee distributions: ${err}`);
+            });
+    }
 
     return result;
 }
