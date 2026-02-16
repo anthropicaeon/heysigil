@@ -7,127 +7,89 @@ import {SigilFeeVault} from "../src/SigilFeeVault.sol";
 import {SigilFactory} from "../src/SigilFactory.sol";
 import {PoolReward} from "../src/PoolReward.sol";
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
+import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
+import {HookMiner} from "./HookMiner.sol";
 
-/// @title DeploySigil
-/// @notice Production deployment script for all Sigil contracts on Base mainnet.
-///
-///         Deployment order:
-///         1. SigilFeeVault (needs protocol treasury)
-///         2. Pre-compute SigilFactory address via CREATE2 nonce prediction
-///         3. SigilHook via CREATE2 with mined salt (needs PoolManager, factory, feeVault)
-///            - Hook address must encode V4 permission flags in its last 14 bits
-///         4. SigilFactory (needs PoolManager, hook, USDC)
-///         5. Wire: vault.setHook(hook)
-///
-///         Required env vars:
-///           PRIVATE_KEY          — deployer's private key
-///           PROTOCOL_TREASURY    — multisig address for protocol fee share
-///           BASE_MAINNET_RPC     — Base mainnet RPC URL
-///           BASESCAN_API_KEY     — for contract verification
-///
-///         Usage:
-///           forge script script/Deploy.s.sol \
-///             --rpc-url $BASE_MAINNET_RPC \
-///             --private-key $PRIVATE_KEY \
-///             --broadcast \
-///             --verify \
-///             --etherscan-api-key $BASESCAN_API_KEY
+/// @title DeploySigil — Production Deployment with CREATE2 Hook Mining
+/// @notice Deploys all Sigil contracts on Base mainnet.
 contract DeploySigil is Script {
     // ─── Base Mainnet Addresses ──────────────────────────
-    address constant POOL_MANAGER_BASE = 0x498581fF718922c3f8e6A244956aF099B2652b2b;
-    address constant USDC_BASE = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
-    address constant EAS_BASE = 0x4200000000000000000000000000000000000021;
+    IPoolManager constant PM = IPoolManager(0x498581fF718922c3f8e6A244956aF099B2652b2b);
+    address constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
+    address constant EAS = 0x4200000000000000000000000000000000000021;
+    address constant C2 = 0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
     function run() external {
         address deployer = msg.sender;
-
-        // Read protocol treasury from env — MUST be a multisig in production
-        address protocolTreasury = vm.envOr("PROTOCOL_TREASURY", deployer);
-        require(protocolTreasury != address(0), "PROTOCOL_TREASURY required");
-
-        // EAS config for PoolReward
-        address trustedAttester = vm.envOr("TRUSTED_ATTESTER", deployer);
+        address treasury = vm.envOr("PROTOCOL_TREASURY", deployer);
+        address attester = vm.envOr("TRUSTED_ATTESTER", deployer);
         bytes32 schemaUid = vm.envOr("EAS_SCHEMA_UID", bytes32(0));
-        require(schemaUid != bytes32(0), "EAS_SCHEMA_UID env var required for mainnet");
+        address escrow = vm.envOr("TOKEN_ESCROW", deployer);
 
+        require(treasury != address(0), "treasury");
+        require(schemaUid != bytes32(0), "EAS_SCHEMA_UID required");
+
+        console.log("=== Sigil Production Deploy ===");
         console.log("Deployer:", deployer);
-        console.log("Treasury:", protocolTreasury);
-        console.log("");
+        console.log("Chain:   ", block.chainid);
+
+        // Compute the hook permission flags
+        uint160 flags = uint160(
+            Hooks.BEFORE_INITIALIZE_FLAG |
+            Hooks.BEFORE_ADD_LIQUIDITY_FLAG |
+            Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG |
+            Hooks.AFTER_SWAP_FLAG |
+            Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG
+        );
 
         vm.startBroadcast();
 
         // 1. Deploy FeeVault
-        SigilFeeVault feeVault = new SigilFeeVault(protocolTreasury);
-        console.log("SigilFeeVault deployed at:", address(feeVault));
+        SigilFeeVault feeVault = new SigilFeeVault(treasury);
+        console.log("FeeVault:", address(feeVault));
 
-        // 2. Deploy Hook
-        //    WARNING: In production, this address must be mined via CREATE2
-        //    so the address encodes the hook permissions.
-        //    For now, this is a placeholder — use HookMiner in tests.
-        //
-        //    Required flags in the address:
-        //    - beforeInitialize (bit 13)
-        //    - beforeAddLiquidity (bit 11)
-        //    - beforeRemoveLiquidity (bit 9)
-        //    - afterSwap (bit 6)
-        //    - afterSwapReturnDelta (bit 1)
-        //
-        //    The factory address is set to address(0) temporarily,
-        //    then updated after factory deployment.
+        // 2. Predict factory address (factory deploys at nonce+1, after hook)
+        uint64 nonce = vm.getNonce(deployer);
+        address predictedFactory = vm.computeCreateAddress(deployer, nonce + 1);
+        console.log("Predicted Factory:", predictedFactory);
 
-        // NOTE: This won't work in production without CREATE2 address mining.
-        // See HookMiner.sol for the mining pattern.
-        // For this script, we demonstrate the wiring order.
+        // 3. Mine hook salt + deploy
+        address hookAddr;
+        {
+            bytes memory args = abi.encode(PM, predictedFactory, address(feeVault), treasury, USDC, escrow);
+            bytes memory code = abi.encodePacked(type(SigilHook).creationCode, args);
 
-        // Token escrow — where native token fees are held.
-        // Will be replaced with the proper escrow contract address.
-        address tokenEscrow = vm.envOr("TOKEN_ESCROW", deployer);
+            bytes32 salt;
+            (hookAddr, salt) = HookMiner.find(C2, flags, code, 100_000);
+            console.log("Mined hook:", hookAddr);
 
-        SigilHook hook = new SigilHook(
-            IPoolManager(POOL_MANAGER_BASE),
-            address(0), // factory — set after factory deploy
-            address(feeVault),
-            protocolTreasury,
-            USDC_BASE,
-            tokenEscrow
-        );
-        console.log("SigilHook deployed at:", address(hook));
+            // Verify flags
+            uint160 mask = uint160((1 << 14) - 1);
+            require(uint160(hookAddr) & mask == flags & mask, "bad flags");
 
-        // 3. Deploy Factory
-        SigilFactory factory = new SigilFactory(
-            POOL_MANAGER_BASE,
-            address(hook),
-            USDC_BASE
-        );
-        console.log("SigilFactory deployed at:", address(factory));
+            // Deploy via CREATE2
+            SigilHook hook = new SigilHook{salt: salt}(PM, predictedFactory, address(feeVault), treasury, USDC, escrow);
+            require(address(hook) == hookAddr, "hook addr mismatch");
+            console.log("Hook deployed:", address(hook));
+        }
 
-        // 4. Deploy PoolReward
-        PoolReward poolReward = new PoolReward(
-            EAS_BASE,
-            trustedAttester,
-            schemaUid
-        );
-        console.log("PoolReward deployed at:", address(poolReward));
+        // 4. Deploy factory
+        SigilFactory factory = new SigilFactory(address(PM), hookAddr, USDC);
+        require(address(factory) == predictedFactory, "factory addr mismatch");
+        console.log("Factory:", address(factory));
 
-        // 5. Wire everything together
-        feeVault.setHook(address(hook));
-        console.log("FeeVault wired to hook");
+        // 5. Deploy PoolReward
+        PoolReward poolReward = new PoolReward(EAS, attester, schemaUid);
+        console.log("PoolReward:", address(poolReward));
 
-        // Note: The hook's factory is immutable, set in constructor.
-        // In production, deploy hook with the pre-computed factory address
-        // using CREATE2 for both hook and factory.
+        // 6. Wire
+        feeVault.setHook(hookAddr);
+        console.log("Wired FeeVault -> Hook");
 
         vm.stopBroadcast();
 
-        console.log("\n=== Sigil Deployment Summary ===");
-        console.log("FeeVault:     ", address(feeVault));
-        console.log("Hook:         ", address(hook));
-        console.log("Factory:      ", address(factory));
-        console.log("PoolReward:   ", address(poolReward));
-        console.log("PoolManager:  ", POOL_MANAGER_BASE);
-        console.log("USDC:         ", USDC_BASE);
-        console.log("EAS:          ", EAS_BASE);
-        console.log("Treasury:     ", protocolTreasury);
-        console.log("Attester:     ", trustedAttester);
+        console.log("");
+        console.log("=== DONE ===");
+        console.log("SIGIL_FACTORY_ADDRESS=", address(factory));
     }
 }
