@@ -1,7 +1,14 @@
 import { Hono } from "hono";
 import { createSession, getSession, processMessage } from "../../agent/engine.js";
+import { chatRateLimit, sessionEnumerationRateLimit } from "../../middleware/rate-limit.js";
 
 const chat = new Hono();
+
+// Rate limit chat messages (20 per minute per IP - LLM calls are expensive)
+chat.use("/", chatRateLimit());
+
+// Rate limit session lookups to prevent enumeration
+chat.use("/:sessionId", sessionEnumerationRateLimit());
 
 /**
  * POST /api/chat

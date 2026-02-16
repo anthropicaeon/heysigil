@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { secureHeaders } from "hono/secure-headers";
 import { verify } from "./routes/verify.js";
 import { claim } from "./routes/claim.js";
 import { chat } from "./routes/chat.js";
@@ -9,9 +10,19 @@ import { wallet } from "./routes/wallet.js";
 import { getEnv } from "../config/env.js";
 import { DatabaseUnavailableError } from "../db/client.js";
 import { privyAuthOptional } from "../middleware/auth.js";
+import { globalRateLimit } from "../middleware/rate-limit.js";
+
+// Allowed localhost ports for development CORS
+// 3000 = default frontend, 5173 = Vite dev server
+const ALLOWED_DEV_PORTS = [3000, 5173];
 
 export function createApp() {
   const env = getEnv();
+
+  // SECURITY: Warn at startup if auth service isn't configured
+  if (!env.PRIVY_APP_ID || !env.PRIVY_APP_SECRET) {
+    console.warn("[SECURITY] Privy not configured - privyAuth() will reject all requests (503)");
+  }
 
   const app = new Hono();
 
@@ -24,20 +35,81 @@ export function createApp() {
     return c.json({ error: err.message || "Internal server error" }, 500);
   });
 
+  // Detect production environment (HTTPS in BASE_URL)
+  const isProduction = env.BASE_URL.startsWith("https://");
+
   // Middleware
   app.use("*", logger());
+
+  // Global rate limit: 100 requests per minute per IP
+  app.use("*", globalRateLimit());
+
+  // X-Request-ID for request tracing
+  app.use("*", async (c, next) => {
+    const requestId = c.req.header("X-Request-ID") || crypto.randomUUID();
+    c.header("X-Request-ID", requestId);
+    await next();
+  });
+
+  // Security headers (CSP, X-Frame-Options, X-Content-Type-Options, etc.)
+  app.use(
+    "*",
+    secureHeaders({
+      // Prevent clickjacking
+      xFrameOptions: "DENY",
+      // Prevent MIME sniffing
+      xContentTypeOptions: "nosniff",
+      // XSS protection (legacy but still useful)
+      xXssProtection: "1; mode=block",
+      // Referrer policy
+      referrerPolicy: "strict-origin-when-cross-origin",
+      // HSTS - only in production (requires HTTPS)
+      strictTransportSecurity: isProduction
+        ? "max-age=31536000; includeSubDomains"
+        : false,
+      // CSP - restrictive policy for API server
+      contentSecurityPolicy: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
+        imgSrc: ["'self'", "data:"],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+        formAction: ["'self'"],
+        upgradeInsecureRequests: isProduction ? [] : undefined,
+      },
+    }),
+  );
+
+  // CORS - restrictive configuration
   app.use(
     "*",
     cors({
       origin: (origin) => {
-        // Allow any localhost origin for local dev, plus the configured FRONTEND_URL
+        // No origin header (e.g., server-to-server, curl) - allow if same-origin
         if (!origin) return env.FRONTEND_URL;
-        if (origin.startsWith("http://localhost:")) return origin;
+
+        // Production: only allow exact FRONTEND_URL match
+        if (isProduction) {
+          return origin === env.FRONTEND_URL ? origin : null;
+        }
+
+        // Development: allow specific localhost ports only
+        for (const port of ALLOWED_DEV_PORTS) {
+          if (origin === `http://localhost:${port}`) return origin;
+        }
+
+        // Also allow the configured FRONTEND_URL in development
         if (origin === env.FRONTEND_URL) return origin;
-        return env.FRONTEND_URL;
+
+        // Reject unknown origins
+        return null;
       },
       allowMethods: ["GET", "POST", "OPTIONS"],
-      allowHeaders: ["Content-Type", "Authorization"],
+      allowHeaders: ["Content-Type", "Authorization", "X-Request-ID"],
+      exposeHeaders: ["X-Request-ID"],
     }),
   );
 

@@ -10,6 +10,7 @@
 import { ethers } from "ethers";
 import { getEnv } from "../config/env.js";
 import { createPhantomIdentity, findByPlatformId, findUserByPlatform } from "./identity.js";
+import { checkDeployRateLimit } from "../middleware/rate-limit.js";
 
 // ─── ABI ────────────────────────────────────────────────
 // Minimal ABI for SigilFactory.launch()
@@ -41,30 +42,8 @@ export interface DeployResult {
     dexUrl: string;
 }
 
-// ─── Rate Limiting ──────────────────────────────────────
-
-const launchCounts = new Map<string, { count: number; resetAt: number }>();
-const MAX_LAUNCHES_PER_HOUR = 3;
-
-function checkRateLimit(sessionId: string): void {
-    const now = Date.now();
-    const entry = launchCounts.get(sessionId);
-
-    if (!entry || now > entry.resetAt) {
-        launchCounts.set(sessionId, { count: 1, resetAt: now + 60 * 60 * 1000 });
-        return;
-    }
-
-    if (entry.count >= MAX_LAUNCHES_PER_HOUR) {
-        throw new Error(
-            `Rate limit: max ${MAX_LAUNCHES_PER_HOUR} launches per hour. Try again in ${Math.ceil((entry.resetAt - now) / 60000)} minutes.`,
-        );
-    }
-
-    entry.count++;
-}
-
 // ─── Service ────────────────────────────────────────────
+// Rate limiting is handled by checkDeployRateLimit() from middleware/rate-limit.ts
 
 let _provider: ethers.JsonRpcProvider | null = null;
 let _wallet: ethers.Wallet | null = null;
@@ -114,9 +93,9 @@ export async function deployToken(
     params: DeployParams,
     sessionId?: string,
 ): Promise<DeployResult> {
-    // Rate limit check
+    // Rate limit check (uses shared rate-limit middleware)
     if (sessionId) {
-        checkRateLimit(sessionId);
+        checkDeployRateLimit(sessionId);
     }
 
     const wallet = getWallet();

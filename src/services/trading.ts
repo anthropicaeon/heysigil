@@ -76,6 +76,38 @@ export function resolveToken(symbolOrAddress: string): { address: string; decima
     return undefined;
 }
 
+// ─── Price Cache ────────────────────────────────────────
+
+interface CachedQuote {
+    quote: SwapQuote;
+    fetchedAt: number;
+}
+
+const quoteCache = new Map<string, CachedQuote>();
+const QUOTE_CACHE_TTL_MS = 30_000; // 30 seconds
+
+/**
+ * Generate cache key for a quote request.
+ */
+function getQuoteCacheKey(fromSymbol: string, toSymbol: string, amount: string): string {
+    return `${fromSymbol.toUpperCase()}:${toSymbol.toUpperCase()}:${amount}`;
+}
+
+/**
+ * Clear expired cache entries (called periodically).
+ */
+function cleanupQuoteCache(): void {
+    const now = Date.now();
+    for (const [key, entry] of quoteCache.entries()) {
+        if (now - entry.fetchedAt > QUOTE_CACHE_TTL_MS) {
+            quoteCache.delete(key);
+        }
+    }
+}
+
+// Cleanup every minute
+setInterval(cleanupQuoteCache, 60_000);
+
 // ─── 0x API Integration ─────────────────────────────────
 
 const ZEROX_BASE_URL = "https://base.api.0x.org";
@@ -83,12 +115,30 @@ const BASE_CHAIN_ID = 8453;
 
 /**
  * Get a swap quote from 0x API.
+ * Results are cached for 30 seconds to reduce API calls.
+ *
+ * @param fromSymbol - Token to sell
+ * @param toSymbol - Token to buy
+ * @param amount - Amount to sell (human-readable)
+ * @param options - Optional settings
+ * @param options.bypassCache - Force fresh quote from API
  */
 export async function getQuote(
     fromSymbol: string,
     toSymbol: string,
     amount: string,
+    options?: { bypassCache?: boolean },
 ): Promise<SwapQuote | { error: string }> {
+    const cacheKey = getQuoteCacheKey(fromSymbol, toSymbol, amount);
+
+    // Check cache first (unless bypassed)
+    if (!options?.bypassCache) {
+        const cached = quoteCache.get(cacheKey);
+        if (cached && Date.now() - cached.fetchedAt < QUOTE_CACHE_TTL_MS) {
+            return cached.quote;
+        }
+    }
+
     const fromToken = resolveToken(fromSymbol);
     const toToken = resolveToken(toSymbol);
 
@@ -132,7 +182,7 @@ export async function getQuote(
             sources: { name: string; proportion: string }[];
         };
 
-        return {
+        const quote: SwapQuote = {
             fromToken: fromSymbol.toUpperCase(),
             toToken: toSymbol.toUpperCase(),
             fromAmount: amount,
@@ -144,6 +194,11 @@ export async function getQuote(
                 ?.filter((s) => parseFloat(s.proportion) > 0)
                 ?.map((s) => s.name) || [],
         };
+
+        // Cache successful quote
+        quoteCache.set(cacheKey, { quote, fetchedAt: Date.now() });
+
+        return quote;
     } catch (err) {
         return { error: `Failed to get quote: ${err instanceof Error ? err.message : "unknown"}` };
     }
@@ -281,4 +336,21 @@ export async function executeSwap(
             error: `Swap failed: ${msg}`,
         };
     }
+}
+
+// ─── Cache Utilities (monitoring/testing) ───────────────
+
+/** Get current cache size */
+export function getQuoteCacheSize(): number {
+    return quoteCache.size;
+}
+
+/** Clear all cached quotes */
+export function clearQuoteCache(): void {
+    quoteCache.clear();
+}
+
+/** Get cache TTL in milliseconds */
+export function getQuoteCacheTTL(): number {
+    return QUOTE_CACHE_TTL_MS;
 }
