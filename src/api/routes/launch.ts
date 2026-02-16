@@ -10,8 +10,17 @@ import {
     generateSymbol,
     getDeployerBalance,
 } from "../../services/deployer.js";
+import { rateLimit } from "../../middleware/rate-limit.js";
 
 const launch = new Hono();
+
+// IP-based rate limit for token launches (defense in depth)
+// Application-level rate limiting is also applied in deployer.ts
+launch.use("/", rateLimit("launch", {
+    limit: 10,
+    windowMs: 60 * 60 * 1000, // 1 hour
+    message: "Too many launch attempts from this IP. Please try again later.",
+}));
 
 /**
  * POST /api/launch

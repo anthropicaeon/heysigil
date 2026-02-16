@@ -1,0 +1,363 @@
+/**
+ * Rate Limiting Middleware for Hono
+ *
+ * Implements sliding window rate limiting with configurable limits per endpoint.
+ * Uses in-memory storage (can be upgraded to Redis for multi-instance deployments).
+ */
+
+import type { Context, Next } from "hono";
+
+interface RateLimitEntry {
+    count: number;
+    resetAt: number;
+}
+
+interface RateLimitConfig {
+    /** Maximum requests allowed in the window */
+    limit: number;
+    /** Window duration in milliseconds */
+    windowMs: number;
+    /** Key generator function (defaults to IP-based) */
+    keyGenerator?: (c: Context) => string;
+    /** Custom message when rate limited */
+    message?: string;
+    /** Skip rate limiting for certain requests */
+    skip?: (c: Context) => boolean;
+}
+
+// In-memory store for rate limit entries
+// Key format: "prefix:identifier"
+const store = new Map<string, RateLimitEntry>();
+
+// Cleanup interval (every 5 minutes)
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
+
+// Periodic cleanup of expired entries
+setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of store.entries()) {
+        if (entry.resetAt < now) {
+            store.delete(key);
+        }
+    }
+}, CLEANUP_INTERVAL_MS);
+
+/**
+ * Extract client IP from request headers (handles proxies).
+ * Falls back to a default if no IP can be determined.
+ */
+function getClientIp(c: Context): string {
+    // Check common proxy headers
+    const forwarded = c.req.header("x-forwarded-for");
+    if (forwarded) {
+        // x-forwarded-for can contain multiple IPs, take the first (client)
+        return forwarded.split(",")[0].trim();
+    }
+
+    const realIp = c.req.header("x-real-ip");
+    if (realIp) {
+        return realIp;
+    }
+
+    const cfIp = c.req.header("cf-connecting-ip");
+    if (cfIp) {
+        return cfIp;
+    }
+
+    // Fallback - this shouldn't happen in production with proper proxy setup
+    return "unknown";
+}
+
+/**
+ * Create a rate limiting middleware with the given configuration.
+ */
+export function rateLimit(prefix: string, config: RateLimitConfig) {
+    const {
+        limit,
+        windowMs,
+        keyGenerator = (c) => getClientIp(c),
+        message = "Too many requests, please try again later",
+        skip,
+    } = config;
+
+    return async (c: Context, next: Next) => {
+        // Skip if configured
+        if (skip?.(c)) {
+            await next();
+            return;
+        }
+
+        const identifier = keyGenerator(c);
+        const key = `${prefix}:${identifier}`;
+        const now = Date.now();
+
+        let entry = store.get(key);
+
+        // Reset if window has passed
+        if (!entry || entry.resetAt < now) {
+            entry = {
+                count: 0,
+                resetAt: now + windowMs,
+            };
+        }
+
+        entry.count++;
+        store.set(key, entry);
+
+        // Set rate limit headers
+        const remaining = Math.max(0, limit - entry.count);
+        const resetSeconds = Math.ceil((entry.resetAt - now) / 1000);
+
+        c.header("X-RateLimit-Limit", String(limit));
+        c.header("X-RateLimit-Remaining", String(remaining));
+        c.header("X-RateLimit-Reset", String(resetSeconds));
+
+        // Check if over limit
+        if (entry.count > limit) {
+            c.header("Retry-After", String(resetSeconds));
+            return c.json(
+                {
+                    error: message,
+                    retryAfter: resetSeconds,
+                },
+                429,
+            );
+        }
+
+        await next();
+    };
+}
+
+// ---------- Pre-configured rate limiters for common use cases ----------
+
+/**
+ * Global rate limit: 100 requests per minute per IP
+ * Baseline protection against aggressive clients
+ */
+export function globalRateLimit() {
+    return rateLimit("global", {
+        limit: 100,
+        windowMs: 60 * 1000, // 1 minute
+        message: "Too many requests. Please slow down.",
+    });
+}
+
+/**
+ * Chat rate limit: 20 requests per minute per IP
+ * LLM calls are expensive - prevent abuse
+ */
+export function chatRateLimit() {
+    return rateLimit("chat", {
+        limit: 20,
+        windowMs: 60 * 1000, // 1 minute
+        message: "Chat rate limit exceeded. Please wait before sending more messages.",
+    });
+}
+
+/**
+ * Wallet creation rate limit: 5 per hour per IP
+ * Very strict - creating wallets is a sensitive operation
+ */
+export function walletCreateRateLimit() {
+    return rateLimit("wallet-create", {
+        limit: 5,
+        windowMs: 60 * 60 * 1000, // 1 hour
+        message: "Wallet creation limit exceeded. Please try again later.",
+    });
+}
+
+/**
+ * Verification challenge rate limit: 10 per hour per IP
+ * Prevent challenge spam that could bloat the database
+ */
+export function verifyChallengeRateLimit() {
+    return rateLimit("verify-challenge", {
+        limit: 10,
+        windowMs: 60 * 60 * 1000, // 1 hour
+        message: "Too many verification requests. Please try again later.",
+    });
+}
+
+/**
+ * Verification check rate limit: 30 per minute per IP
+ * Allow reasonable retries for DNS propagation, etc.
+ */
+export function verifyCheckRateLimit() {
+    return rateLimit("verify-check", {
+        limit: 30,
+        windowMs: 60 * 1000, // 1 minute
+        message: "Too many verification check attempts. Please wait.",
+    });
+}
+
+/**
+ * OAuth callback rate limit: 20 per minute per IP
+ * Normal OAuth flow shouldn't hit this, but prevents abuse
+ */
+export function oauthCallbackRateLimit() {
+    return rateLimit("oauth-callback", {
+        limit: 20,
+        windowMs: 60 * 1000, // 1 minute
+        message: "Too many OAuth attempts. Please try again later.",
+    });
+}
+
+/**
+ * Strict rate limit for session ID enumeration protection: 10 per minute per IP
+ * Prevents brute-forcing session IDs
+ */
+export function sessionEnumerationRateLimit() {
+    return rateLimit("session-enum", {
+        limit: 10,
+        windowMs: 60 * 1000, // 1 minute
+        message: "Too many session lookups. Please slow down.",
+    });
+}
+
+/**
+ * User-based rate limiter factory (for authenticated endpoints)
+ * Uses userId from context instead of IP
+ */
+export function userRateLimit(prefix: string, config: Omit<RateLimitConfig, "keyGenerator">) {
+    return rateLimit(`user:${prefix}`, {
+        ...config,
+        keyGenerator: (c) => {
+            const userId = c.get("userId");
+            // Fall back to IP if not authenticated
+            return userId || getClientIp(c);
+        },
+    });
+}
+
+// ---------- Programmatic API for service-level rate limiting ----------
+
+interface ServiceRateLimitConfig {
+    /** Maximum requests allowed in the window */
+    limit: number;
+    /** Window duration in milliseconds */
+    windowMs: number;
+}
+
+interface RateLimitCheckResult {
+    allowed: boolean;
+    remaining: number;
+    resetInMs: number;
+    resetInMinutes: number;
+}
+
+/**
+ * Check rate limit programmatically (for use in services, not middleware).
+ * Increments the counter and returns whether the request is allowed.
+ *
+ * @param prefix - Rate limit bucket prefix
+ * @param identifier - Unique identifier (sessionId, userId, etc.)
+ * @param config - Rate limit configuration
+ * @returns Result indicating if request is allowed and remaining quota
+ *
+ * @example
+ * const result = checkServiceRateLimit("deploy", sessionId, { limit: 3, windowMs: 3600000 });
+ * if (!result.allowed) {
+ *   throw new Error(`Rate limit exceeded. Try again in ${result.resetInMinutes} minutes.`);
+ * }
+ */
+export function checkServiceRateLimit(
+    prefix: string,
+    identifier: string,
+    config: ServiceRateLimitConfig,
+): RateLimitCheckResult {
+    const { limit, windowMs } = config;
+    const key = `${prefix}:${identifier}`;
+    const now = Date.now();
+
+    let entry = store.get(key);
+
+    // Reset if window has passed
+    if (!entry || entry.resetAt < now) {
+        entry = {
+            count: 0,
+            resetAt: now + windowMs,
+        };
+    }
+
+    entry.count++;
+    store.set(key, entry);
+
+    const resetInMs = Math.max(0, entry.resetAt - now);
+
+    return {
+        allowed: entry.count <= limit,
+        remaining: Math.max(0, limit - entry.count),
+        resetInMs,
+        resetInMinutes: Math.ceil(resetInMs / 60000),
+    };
+}
+
+/**
+ * Check rate limit without incrementing (peek at current state).
+ * Useful for displaying remaining quota to users.
+ */
+export function peekServiceRateLimit(
+    prefix: string,
+    identifier: string,
+    config: ServiceRateLimitConfig,
+): RateLimitCheckResult {
+    const { limit, windowMs } = config;
+    const key = `${prefix}:${identifier}`;
+    const now = Date.now();
+
+    const entry = store.get(key);
+
+    // No entry or expired = full quota available
+    if (!entry || entry.resetAt < now) {
+        return {
+            allowed: true,
+            remaining: limit,
+            resetInMs: 0,
+            resetInMinutes: 0,
+        };
+    }
+
+    const resetInMs = Math.max(0, entry.resetAt - now);
+
+    return {
+        allowed: entry.count < limit,
+        remaining: Math.max(0, limit - entry.count),
+        resetInMs,
+        resetInMinutes: Math.ceil(resetInMs / 60000),
+    };
+}
+
+// ---------- Pre-configured service rate limits ----------
+
+/** Token deployment: 3 per hour per session */
+export const DEPLOY_RATE_LIMIT = { limit: 3, windowMs: 60 * 60 * 1000 };
+
+/**
+ * Check token deployment rate limit.
+ * @throws Error if rate limit exceeded
+ */
+export function checkDeployRateLimit(sessionId: string): void {
+    const result = checkServiceRateLimit("deploy", sessionId, DEPLOY_RATE_LIMIT);
+    if (!result.allowed) {
+        throw new Error(
+            `Rate limit: max ${DEPLOY_RATE_LIMIT.limit} launches per hour. ` +
+            `Try again in ${result.resetInMinutes} minutes.`
+        );
+    }
+}
+
+// ---------- Monitoring & Testing ----------
+
+/**
+ * Get current store size (for monitoring)
+ */
+export function getRateLimitStoreSize(): number {
+    return store.size;
+}
+
+/**
+ * Clear all rate limit entries (for testing)
+ */
+export function clearRateLimitStore(): void {
+    store.clear();
+}

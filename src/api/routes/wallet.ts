@@ -12,8 +12,18 @@ import {
     getAddress,
     getBalance,
 } from "../../services/wallet.js";
+import {
+    walletCreateRateLimit,
+    sessionEnumerationRateLimit,
+} from "../../middleware/rate-limit.js";
 
 export const wallet = new Hono();
+
+// Rate limit wallet lookups to prevent session ID enumeration
+wallet.use("/:sessionId", sessionEnumerationRateLimit());
+
+// Strict rate limit on wallet creation (5 per hour per IP)
+wallet.use("/:sessionId/create", walletCreateRateLimit());
 
 /**
  * GET /api/wallet/:sessionId

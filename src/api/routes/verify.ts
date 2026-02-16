@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { randomBytes } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, and, desc, type SQL } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
 import { getEnv } from "../../config/env.js";
 import {
@@ -25,8 +25,24 @@ import {
 import { createAttestation } from "../../attestation/eas.js";
 import type { VerificationMethod } from "../../verification/types.js";
 import { findIdentity, claimIdentity } from "../../services/identity.js";
+import {
+  verifyChallengeRateLimit,
+  verifyCheckRateLimit,
+  oauthCallbackRateLimit,
+} from "../../middleware/rate-limit.js";
 
 const verify = new Hono();
+
+// Rate limit challenge creation (10 per hour per IP - prevents DB spam)
+verify.use("/challenge", verifyChallengeRateLimit());
+
+// Rate limit verification checks (30 per minute per IP - allows reasonable retries)
+verify.use("/check", verifyCheckRateLimit());
+
+// Rate limit OAuth callbacks (20 per minute per IP - prevents abuse)
+verify.use("/github/callback", oauthCallbackRateLimit());
+verify.use("/facebook/callback", oauthCallbackRateLimit());
+verify.use("/instagram/callback", oauthCallbackRateLimit());
 
 // ---------- Phantom identity claim helper ----------
 
@@ -487,7 +503,79 @@ verify.post("/check", async (c) => {
   });
 });
 
-// ---------- Status ----------
+// ---------- List & Status ----------
+
+/**
+ * GET /api/verify
+ * List verifications with optional filtering.
+ *
+ * Query params:
+ *   - status: "pending" | "verified" | "failed" | "expired"
+ *   - method: verification method (e.g., "github_oauth", "domain_dns")
+ *   - wallet: wallet address to filter by
+ *   - projectId: project identifier to filter by
+ *   - limit: max results (default 20, max 100)
+ *   - offset: pagination offset (default 0)
+ */
+verify.get("/", async (c) => {
+  const status = c.req.query("status");
+  const method = c.req.query("method");
+  const wallet = c.req.query("wallet");
+  const projectId = c.req.query("projectId");
+  const limitParam = c.req.query("limit");
+  const offsetParam = c.req.query("offset");
+
+  // Parse pagination params with sane defaults
+  const limit = Math.min(Math.max(1, Number(limitParam) || 20), 100);
+  const offset = Math.max(0, Number(offsetParam) || 0);
+
+  const db = getDb();
+
+  // Build conditional where clauses
+  const conditions: SQL[] = [];
+
+  if (status) {
+    conditions.push(eq(schema.verifications.status, status));
+  }
+  if (method) {
+    conditions.push(eq(schema.verifications.method, method));
+  }
+  if (wallet) {
+    conditions.push(eq(schema.verifications.walletAddress, wallet));
+  }
+  if (projectId) {
+    conditions.push(eq(schema.verifications.projectId, projectId));
+  }
+
+  // Execute query with optional filters
+  const records = await db
+    .select({
+      id: schema.verifications.id,
+      method: schema.verifications.method,
+      projectId: schema.verifications.projectId,
+      walletAddress: schema.verifications.walletAddress,
+      status: schema.verifications.status,
+      platformUsername: schema.verifications.platformUsername,
+      attestationUid: schema.verifications.attestationUid,
+      createdAt: schema.verifications.createdAt,
+      verifiedAt: schema.verifications.verifiedAt,
+    })
+    .from(schema.verifications)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(schema.verifications.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return c.json({
+    verifications: records,
+    pagination: {
+      limit,
+      offset,
+      count: records.length,
+      hasMore: records.length === limit,
+    },
+  });
+});
 
 /**
  * GET /api/verify/:id

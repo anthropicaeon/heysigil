@@ -54,15 +54,20 @@ async function verifyToken(token: string): Promise<{ userId: string } | null> {
 
 /**
  * Strict auth middleware — rejects requests without valid Privy token.
+ * SECURITY: Fails closed (503) when Privy is not configured.
  */
 export function privyAuth() {
     return async (c: Context, next: Next) => {
         const client = getPrivyClient();
 
-        // If Privy isn't configured, pass through (dev mode)
+        // SECURITY: Fail closed when Privy isn't configured
+        // Never pass through - this could expose protected endpoints in production
         if (!client) {
-            await next();
-            return;
+            console.error("[AUTH] privyAuth() called but Privy not configured");
+            return c.json({
+                error: "Authentication service unavailable",
+                hint: "PRIVY_APP_ID and PRIVY_APP_SECRET must be configured"
+            }, 503);
         }
 
         const token = extractToken(c);
