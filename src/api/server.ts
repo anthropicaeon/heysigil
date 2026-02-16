@@ -4,19 +4,38 @@ import { logger } from "hono/logger";
 import { verify } from "./routes/verify.js";
 import { claim } from "./routes/claim.js";
 import { chat } from "./routes/chat.js";
+import { launch } from "./routes/launch.js";
+import { wallet } from "./routes/wallet.js";
 import { getEnv } from "../config/env.js";
+import { DatabaseUnavailableError } from "../db/client.js";
+import { privyAuthOptional } from "../middleware/auth.js";
 
 export function createApp() {
   const env = getEnv();
 
   const app = new Hono();
 
+  // Global error handler — catches DB unavailable, unknown errors, etc.
+  app.onError((err, c) => {
+    if (err instanceof DatabaseUnavailableError) {
+      return c.json({ error: err.message }, 503);
+    }
+    console.error("Unhandled error:", err);
+    return c.json({ error: err.message || "Internal server error" }, 500);
+  });
+
   // Middleware
   app.use("*", logger());
   app.use(
     "*",
     cors({
-      origin: env.FRONTEND_URL,
+      origin: (origin) => {
+        // Allow any localhost origin for local dev, plus the configured FRONTEND_URL
+        if (!origin) return env.FRONTEND_URL;
+        if (origin.startsWith("http://localhost:")) return origin;
+        if (origin === env.FRONTEND_URL) return origin;
+        return env.FRONTEND_URL;
+      },
       allowMethods: ["GET", "POST", "OPTIONS"],
       allowHeaders: ["Content-Type", "Authorization"],
     }),
@@ -25,10 +44,17 @@ export function createApp() {
   // Health check
   app.get("/health", (c) => c.json({ status: "ok", timestamp: new Date().toISOString() }));
 
+  // Apply optional auth to routes that benefit from it
+  app.use("/api/chat/*", privyAuthOptional());
+  app.use("/api/wallet/*", privyAuthOptional());
+  app.use("/api/launch/*", privyAuthOptional());
+
   // API routes
   app.route("/api/chat", chat);
   app.route("/api/verify", verify);
   app.route("/api/claim", claim);
+  app.route("/api/launch", launch);
+  app.route("/api/wallet", wallet);
 
   // List available verification methods
   app.get("/api/methods", (c) => {

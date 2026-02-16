@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import PortfolioSidebar from "../../components/PortfolioSidebar";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -9,13 +10,39 @@ interface Message {
   content: string;
 }
 
+const SUGGESTIONS = [
+  "show my wallet",
+  "swap 0.1 ETH to USDC",
+  "what's my balance",
+  "verify github.com/my-org/my-repo",
+  "help",
+];
+
+// Try to get Privy auth — returns null if Privy not configured
+function useOptionalPrivy() {
+  try {
+    // Dynamic import to avoid errors when Privy isn't configured
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { usePrivy } = require("@privy-io/react-auth");
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return usePrivy();
+  } catch {
+    return null;
+  }
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const privy = useOptionalPrivy();
+  const isAuthenticated = privy?.authenticated ?? false;
+  const privyUserId = privy?.user?.id ?? null;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -24,6 +51,16 @@ export default function ChatPage() {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Collapse sidebar by default on mobile
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      setSidebarCollapsed(true);
+    }
+  }, []);
+
+  // Use Privy user ID as session identifier when authenticated
+  const effectiveSessionId = privyUserId || sessionId;
 
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
@@ -35,12 +72,24 @@ export default function ChatPage() {
     setLoading(true);
 
     try {
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+
+      // Attach Privy auth token if authenticated
+      if (isAuthenticated && privy?.getAccessToken) {
+        const token = await privy.getAccessToken();
+        if (token) {
+          headers["Authorization"] = `Bearer ${token}`;
+        }
+      }
+
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           message: text,
-          sessionId,
+          sessionId: effectiveSessionId,
         }),
       });
 
@@ -66,162 +115,105 @@ export default function ChatPage() {
   }
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        maxWidth: "720px",
-        margin: "0 auto",
-        padding: "0 1rem",
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          padding: "1rem 0",
-          borderBottom: "1px solid var(--border)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div>
-          <h1 style={{ fontSize: "1.25rem", marginBottom: "0.15rem" }}>Sigil</h1>
-          <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-            Stamp your approval, earn while you build
-          </p>
-        </div>
-        <a href="/" style={{ color: "var(--text-secondary)", fontSize: "0.8rem", textDecoration: "none" }}>
-          Home
-        </a>
-      </div>
+    <div className="chat-layout">
+      {/* Chat area */}
+      <div className="chat-container">
+        {/* Messages */}
+        <div className="chat-messages">
+          {messages.length === 0 && (
+            <div className="chat-empty">
+              <div
+                style={{
+                  width: 56,
+                  height: 56,
+                  background: "var(--purple)",
+                  borderRadius: "var(--radius-md)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "white",
+                  fontWeight: 700,
+                  fontSize: "var(--text-xl)",
+                  margin: "0 auto var(--space-4)",
+                }}
+              >
+                S
+              </div>
+              <p>What can I help you with?</p>
+              <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", marginTop: "var(--space-1)" }}>
+                Stamp your Sigil, trade tokens, check balances, and more.
+              </p>
+              <div className="chat-suggestions">
+                {SUGGESTIONS.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    className="btn-secondary btn-sm"
+                    onClick={() => {
+                      setInput(suggestion);
+                      inputRef.current?.focus();
+                    }}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
-      {/* Messages */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "1.5rem 0",
-          display: "flex",
-          flexDirection: "column",
-          gap: "1rem",
-        }}
-      >
-        {messages.length === 0 && (
-          <div style={{ textAlign: "center", marginTop: "4rem" }}>
-            <p style={{ fontSize: "1.1rem", marginBottom: "0.5rem" }}>
-              What can I help you with?
-            </p>
+          {messages.map((msg, i) => (
             <div
+              key={i}
               style={{
                 display: "flex",
-                flexWrap: "wrap",
-                gap: "0.5rem",
-                justifyContent: "center",
-                marginTop: "1.5rem",
+                justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
               }}
             >
-              {[
-                "stamp my sigil",
-                "verify github.com/my-org/my-repo",
-                "check pool status",
-                "swap 0.1 ETH to USDC",
-                "help",
-              ].map((suggestion) => (
-                <button
-                  key={suggestion}
-                  className="btn-secondary"
-                  style={{
-                    fontSize: "0.8rem",
-                    padding: "0.45rem 0.85rem",
-                    borderRadius: "99px",
-                  }}
-                  onClick={() => {
-                    setInput(suggestion);
-                    inputRef.current?.focus();
-                  }}
-                >
-                  {suggestion}
-                </button>
-              ))}
+              <div
+                className={`chat-bubble ${msg.role === "user" ? "chat-bubble-user" : "chat-bubble-assistant"
+                  }`}
+              >
+                {msg.content}
+              </div>
             </div>
-          </div>
-        )}
+          ))}
 
-        {messages.map((msg, i) => (
-          <div
-            key={i}
-            style={{
-              display: "flex",
-              justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-            }}
+          {loading && (
+            <div style={{ display: "flex", justifyContent: "flex-start" }}>
+              <div className="typing-indicator">
+                <span /><span /><span />
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input */}
+        <form onSubmit={sendMessage} className="chat-input-area">
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask anything..."
+            disabled={loading}
+          />
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={!input.trim() || loading}
           >
-            <div
-              style={{
-                maxWidth: "85%",
-                padding: "0.75rem 1rem",
-                borderRadius: msg.role === "user" ? "12px 12px 2px 12px" : "12px 12px 12px 2px",
-                background: msg.role === "user" ? "var(--accent)" : "var(--bg-card)",
-                border: msg.role === "user" ? "none" : "1px solid var(--border)",
-                color: "var(--text)",
-                fontSize: "0.9rem",
-                lineHeight: "1.6",
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {msg.content}
-            </div>
-          </div>
-        ))}
-
-        {loading && (
-          <div style={{ display: "flex", justifyContent: "flex-start" }}>
-            <div
-              style={{
-                padding: "0.75rem 1rem",
-                borderRadius: "12px 12px 12px 2px",
-                background: "var(--bg-card)",
-                border: "1px solid var(--border)",
-                color: "var(--text-secondary)",
-                fontSize: "0.9rem",
-              }}
-            >
-              Thinking...
-            </div>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
+            Send
+          </button>
+        </form>
       </div>
 
-      {/* Input */}
-      <form
-        onSubmit={sendMessage}
-        style={{
-          padding: "1rem 0",
-          borderTop: "1px solid var(--border)",
-          display: "flex",
-          gap: "0.5rem",
-        }}
-      >
-        <input
-          ref={inputRef}
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="swap 0.1 ETH to USDC..."
-          disabled={loading}
-          style={{ flex: 1 }}
-        />
-        <button
-          type="submit"
-          className="btn-primary"
-          disabled={!input.trim() || loading}
-        >
-          Send
-        </button>
-      </form>
+      {/* Portfolio sidebar */}
+      <PortfolioSidebar
+        sessionId={effectiveSessionId}
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
     </div>
   );
 }

@@ -22,8 +22,8 @@ Available actions:
 - send: Send tokens to an address. Params: token, amount, toAddress, chain
 - balance: Check wallet balance. Params: chain (optional), token (optional)
 - price: Get token price. Params: token
-- launch_token: Deploy a new token. Params: name, symbol, description
-- verify_project: Start project ownership verification. Params: method (github_oauth|github_file|domain_dns|domain_file|domain_meta|tweet_zktls|facebook_oauth|instagram_graph), projectId
+- launch_token: Deploy a new token for a dev project. Params: name, symbol, description, devLinks (array of GitHub/Instagram/website URLs for the developer who can claim fees)
+- verify_project: Start project ownership verification. Params: link (the URL or identifier — e.g. "https://github.com/org/repo", "github.com/org/repo", "org/repo", "@handle", "mysite.dev"). The system will auto-detect the platform and method.
 - claim_reward: Claim pool rewards for a verified project. Params: projectId
 - pool_status: Check pool reward status. Params: projectId
 - help: User needs help or is asking a general question. Params: topic (optional)
@@ -36,6 +36,9 @@ Rules:
 - Default chain is "base" if not specified
 - Token symbols should be uppercase
 - Amounts should be strings to preserve precision
+- For verify_project, extract the FULL URL or identifier the user provides. Don't parse it — pass the raw link.
+- For launch_token, extract ALL links/URLs the user mentions as devLinks (array of strings).
+- If the user mentions a GitHub URL, Instagram handle, or website, those are devLinks.
 - If the user is just chatting or greeting, use "help" intent
 - confidence should be 0.0-1.0`;
 

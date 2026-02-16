@@ -1,5 +1,3 @@
-import { EAS, SchemaEncoder } from "@ethereum-attestation-service/eas-sdk";
-import { ethers } from "ethers";
 import type { AttestationData, AttestationResult } from "./types.js";
 import { getEnv } from "../config/env.js";
 
@@ -7,22 +5,22 @@ import { getEnv } from "../config/env.js";
 const SCHEMA_STRING =
   "string platform,string projectId,address wallet,uint64 verifiedAt,bool isOwner";
 
-let _eas: EAS | null = null;
-let _schemaEncoder: SchemaEncoder | null = null;
+// Lazy-load EAS SDK and ethers to avoid ESM/CJS import crash at startup.
+// These modules are only loaded when attestation functions are actually called.
+async function loadEasModules() {
+  const easMod = await import("@ethereum-attestation-service/eas-sdk");
+  const ethersMod = await import("ethers");
 
-function getEAS(): EAS {
-  if (!_eas) {
-    const env = getEnv();
-    _eas = new EAS(env.EAS_CONTRACT_ADDRESS);
-  }
-  return _eas;
-}
+  // Handle both default and named exports (CJS compat)
+  const EAS = easMod.EAS || (easMod as any).default?.EAS;
+  const SchemaEncoder = easMod.SchemaEncoder || (easMod as any).default?.SchemaEncoder;
+  const ethersNs = ethersMod.ethers || ethersMod;
 
-function getSchemaEncoder(): SchemaEncoder {
-  if (!_schemaEncoder) {
-    _schemaEncoder = new SchemaEncoder(SCHEMA_STRING);
+  if (!EAS || !SchemaEncoder) {
+    throw new Error("Failed to load EAS SDK — check package version");
   }
-  return _schemaEncoder;
+
+  return { EAS, SchemaEncoder, ethers: ethersNs };
 }
 
 /**
@@ -44,13 +42,15 @@ export async function createAttestation(
     throw new Error("EAS_SCHEMA_UID not configured — register schema first");
   }
 
+  const { EAS, SchemaEncoder, ethers } = await loadEasModules();
+
   const provider = new ethers.JsonRpcProvider(rpcUrl);
   const signer = new ethers.Wallet(env.ATTESTATION_SIGNER_KEY, provider);
 
-  const eas = getEAS();
+  const eas = new EAS(env.EAS_CONTRACT_ADDRESS);
   eas.connect(signer);
 
-  const encoder = getSchemaEncoder();
+  const encoder = new SchemaEncoder(SCHEMA_STRING);
   const encodedData = encoder.encodeData([
     { name: "platform", value: data.platform, type: "string" },
     { name: "projectId", value: data.projectId, type: "string" },
@@ -82,8 +82,10 @@ export async function createAttestation(
  * Read and validate an existing attestation.
  */
 export async function getAttestation(uid: string, rpcUrl: string) {
+  const { EAS, SchemaEncoder, ethers } = await loadEasModules();
+
   const provider = new ethers.JsonRpcProvider(rpcUrl);
-  const eas = getEAS();
+  const eas = new EAS(getEnv().EAS_CONTRACT_ADDRESS);
   eas.connect(provider);
 
   const attestation = await eas.getAttestation(uid);
@@ -93,7 +95,7 @@ export async function getAttestation(uid: string, rpcUrl: string) {
   }
 
   // Decode the attestation data
-  const encoder = getSchemaEncoder();
+  const encoder = new SchemaEncoder(SCHEMA_STRING);
   const decoded = encoder.decodeData(attestation.data);
 
   return {
