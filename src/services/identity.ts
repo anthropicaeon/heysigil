@@ -22,7 +22,7 @@
 
 import { ethers } from "ethers";
 import crypto from "node:crypto";
-import { getEnv } from "../config/env.js";
+import { encryptKey, decryptKey } from "../utils/crypto.js";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -76,39 +76,6 @@ const walletKeyStore = new Map<string, {
 const platformIndex = new Map<string, string>();     // "platform:platformId" → identityId
 const privyUserIndex = new Map<string, string>();    // privyUserId → userId
 const walletUserIndex = new Map<string, string>();   // walletAddress → userId
-
-// ─── Encryption ─────────────────────────────────────────
-
-function getEncryptionKey(): Buffer {
-    const env = getEnv();
-    const keyHex = env.WALLET_ENCRYPTION_KEY;
-    if (!keyHex) {
-        return crypto.createHash("sha256").update("sigil-dev-key-do-not-use-in-prod").digest();
-    }
-    return Buffer.from(keyHex, "hex");
-}
-
-function encryptKey(privateKey: string): { encrypted: string; iv: string; authTag: string } {
-    const key = getEncryptionKey();
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
-    let encrypted = cipher.update(privateKey, "utf8", "hex");
-    encrypted += cipher.final("hex");
-    return {
-        encrypted,
-        iv: iv.toString("hex"),
-        authTag: (cipher as crypto.CipherGCM).getAuthTag().toString("hex"),
-    };
-}
-
-function decryptKey(encrypted: string, iv: string, authTag: string): string {
-    const key = getEncryptionKey();
-    const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "hex"));
-    (decipher as crypto.DecipherGCM).setAuthTag(Buffer.from(authTag, "hex"));
-    let decrypted = decipher.update(encrypted, "hex", "utf8");
-    decrypted += decipher.final("utf8");
-    return decrypted;
-}
 
 // ─── Core: Create ───────────────────────────────────────
 

@@ -13,9 +13,9 @@
  */
 
 import { ethers } from "ethers";
-import crypto from "node:crypto";
 import { getEnv } from "../config/env.js";
 import { createShortTTLMap } from "../utils/ttl-map.js";
+import { encryptKey, decryptKey } from "../utils/crypto.js";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -48,49 +48,6 @@ const walletStore = new Map<string, StoredWallet>();
 const exportConfirmations = createShortTTLMap<{ requestedAt: number }>({
     name: "export-confirmations",
 });
-
-// ─── Encryption ─────────────────────────────────────────
-
-function getEncryptionKey(): Buffer {
-    const env = getEnv();
-    const keyHex = env.WALLET_ENCRYPTION_KEY;
-
-    if (!keyHex) {
-        // Dev fallback — generate deterministic key from a seed
-        // In production, WALLET_ENCRYPTION_KEY must be set
-        const fallback = crypto.createHash("sha256").update("sigil-dev-key-do-not-use-in-prod").digest();
-        return fallback;
-    }
-
-    // Key should be 32 bytes (64 hex chars)
-    return Buffer.from(keyHex, "hex");
-}
-
-function encryptKey(privateKey: string): { encrypted: string; iv: string; authTag: string } {
-    const key = getEncryptionKey();
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
-
-    let encrypted = cipher.update(privateKey, "utf8", "hex");
-    encrypted += cipher.final("hex");
-
-    return {
-        encrypted,
-        iv: iv.toString("hex"),
-        authTag: (cipher as crypto.CipherGCM).getAuthTag().toString("hex"),
-    };
-}
-
-function decryptKey(encrypted: string, iv: string, authTag: string): string {
-    const key = getEncryptionKey();
-    const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(iv, "hex"));
-    (decipher as crypto.DecipherGCM).setAuthTag(Buffer.from(authTag, "hex"));
-
-    let decrypted = decipher.update(encrypted, "hex", "utf8");
-    decrypted += decipher.final("utf8");
-
-    return decrypted;
-}
 
 // ─── Wallet Management ──────────────────────────────────
 
