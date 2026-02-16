@@ -5,6 +5,10 @@
  *   User (1) ←→ Wallet (1)
  *   User (1) ←→ Identities (many)
  *
+ * Persistence:
+ * - Uses PostgreSQL when DATABASE_URL is set
+ * - Falls back to in-memory when not configured (development)
+ *
  * Lifecycle:
  *   1. Third-party launch → createPhantomUser("github", "org/repo")
  *      Creates: User (phantom) + Wallet + Identity
@@ -24,6 +28,8 @@ import { ethers } from "ethers";
 import crypto from "node:crypto";
 import { getEnv } from "../config/env.js";
 import { encryptKey, decryptKey } from "../utils/crypto.js";
+import * as identityRepo from "../db/repositories/identity.repository.js";
+import * as walletRepo from "../db/repositories/wallet.repository.js";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -50,7 +56,7 @@ export interface CreatePhantomResult {
     user: User;
     identity: Identity;
     walletAddress: string;
-    isNew: boolean; // false if identity already existed
+    isNew: boolean;
 }
 
 export interface ClaimResult {
@@ -58,28 +64,26 @@ export interface ClaimResult {
     user?: User;
     walletAddress?: string;
     privateKey?: string;
-    merged?: boolean; // true if a merge happened
+    merged?: boolean;
     message: string;
 }
 
-// ─── In-Memory Stores ───────────────────────────────────
+// ─── Helper: Resolve User (follow merge chain) ───────────
 
-const userStore = new Map<string, User>();
-const identityStore = new Map<string, Identity>();
-const walletKeyStore = new Map<
-    string,
-    {
-        address: string;
-        encryptedKey: string;
-        iv: string;
-        authTag: string;
+async function resolveUser(userId: string): Promise<User> {
+    let user = await identityRepo.findUserById(userId);
+    if (!user) throw new Error(`User not found: ${userId}`);
+
+    // Follow merge chain
+    let depth = 0;
+    while (user.mergedInto && depth < 10) {
+        const merged = await identityRepo.findUserById(user.mergedInto);
+        if (!merged) break;
+        user = merged;
+        depth++;
     }
->();
-
-// Indexes
-const platformIndex = new Map<string, string>(); // "platform:platformId" → identityId
-const privyUserIndex = new Map<string, string>(); // privyUserId → userId
-const walletUserIndex = new Map<string, string>(); // walletAddress → userId
+    return user;
+}
 
 // ─── Core: Create ───────────────────────────────────────
 
@@ -87,19 +91,21 @@ const walletUserIndex = new Map<string, string>(); // walletAddress → userId
  * Create a phantom user + identity + wallet for a platform account.
  * Idempotent: if an identity for this platform/platformId already exists, returns the existing user.
  */
-export function createPhantomUser(
+export async function createPhantomUser(
     platform: string,
     platformId: string,
     createdBy?: string,
-): CreatePhantomResult {
-    const indexKey = `${platform}:${platformId}`;
-
+): Promise<CreatePhantomResult> {
     // Check if identity already exists → return existing user
-    const existingIdentityId = platformIndex.get(indexKey);
-    if (existingIdentityId) {
-        const identity = identityStore.get(existingIdentityId)!;
-        const user = resolveUser(identity.userId);
-        return { user, identity, walletAddress: user.walletAddress, isNew: false };
+    const existingIdentity = await identityRepo.findIdentityByPlatform(platform, platformId);
+    if (existingIdentity) {
+        const user = await resolveUser(existingIdentity.userId);
+        return {
+            user,
+            identity: existingIdentity,
+            walletAddress: user.walletAddress,
+            isNew: false,
+        };
     }
 
     // Create wallet
@@ -108,38 +114,32 @@ export function createPhantomUser(
 
     // Create user
     const userId = crypto.randomUUID();
-    const user: User = {
+    const user = await identityRepo.createUser({
         id: userId,
         walletAddress: wallet.address,
         privyUserId: null,
         status: "phantom",
-        createdAt: new Date(),
-        claimedAt: null,
-        mergedInto: null,
-    };
+    });
 
     // Create identity
     const identityId = crypto.randomUUID();
-    const identity: Identity = {
+    const identity = await identityRepo.createIdentity({
         id: identityId,
         userId,
         platform,
         platformId,
         createdBy: createdBy || null,
-        createdAt: new Date(),
-    };
+    });
 
-    // Store everything
-    userStore.set(userId, user);
-    identityStore.set(identityId, identity);
-    walletKeyStore.set(userId, {
+    // Store wallet
+    await walletRepo.createWallet({
         address: wallet.address,
         encryptedKey: encrypted,
         iv,
         authTag,
+        keyType: "user",
+        keyId: userId,
     });
-    platformIndex.set(indexKey, identityId);
-    walletUserIndex.set(wallet.address, userId);
 
     console.log(`[identity] Created phantom user: ${platform}/${platformId} → ${wallet.address}`);
 
@@ -153,72 +153,70 @@ export function createPhantomUser(
  *
  * If the dev (privyUserId) has already claimed another identity,
  * this merges the two users into one (consolidating wallets).
- *
- * @param platform - Platform type (e.g., "github")
- * @param platformId - Platform identifier (e.g., "org/repo")
- * @param privyUserId - The verified dev's Privy user ID
  */
-export function claimIdentity(
+export async function claimIdentity(
     platform: string,
     platformId: string,
     privyUserId: string,
-): ClaimResult {
+): Promise<ClaimResult> {
     // Find the identity
-    const indexKey = `${platform}:${platformId}`;
-    const identityId = platformIndex.get(indexKey);
-    if (!identityId) {
+    const identity = await identityRepo.findIdentityByPlatform(platform, platformId);
+    if (!identity) {
         return {
             success: false,
             message: `No phantom identity found for ${platform}/${platformId}`,
         };
     }
 
-    const identity = identityStore.get(identityId)!;
-    const phantomUser = resolveUser(identity.userId);
+    const phantomUser = await resolveUser(identity.userId);
 
     // Check if this Privy user already has a claimed user
-    const existingUserId = privyUserIndex.get(privyUserId);
+    const existingUser = await identityRepo.findUserByPrivyId(privyUserId);
 
-    if (existingUserId) {
-        // Dev already verified another identity — merge phantom into existing
-        const existingUser = resolveUser(existingUserId);
+    if (existingUser) {
+        const resolvedExisting = await resolveUser(existingUser.id);
 
-        if (phantomUser.id === existingUser.id) {
+        if (phantomUser.id === resolvedExisting.id) {
             // Already the same user, just adding another identity
             return {
                 success: true,
-                user: existingUser,
-                walletAddress: existingUser.walletAddress,
+                user: resolvedExisting,
+                walletAddress: resolvedExisting.walletAddress,
                 message: `Identity ${platform}/${platformId} already belongs to this user.`,
             };
         }
 
         // MERGE: phantom user → existing user
-        return mergeUsers(existingUser, phantomUser, identity, privyUserId);
+        return mergeUsers(resolvedExisting, phantomUser, identity, privyUserId);
     }
 
     // First claim for this Privy user — just take over the phantom user
-    phantomUser.status = "claimed";
-    phantomUser.privyUserId = privyUserId;
-    phantomUser.claimedAt = new Date();
-    privyUserIndex.set(privyUserId, phantomUser.id);
+    const updatedUser = await identityRepo.updateUser(phantomUser.id, {
+        status: "claimed",
+        privyUserId,
+        claimedAt: new Date(),
+    });
 
-    const stored = walletKeyStore.get(phantomUser.id);
-    const privateKey = stored
-        ? decryptKey(stored.encryptedKey, stored.iv, stored.authTag)
+    if (!updatedUser) {
+        return { success: false, message: "Failed to claim user" };
+    }
+
+    const storedWallet = await walletRepo.findWalletByKey("user", phantomUser.id);
+    const privateKey = storedWallet
+        ? decryptKey(storedWallet.encryptedKey, storedWallet.iv, storedWallet.authTag)
         : undefined;
 
     console.log(
-        `[identity] User claimed: ${platform}/${platformId} → ${privyUserId} (wallet: ${phantomUser.walletAddress})`,
+        `[identity] User claimed: ${platform}/${platformId} → ${privyUserId} (wallet: ${updatedUser.walletAddress})`,
     );
 
     return {
         success: true,
-        user: phantomUser,
-        walletAddress: phantomUser.walletAddress,
+        user: updatedUser,
+        walletAddress: updatedUser.walletAddress,
         privateKey,
         merged: false,
-        message: `Claimed wallet ${phantomUser.walletAddress} for ${platform}/${platformId}`,
+        message: `Claimed wallet ${updatedUser.walletAddress} for ${platform}/${platformId}`,
     };
 }
 
@@ -226,27 +224,21 @@ export function claimIdentity(
 
 /**
  * Merge a phantom user into an existing claimed user.
- *
- * - All identities of the phantom user → point to primary user
- * - Phantom user marked as merged
- * - Phantom wallet's funds should be swept to primary wallet (off-chain or on-chain)
  */
-function mergeUsers(
+async function mergeUsers(
     primaryUser: User,
     phantomUser: User,
     triggeringIdentity: Identity,
     privyUserId: string,
-): ClaimResult {
+): Promise<ClaimResult> {
     // Move all identities from phantom to primary
-    for (const identity of identityStore.values()) {
-        if (identity.userId === phantomUser.id) {
-            identity.userId = primaryUser.id;
-        }
-    }
+    await identityRepo.updateIdentitiesUserId(phantomUser.id, primaryUser.id);
 
     // Mark phantom user as merged
-    phantomUser.mergedInto = primaryUser.id;
-    phantomUser.status = "claimed";
+    await identityRepo.updateUser(phantomUser.id, {
+        mergedInto: primaryUser.id,
+        status: "claimed",
+    });
 
     // Log the merge for audit
     console.log(
@@ -277,36 +269,20 @@ function mergeUsers(
 // ─── Lookups ────────────────────────────────────────────
 
 /**
- * Follow the merge chain to find the canonical user.
- */
-function resolveUser(userId: string): User {
-    let user = userStore.get(userId);
-    if (!user) throw new Error(`User not found: ${userId}`);
-
-    // Follow merge chain
-    let depth = 0;
-    while (user.mergedInto && depth < 10) {
-        user = userStore.get(user.mergedInto) || user;
-        depth++;
-    }
-    return user;
-}
-
-/**
  * Find an identity by platform + platformId.
  */
-export function findIdentity(platform: string, platformId: string): Identity | null {
-    const indexKey = `${platform}:${platformId}`;
-    const id = platformIndex.get(indexKey);
-    if (!id) return null;
-    return identityStore.get(id) || null;
+export async function findIdentity(platform: string, platformId: string): Promise<Identity | null> {
+    return identityRepo.findIdentityByPlatform(platform, platformId);
 }
 
 /**
  * Find the user that owns a platform identity.
  */
-export function findUserByPlatform(platform: string, platformId: string): User | null {
-    const identity = findIdentity(platform, platformId);
+export async function findUserByPlatform(
+    platform: string,
+    platformId: string,
+): Promise<User | null> {
+    const identity = await findIdentity(platform, platformId);
     if (!identity) return null;
     return resolveUser(identity.userId);
 }
@@ -314,63 +290,61 @@ export function findUserByPlatform(platform: string, platformId: string): User |
 /**
  * Find a user by their Privy user ID (i.e., after they've claimed).
  */
-export function findUserByPrivyId(privyUserId: string): User | null {
-    const userId = privyUserIndex.get(privyUserId);
-    if (!userId) return null;
-    return resolveUser(userId);
+export async function findUserByPrivyId(privyUserId: string): Promise<User | null> {
+    const user = await identityRepo.findUserByPrivyId(privyUserId);
+    if (!user) return null;
+    return resolveUser(user.id);
 }
 
 /**
  * Find user by wallet address.
  */
-export function findUserByWallet(walletAddress: string): User | null {
-    const userId = walletUserIndex.get(walletAddress);
-    if (!userId) return null;
-    return resolveUser(userId);
+export async function findUserByWallet(walletAddress: string): Promise<User | null> {
+    const user = await identityRepo.findUserByWalletAddress(walletAddress);
+    if (!user) return null;
+    return resolveUser(user.id);
 }
 
 /**
  * Check if a platform identity already has a user.
  */
-export function hasIdentity(platform: string, platformId: string): boolean {
-    return platformIndex.has(`${platform}:${platformId}`);
+export async function hasIdentity(platform: string, platformId: string): Promise<boolean> {
+    const identity = await identityRepo.findIdentityByPlatform(platform, platformId);
+    return identity !== null;
 }
 
 /**
  * Get all identities for a user.
  */
-export function getUserIdentities(userId: string): Identity[] {
-    const resolved = resolveUser(userId);
-    return Array.from(identityStore.values()).filter((i) => {
-        try {
-            return resolveUser(i.userId).id === resolved.id;
-        } catch {
-            return false;
-        }
-    });
+export async function getUserIdentities(userId: string): Promise<Identity[]> {
+    const resolved = await resolveUser(userId);
+    return identityRepo.findIdentitiesByUserId(resolved.id);
 }
 
 /**
  * Find identity by GitHub repo (handles normalization).
  */
-export function findByGitHubRepo(repoFullName: string): { user: User; identity: Identity } | null {
+export async function findByGitHubRepo(
+    repoFullName: string,
+): Promise<{ user: User; identity: Identity } | null> {
     const normalized = repoFullName.replace(/^https?:\/\//, "").replace(/^github\.com\//, "");
 
-    let identity = findIdentity("github", normalized);
+    let identity = await findIdentity("github", normalized);
     if (!identity) {
-        identity = findIdentity("github", `github.com/${normalized}`);
+        identity = await findIdentity("github", `github.com/${normalized}`);
     }
     if (!identity) return null;
 
-    return { user: resolveUser(identity.userId), identity };
+    const user = await resolveUser(identity.userId);
+    return { user, identity };
 }
 
 /**
  * Get the wallet signer for a user.
  */
-export function getUserWallet(userId: string): ethers.Wallet | null {
-    const user = resolveUser(userId);
-    const stored = walletKeyStore.get(user.id);
+export async function getUserWallet(userId: string): Promise<ethers.Wallet | null> {
+    const user = await resolveUser(userId);
+    const stored = await walletRepo.findWalletByKey("user", user.id);
     if (!stored) return null;
 
     const env = getEnv();
@@ -383,16 +357,19 @@ export function getUserWallet(userId: string): ethers.Wallet | null {
 /**
  * List all phantom users (admin/debug).
  */
-export function listPhantomUsers(): User[] {
-    return Array.from(userStore.values()).filter((u) => u.status === "phantom" && !u.mergedInto);
+export async function listPhantomUsers(): Promise<User[]> {
+    return identityRepo.listPhantomUsers();
 }
 
 // ─── Backward compatibility ─────────────────────────────
-// These aliases maintain compatibility with existing code
 
 /** @deprecated Use createPhantomUser instead */
-export function createPhantomIdentity(platform: string, platformId: string, createdBy?: string) {
-    const result = createPhantomUser(platform, platformId, createdBy);
+export async function createPhantomIdentity(
+    platform: string,
+    platformId: string,
+    createdBy?: string,
+) {
+    const result = await createPhantomUser(platform, platformId, createdBy);
     return {
         identity: {
             ...result.identity,
@@ -405,10 +382,10 @@ export function createPhantomIdentity(platform: string, platformId: string, crea
 }
 
 /** @deprecated Use findIdentity instead */
-export function findByPlatformId(platform: string, platformId: string) {
-    const identity = findIdentity(platform, platformId);
+export async function findByPlatformId(platform: string, platformId: string) {
+    const identity = await findIdentity(platform, platformId);
     if (!identity) return null;
-    const user = resolveUser(identity.userId);
+    const user = await resolveUser(identity.userId);
     return {
         id: identity.id,
         platform: identity.platform,
@@ -426,18 +403,17 @@ export function findByPlatformId(platform: string, platformId: string) {
  * Get all wallet addresses owned by a Privy user.
  * Includes the primary wallet and any merged phantom wallets.
  */
-export function getWalletAddressesByPrivyId(privyUserId: string): string[] {
-    const userId = privyUserIndex.get(privyUserId);
-    if (!userId) return [];
+export async function getWalletAddressesByPrivyId(privyUserId: string): Promise<string[]> {
+    const user = await identityRepo.findUserByPrivyId(privyUserId);
+    if (!user) return [];
 
-    const primaryUser = resolveUser(userId);
+    const primaryUser = await resolveUser(user.id);
     const addresses = [primaryUser.walletAddress];
 
     // Include wallets from merged users
-    for (const user of userStore.values()) {
-        if (user.mergedInto === primaryUser.id) {
-            addresses.push(user.walletAddress);
-        }
+    const mergedUsers = await identityRepo.findUsersMergedInto(primaryUser.id);
+    for (const merged of mergedUsers) {
+        addresses.push(merged.walletAddress);
     }
 
     return addresses;

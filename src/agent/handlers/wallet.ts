@@ -17,7 +17,7 @@ import { resolveToken } from "../../services/trading.js";
 import { getEnv } from "../../config/env.js";
 
 export const balanceHandler: ActionHandler = async (_params, sessionId) => {
-    if (!sessionId || !hasWallet(sessionId)) {
+    if (!sessionId || !(await hasWallet(sessionId))) {
         return {
             success: true,
             message:
@@ -26,7 +26,7 @@ export const balanceHandler: ActionHandler = async (_params, sessionId) => {
         };
     }
 
-    const address = getAddress(sessionId);
+    const address = await getAddress(sessionId);
     const balance = await getWalletBalance(sessionId);
 
     if (!balance) {
@@ -65,7 +65,7 @@ export const balanceHandler: ActionHandler = async (_params, sessionId) => {
 export const depositHandler: ActionHandler = async (_params, sessionId) => {
     if (!sessionId) return { success: false, message: "Session error." };
 
-    const walletInfo = createWallet(sessionId);
+    const walletInfo = await createWallet(sessionId);
 
     return {
         success: true,
@@ -94,7 +94,7 @@ export const depositHandler: ActionHandler = async (_params, sessionId) => {
 export const exportKeyHandler: ActionHandler = async (params, sessionId) => {
     if (!sessionId) return { success: false, message: "Session error." };
 
-    if (!hasWallet(sessionId)) {
+    if (!(await hasWallet(sessionId))) {
         return {
             success: false,
             message: 'You don\'t have a wallet yet. Say **"show my wallet"** to create one.',
@@ -106,7 +106,7 @@ export const exportKeyHandler: ActionHandler = async (params, sessionId) => {
     const isConfirm = rawText.includes("yes") && rawText.includes("export");
 
     if (isConfirm && hasPendingExport(sessionId)) {
-        const result = confirmExport(sessionId);
+        const result = await confirmExport(sessionId);
         return {
             success: result.success,
             message: result.message,
@@ -115,7 +115,7 @@ export const exportKeyHandler: ActionHandler = async (params, sessionId) => {
     }
 
     // First request — show warning
-    const result = requestExport(sessionId);
+    const result = await requestExport(sessionId);
     return {
         success: true,
         message: result.message,
@@ -136,14 +136,14 @@ export const sendHandler: ActionHandler = async (params, sessionId) => {
         };
     }
 
-    if (!sessionId || !hasWallet(sessionId)) {
+    if (!sessionId || !(await hasWallet(sessionId))) {
         return {
             success: false,
             message: 'You need a wallet first. Say **"show my wallet"** to create one.',
         };
     }
 
-    const wallet = getSignerWallet(sessionId);
+    const wallet = await getSignerWallet(sessionId);
     if (!wallet) return { success: false, message: "Wallet error. Please try again." };
 
     try {
@@ -218,7 +218,7 @@ interface BasescanResponse {
 }
 
 export const historyHandler: ActionHandler = async (params, sessionId) => {
-    if (!sessionId || !hasWallet(sessionId)) {
+    if (!sessionId || !(await hasWallet(sessionId))) {
         return {
             success: true,
             message: 'You don\'t have a wallet yet. Say **"show my wallet"** to create one.',
@@ -226,7 +226,7 @@ export const historyHandler: ActionHandler = async (params, sessionId) => {
         };
     }
 
-    const address = getAddress(sessionId);
+    const address = await getAddress(sessionId);
     if (!address) {
         return { success: false, message: "Failed to get wallet address." };
     }

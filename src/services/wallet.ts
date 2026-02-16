@@ -5,6 +5,10 @@
  * Each chat session gets its own wallet. Private keys are
  * AES-256-GCM encrypted at rest.
  *
+ * Persistence:
+ * - Uses PostgreSQL when DATABASE_URL is set
+ * - Falls back to in-memory when not configured (development)
+ *
  * Flow:
  * 1. User starts a chat → wallet auto-created
  * 2. User funds it (show deposit address)
@@ -16,6 +20,8 @@ import { ethers } from "ethers";
 import { getEnv } from "../config/env.js";
 import { createShortTTLMap } from "../utils/ttl-map.js";
 import { encryptKey, decryptKey } from "../utils/crypto.js";
+import { BALANCE_CHECK_TOKENS } from "../config/tokens.js";
+import * as walletRepo from "../db/repositories/wallet.repository.js";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -31,20 +37,9 @@ export interface WalletBalance {
     tokens: { symbol: string; address: string; balance: string; formatted: string }[];
 }
 
-interface StoredWallet {
-    address: string;
-    encryptedKey: string;   // AES-256-GCM encrypted private key
-    iv: string;             // Initialization vector (hex)
-    authTag: string;        // GCM auth tag (hex)
-    createdAt: Date;
-}
+// ─── Pending Export Confirmations ────────────────────────
+// These remain in-memory (ephemeral by nature - 2 min TTL)
 
-// ─── In-Memory Store ────────────────────────────────────
-// In production, persist to DB (wallets table). For now, in-memory.
-
-const walletStore = new Map<string, StoredWallet>();
-
-// Pending key export confirmations: auto-expire after 2 minutes
 const exportConfirmations = createShortTTLMap<{ requestedAt: number }>({
     name: "export-confirmations",
 });
@@ -54,10 +49,15 @@ const exportConfirmations = createShortTTLMap<{ requestedAt: number }>({
 /**
  * Create a new wallet for a session. If one already exists, return it.
  */
-export function createWallet(sessionId: string): WalletInfo {
-    const existing = walletStore.get(sessionId);
+export async function createWallet(sessionId: string): Promise<WalletInfo> {
+    // Check if wallet already exists
+    const existing = await walletRepo.findWalletByKey("session", sessionId);
     if (existing) {
-        return { address: existing.address, sessionId, createdAt: existing.createdAt };
+        return {
+            address: existing.address,
+            sessionId,
+            createdAt: existing.createdAt,
+        };
     }
 
     // Generate random wallet
@@ -66,38 +66,44 @@ export function createWallet(sessionId: string): WalletInfo {
     // Encrypt private key
     const { encrypted, iv, authTag } = encryptKey(wallet.privateKey);
 
-    const stored: StoredWallet = {
+    // Store in database (or in-memory fallback)
+    const stored = await walletRepo.createWallet({
         address: wallet.address,
         encryptedKey: encrypted,
         iv,
         authTag,
-        createdAt: new Date(),
+        keyType: "session",
+        keyId: sessionId,
+    });
+
+    return {
+        address: stored.address,
+        sessionId,
+        createdAt: stored.createdAt,
     };
-
-    walletStore.set(sessionId, stored);
-
-    return { address: wallet.address, sessionId, createdAt: stored.createdAt };
 }
 
 /**
  * Check if a session has a wallet.
  */
-export function hasWallet(sessionId: string): boolean {
-    return walletStore.has(sessionId);
+export async function hasWallet(sessionId: string): Promise<boolean> {
+    const wallet = await walletRepo.findWalletByKey("session", sessionId);
+    return wallet !== null;
 }
 
 /**
  * Get wallet address for a session.
  */
-export function getAddress(sessionId: string): string | undefined {
-    return walletStore.get(sessionId)?.address;
+export async function getAddress(sessionId: string): Promise<string | undefined> {
+    const wallet = await walletRepo.findWalletByKey("session", sessionId);
+    return wallet?.address;
 }
 
 /**
  * Get the ethers.Wallet instance for a session (for signing transactions).
  */
-export function getSignerWallet(sessionId: string): ethers.Wallet | undefined {
-    const stored = walletStore.get(sessionId);
+export async function getSignerWallet(sessionId: string): Promise<ethers.Wallet | undefined> {
+    const stored = await walletRepo.findWalletByKey("session", sessionId);
     if (!stored) return undefined;
 
     const env = getEnv();
@@ -108,13 +114,6 @@ export function getSignerWallet(sessionId: string): ethers.Wallet | undefined {
     return new ethers.Wallet(privateKey, provider);
 }
 
-// Common tokens on Base with pre-cached decimals (avoids RPC calls)
-const BASE_TOKENS = [
-    { symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6 },
-    { symbol: "WETH", address: "0x4200000000000000000000000000000000000006", decimals: 18 },
-    { symbol: "DAI", address: "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb", decimals: 18 },
-] as const;
-
 const BALANCE_OF_ABI = ["function balanceOf(address) view returns (uint256)"];
 
 /**
@@ -122,7 +121,7 @@ const BALANCE_OF_ABI = ["function balanceOf(address) view returns (uint256)"];
  * Fetches all balances in parallel for optimal performance.
  */
 export async function getBalance(sessionId: string): Promise<WalletBalance | undefined> {
-    const stored = walletStore.get(sessionId);
+    const stored = await walletRepo.findWalletByKey("session", sessionId);
     if (!stored) return undefined;
 
     const env = getEnv();
@@ -132,10 +131,10 @@ export async function getBalance(sessionId: string): Promise<WalletBalance | und
     // Fetch ETH balance and all token balances in parallel
     const [ethBalance, ...tokenResults] = await Promise.all([
         provider.getBalance(stored.address),
-        ...BASE_TOKENS.map(async (token) => {
+        ...BALANCE_CHECK_TOKENS.map(async (token) => {
             try {
                 const contract = new ethers.Contract(token.address, BALANCE_OF_ABI, provider);
-                const balance = await contract.balanceOf(stored.address) as bigint;
+                const balance = (await contract.balanceOf(stored.address)) as bigint;
                 return { token, balance };
             } catch {
                 return { token, balance: 0n };
@@ -166,8 +165,11 @@ export async function getBalance(sessionId: string): Promise<WalletBalance | und
  * Request to export private key. Returns a warning and requires confirmation.
  * Call this first, then call confirmExport() to actually reveal the key.
  */
-export function requestExport(sessionId: string): { pending: boolean; message: string } {
-    if (!walletStore.has(sessionId)) {
+export async function requestExport(
+    sessionId: string,
+): Promise<{ pending: boolean; message: string }> {
+    const wallet = await walletRepo.findWalletByKey("session", sessionId);
+    if (!wallet) {
         return { pending: false, message: "No wallet found for this session." };
     }
 
@@ -195,18 +197,21 @@ export function requestExport(sessionId: string): { pending: boolean; message: s
  * Returns the decrypted private key exactly once.
  * Note: TTLMap auto-expires entries after 2 minutes.
  */
-export function confirmExport(sessionId: string): { success: boolean; privateKey?: string; message: string } {
+export async function confirmExport(
+    sessionId: string,
+): Promise<{ success: boolean; privateKey?: string; message: string }> {
     // TTLMap.get() returns undefined for expired entries
     const pending = exportConfirmations.get(sessionId);
 
     if (!pending) {
         return {
             success: false,
-            message: 'No pending export request (or it expired). Say "export my private key" first.',
+            message:
+                'No pending export request (or it expired). Say "export my private key" first.',
         };
     }
 
-    const stored = walletStore.get(sessionId);
+    const stored = await walletRepo.findWalletByKey("session", sessionId);
     if (!stored) {
         exportConfirmations.delete(sessionId);
         return { success: false, message: "No wallet found." };
