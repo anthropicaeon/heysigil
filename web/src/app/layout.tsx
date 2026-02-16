@@ -1,10 +1,29 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import LayoutInner from "./LayoutInner";
 
 export const metadata: Metadata = {
-  title: "Sigil — Stamp Your Approval, Earn While You Build",
+  title: "Sigil | We Fund Builders",
   description:
-    "Funding for dev projects without the weight of handling a community. Stamp your Sigil to earn USDC fees from LPs while your native tokens remain locked.",
+    "Funding for developer projects. Stamp your Sigil, earn USDC fees, and let us handle the rest. You build. We support.",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/apple-touch-icon.png",
+  },
+  openGraph: {
+    title: "Sigil | We Fund Builders",
+    description:
+      "Funding for developer projects. Stamp your Sigil, earn USDC fees, and let us handle the rest.",
+    images: [{ url: "/og-image.png", width: 900, height: 900, alt: "Sigil" }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Sigil | We Fund Builders",
+    description:
+      "Funding for developer projects. Stamp your Sigil, earn USDC fees.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({
@@ -14,7 +33,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <LayoutInner>{children}</LayoutInner>
+      </body>
     </html>
   );
 }
+

@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 const envSchema = z.object({
-  // GitHub OAuth
-  GITHUB_CLIENT_ID: z.string().min(1),
-  GITHUB_CLIENT_SECRET: z.string().min(1),
+  // GitHub OAuth (optional for local dev — features will fail gracefully)
+  GITHUB_CLIENT_ID: z.string().default(""),
+  GITHUB_CLIENT_SECRET: z.string().default(""),
 
   // Facebook OAuth
   FACEBOOK_APP_ID: z.string().default(""),
@@ -21,8 +21,23 @@ const envSchema = z.object({
   // LLM (chat agent)
   ANTHROPIC_API_KEY: z.string().default(""),
 
-  // Database
-  DATABASE_URL: z.string().url(),
+  // Deployer (server-side wallet for gas-sponsored launches)
+  DEPLOYER_PRIVATE_KEY: z.string().default(""),
+  SIGIL_FACTORY_ADDRESS: z.string().default(""),
+  BASE_RPC_URL: z.string().default("https://mainnet.base.org"),
+
+  // Privy (authentication)
+  PRIVY_APP_ID: z.string().default(""),
+  PRIVY_APP_SECRET: z.string().default(""),
+
+  // Custodial wallets (AES-256 encryption key, 64 hex chars)
+  WALLET_ENCRYPTION_KEY: z.string().default(""),
+
+  // Trading (0x API)
+  ZEROX_API_KEY: z.string().default(""),
+
+  // Database (optional — uses in-memory store when not set)
+  DATABASE_URL: z.string().default(""),
 
   // Server
   PORT: z.coerce.number().default(3001),

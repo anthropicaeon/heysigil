@@ -9,13 +9,15 @@ export type ActionIntent =
   | "verify_project"
   | "claim_reward"
   | "pool_status"
+  | "export_key"
+  | "deposit"
   | "help"
   | "unknown";
 
 /** Structured action parsed from natural language */
 export interface ParsedAction {
   intent: ActionIntent;
-  params: Record<string, string | number>;
+  params: Record<string, unknown>;
   confidence: number;
   rawText: string;
 }
