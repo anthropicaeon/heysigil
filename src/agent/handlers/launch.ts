@@ -36,16 +36,10 @@ export const launchTokenHandler: ActionHandler = async (params) => {
             success: true,
             message: [
                 nameParam
-                    ? `Got it — **${nameParam}${symbolParam ? ` ($${symbolParam})` : ""}**${description ? `: "${description}"` : ""}`
-                    : "I can launch a token for any project.",
+                    ? `**${nameParam}${symbolParam ? ` ($${symbolParam})` : ""}**`
+                    : "Need a project link to launch.",
                 "",
-                "I need a link to the developer/project. This tells us who earns fees when their Sigil is stamped.",
-                "",
-                "Drop a link:",
-                "• **GitHub repo** — `https://github.com/org/repo`",
-                "• **Instagram** — `https://instagram.com/handle`",
-                "• **Twitter/X** — `https://x.com/handle`",
-                "• **Website** — `https://myproject.dev`",
+                "Drop a link (GitHub, website, Twitter, Instagram).",
             ].join("\n"),
             data: { name: nameParam, symbol: symbolParam, description, status: "needs_dev_links" },
         };
@@ -68,15 +62,11 @@ export const launchTokenHandler: ActionHandler = async (params) => {
         return {
             success: true,
             message: [
-                `🚀 **Launch Preview: ${tokenName} ($${tokenSymbol})**`,
-                description ? `"${description}"` : "",
+                `**Launch Preview: ${tokenName} ($${tokenSymbol})**`,
                 "",
-                "**Developer links:**",
                 ...linkSummary,
                 "",
-                "⚠️ On-chain deployer not configured. Set `DEPLOYER_PRIVATE_KEY` and `SIGIL_FACTORY_ADDRESS` to enable instant launches.",
-                "",
-                "Once configured, I'll deploy this token on Base instantly — no wallet connection needed.",
+                "Deployer not configured. Set `DEPLOYER_PRIVATE_KEY` and `SIGIL_FACTORY_ADDRESS` to deploy.",
             ].filter(Boolean).join("\n"),
             data: {
                 name: tokenName,
@@ -107,25 +97,15 @@ export const launchTokenHandler: ActionHandler = async (params) => {
             `• **${l.platform}** — [${l.projectId}](${l.displayUrl})`,
         );
 
-        const feeMessage = isSelfLaunch === false
-            ? "A phantom wallet has been created for the developer. When they verify their GitHub, they'll inherit this wallet and all accumulated fees."
-            : "You'll earn 80% of all swap fees. The remaining 20% goes to the Sigil protocol.";
-
         return {
             success: true,
             message: [
-                `🚀 **Deployed: ${tokenName} ($${tokenSymbol})**`,
+                `**Deployed: ${tokenName} ($${tokenSymbol})**`,
                 "",
-                `**Token:** \`${result.tokenAddress}\``,
-                `**Pool:** Live on Base`,
-                `**Tx:** [View on BaseScan](${result.explorerUrl})`,
-                `**Trade:** [DEX Screener](${result.dexUrl})`,
+                `Token: \`${result.tokenAddress}\``,
+                `[BaseScan](${result.explorerUrl}) · [DEX Screener](${result.dexUrl})`,
                 "",
-                "**Developer links:**",
                 ...linkSummary,
-                "",
-                feeMessage,
-                `Say "verify ${primaryLink.displayUrl}" to start the verification process.`,
             ].join("\n"),
             data: {
                 name: tokenName,
@@ -147,7 +127,7 @@ export const launchTokenHandler: ActionHandler = async (params) => {
             message: [
                 `❌ **Deployment failed:** ${errorMsg}`,
                 "",
-                "This could be a gas issue or network problem. Try again in a moment.",
+                "Could be a gas or network issue. Try again.",
             ].join("\n"),
             data: {
                 name: tokenName,
