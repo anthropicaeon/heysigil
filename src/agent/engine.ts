@@ -5,6 +5,7 @@ import { executeAction } from "./router.js";
 import type { ParsedAction, ActionIntent } from "./types.js";
 import { getEnv } from "../config/env.js";
 import { randomBytes } from "node:crypto";
+import { createDayTTLMap } from "../utils/ttl-map.js";
 
 let _client: Anthropic | null = null;
 let _offlineMode = false;
@@ -24,7 +25,10 @@ function getClient(): Anthropic | null {
   return _client;
 }
 
-const sessions = new Map<string, ChatSession>();
+// Chat sessions auto-expire after 24 hours of inactivity
+const sessions = createDayTTLMap<ChatSession>({
+  name: "chat-sessions",
+});
 
 // ─── System prompt ──────────────────────────────────────────
 
