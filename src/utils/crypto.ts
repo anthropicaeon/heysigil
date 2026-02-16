@@ -3,33 +3,109 @@
  *
  * AES-256-GCM encryption for sensitive data (private keys, secrets).
  * Centralized to ensure consistent security practices.
+ *
+ * SECURITY:
+ * - Production REQUIRES WALLET_ENCRYPTION_KEY to be set
+ * - Development uses a fallback key with warnings
+ * - Key must be 32 bytes (64 hex characters)
  */
 
 import crypto from "node:crypto";
-import { getEnv } from "../config/env.js";
+import { getEnv, isProduction } from "../config/env.js";
 
 export interface EncryptedData {
-    encrypted: string;  // Ciphertext (hex)
-    iv: string;         // Initialization vector (hex)
-    authTag: string;    // GCM auth tag (hex)
+    encrypted: string; // Ciphertext (hex)
+    iv: string; // Initialization vector (hex)
+    authTag: string; // GCM auth tag (hex)
 }
+
+// Track if we've already logged the dev key warning
+let _devKeyWarningLogged = false;
 
 /**
  * Get the 32-byte encryption key from environment.
- * Falls back to a deterministic dev key if not configured (NOT for production).
+ *
+ * CRITICAL SECURITY:
+ * - In production: THROWS if WALLET_ENCRYPTION_KEY is not set
+ * - In development: Uses fallback key with warning (for local dev only)
  */
 export function getEncryptionKey(): Buffer {
     const env = getEnv();
     const keyHex = env.WALLET_ENCRYPTION_KEY;
 
     if (!keyHex) {
-        // Dev fallback — generate deterministic key from a seed
-        // In production, WALLET_ENCRYPTION_KEY must be set
+        // CRITICAL: Never allow missing key in production
+        if (isProduction()) {
+            throw new Error(
+                "[SECURITY] WALLET_ENCRYPTION_KEY is required in production. " +
+                    "Generate a secure key with: openssl rand -hex 32",
+            );
+        }
+
+        // Development fallback — log warning once
+        if (!_devKeyWarningLogged) {
+            console.warn(
+                "[SECURITY WARNING] Using development fallback encryption key. " +
+                    "Set WALLET_ENCRYPTION_KEY for production use.",
+            );
+            _devKeyWarningLogged = true;
+        }
+
         return crypto.createHash("sha256").update("sigil-dev-key-do-not-use-in-prod").digest();
     }
 
-    // Key should be 32 bytes (64 hex chars)
+    // Validate key length (should be 32 bytes = 64 hex chars)
+    if (keyHex.length !== 64) {
+        throw new Error(
+            `[SECURITY] WALLET_ENCRYPTION_KEY must be 64 hex characters (32 bytes). ` +
+                `Got ${keyHex.length} characters. Generate with: openssl rand -hex 32`,
+        );
+    }
+
+    // Validate hex format
+    if (!/^[0-9a-fA-F]+$/.test(keyHex)) {
+        throw new Error("[SECURITY] WALLET_ENCRYPTION_KEY must be valid hexadecimal.");
+    }
+
     return Buffer.from(keyHex, "hex");
+}
+
+/**
+ * Check if encryption is properly configured for production.
+ * Call this at startup to fail fast if misconfigured.
+ */
+export function validateEncryptionConfig(): { valid: boolean; message: string } {
+    const env = getEnv();
+    const keyHex = env.WALLET_ENCRYPTION_KEY;
+
+    if (!keyHex) {
+        if (isProduction()) {
+            return {
+                valid: false,
+                message: "WALLET_ENCRYPTION_KEY is required in production",
+            };
+        }
+        return {
+            valid: true,
+            message: "Using development fallback key (not for production)",
+        };
+    }
+
+    if (keyHex.length !== 64) {
+        return {
+            valid: false,
+            message: `WALLET_ENCRYPTION_KEY must be 64 hex chars, got ${keyHex.length}`,
+        };
+    }
+
+    if (!/^[0-9a-fA-F]+$/.test(keyHex)) {
+        return {
+            valid: false,
+            message: "WALLET_ENCRYPTION_KEY must be valid hexadecimal",
+        };
+    }
+
+    return { valid: true, message: "Encryption key configured correctly" };
 }
 
 /**
