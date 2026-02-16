@@ -18,8 +18,8 @@ export default function PrivyAuthProvider({
         <PrivyProvider
             appId={appId}
             config={{
-                // Login methods: GitHub, Telegram, Email, Farcaster (no X/Twitter)
-                loginMethods: ["github", "telegram", "email", "farcaster"],
+                // Login methods: Email, Wallet Connect, GitHub, Telegram
+                loginMethods: ["email", "wallet", "github", "telegram"],
 
                 // Branding
                 appearance: {
