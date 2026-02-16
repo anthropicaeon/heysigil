@@ -15,6 +15,7 @@
 import { ethers } from "ethers";
 import crypto from "node:crypto";
 import { getEnv } from "../config/env.js";
+import { createShortTTLMap } from "../utils/ttl-map.js";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -43,8 +44,10 @@ interface StoredWallet {
 
 const walletStore = new Map<string, StoredWallet>();
 
-// Pending key export confirmations: sessionId → { timestamp, confirmed }
-const exportConfirmations = new Map<string, { requestedAt: number; confirmed: boolean }>();
+// Pending key export confirmations: auto-expire after 2 minutes
+const exportConfirmations = createShortTTLMap<{ requestedAt: number }>({
+    name: "export-confirmations",
+});
 
 // ─── Encryption ─────────────────────────────────────────
 
@@ -211,7 +214,7 @@ export function requestExport(sessionId: string): { pending: boolean; message: s
         return { pending: false, message: "No wallet found for this session." };
     }
 
-    exportConfirmations.set(sessionId, { requestedAt: Date.now(), confirmed: false });
+    exportConfirmations.set(sessionId, { requestedAt: Date.now() });
 
     return {
         pending: true,
@@ -233,23 +236,16 @@ export function requestExport(sessionId: string): { pending: boolean; message: s
 /**
  * Confirm private key export. Only works if requestExport() was called first.
  * Returns the decrypted private key exactly once.
+ * Note: TTLMap auto-expires entries after 2 minutes.
  */
 export function confirmExport(sessionId: string): { success: boolean; privateKey?: string; message: string } {
+    // TTLMap.get() returns undefined for expired entries
     const pending = exportConfirmations.get(sessionId);
 
     if (!pending) {
         return {
             success: false,
-            message: 'No pending export request. Say "export my private key" first.',
-        };
-    }
-
-    // Expire after 2 minutes
-    if (Date.now() - pending.requestedAt > 2 * 60 * 1000) {
-        exportConfirmations.delete(sessionId);
-        return {
-            success: false,
-            message: "Export request expired. Please request again.",
+            message: 'No pending export request (or it expired). Say "export my private key" first.',
         };
     }
 
@@ -281,14 +277,8 @@ export function confirmExport(sessionId: string): { success: boolean; privateKey
 
 /**
  * Check if there's a pending export confirmation for this session.
+ * TTLMap handles expiration automatically.
  */
 export function hasPendingExport(sessionId: string): boolean {
-    const pending = exportConfirmations.get(sessionId);
-    if (!pending) return false;
-    // Check if expired
-    if (Date.now() - pending.requestedAt > 2 * 60 * 1000) {
-        exportConfirmations.delete(sessionId);
-        return false;
-    }
-    return true;
+    return exportConfirmations.has(sessionId);
 }
