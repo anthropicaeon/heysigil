@@ -1,5 +1,5 @@
 /**
- * Wallet Handlers - balance, deposit, export_key, send
+ * Wallet Handlers - balance, deposit, export_key, send, history
  */
 
 import type { ActionHandler } from "./types.js";
@@ -14,12 +14,14 @@ import {
     hasPendingExport,
 } from "../../services/wallet.js";
 import { resolveToken } from "../../services/trading.js";
+import { getEnv } from "../../config/env.js";
 
 export const balanceHandler: ActionHandler = async (_params, sessionId) => {
     if (!sessionId || !hasWallet(sessionId)) {
         return {
             success: true,
-            message: 'You don\'t have a wallet yet. Say **"show my wallet"** to create one and get your deposit address.',
+            message:
+                'You don\'t have a wallet yet. Say **"show my wallet"** to create one and get your deposit address.',
             data: { status: "no_wallet" },
         };
     }
@@ -47,7 +49,10 @@ export const balanceHandler: ActionHandler = async (_params, sessionId) => {
     }
 
     if (parseFloat(balance.ethFormatted) === 0 && balance.tokens.length === 0) {
-        lines.push("", "Your wallet is empty. Send ETH or tokens to the address above to get started.");
+        lines.push(
+            "",
+            "Your wallet is empty. Send ETH or tokens to the address above to get started.",
+        );
     }
 
     return {
@@ -125,7 +130,10 @@ export const sendHandler: ActionHandler = async (params, sessionId) => {
     const tkn = String(token || "ETH");
 
     if (!to || !amt) {
-        return { success: false, message: 'Please specify amount and recipient. Example: "send 0.01 ETH to 0x1234..."' };
+        return {
+            success: false,
+            message: 'Please specify amount and recipient. Example: "send 0.01 ETH to 0x1234..."',
+        };
     }
 
     if (!sessionId || !hasWallet(sessionId)) {
@@ -182,8 +190,162 @@ export const sendHandler: ActionHandler = async (params, sessionId) => {
     } catch (err) {
         const msg = err instanceof Error ? err.message : "Unknown error";
         if (msg.includes("insufficient funds")) {
-            return { success: false, message: "Insufficient funds. Deposit more ETH to cover this transfer + gas." };
+            return {
+                success: false,
+                message: "Insufficient funds. Deposit more ETH to cover this transfer + gas.",
+            };
         }
         return { success: false, message: `Transfer failed: ${msg}` };
+    }
+};
+
+// ─── Transaction History ────────────────────────────────
+
+interface BasescanTx {
+    hash: string;
+    from: string;
+    to: string;
+    value: string;
+    timeStamp: string;
+    isError: string;
+    functionName?: string;
+}
+
+interface BasescanResponse {
+    status: string;
+    message: string;
+    result: BasescanTx[] | string;
+}
+
+export const historyHandler: ActionHandler = async (params, sessionId) => {
+    if (!sessionId || !hasWallet(sessionId)) {
+        return {
+            success: true,
+            message: 'You don\'t have a wallet yet. Say **"show my wallet"** to create one.',
+            data: { status: "no_wallet" },
+        };
+    }
+
+    const address = getAddress(sessionId);
+    if (!address) {
+        return { success: false, message: "Failed to get wallet address." };
+    }
+
+    const limit = Math.min(Number(params.limit) || 10, 25);
+
+    try {
+        const env = getEnv();
+        const apiKey = env.BASESCAN_API_KEY || "";
+
+        // Fetch recent transactions from Basescan API
+        const url = new URL("https://api.basescan.org/api");
+        url.searchParams.set("module", "account");
+        url.searchParams.set("action", "txlist");
+        url.searchParams.set("address", address);
+        url.searchParams.set("startblock", "0");
+        url.searchParams.set("endblock", "99999999");
+        url.searchParams.set("page", "1");
+        url.searchParams.set("offset", String(limit));
+        url.searchParams.set("sort", "desc");
+        if (apiKey) {
+            url.searchParams.set("apikey", apiKey);
+        }
+
+        const response = await fetch(url.toString());
+        const data = (await response.json()) as BasescanResponse;
+
+        if (data.status !== "1" || typeof data.result === "string") {
+            // "No transactions found" returns status "0" with message
+            if (data.message === "No transactions found") {
+                return {
+                    success: true,
+                    message: [
+                        "📜 **Transaction History**",
+                        "",
+                        `Address: \`${address}\``,
+                        "",
+                        "No transactions yet. Send or receive funds to see activity here.",
+                    ].join("\n"),
+                    data: { address, transactions: [] },
+                };
+            }
+            return {
+                success: false,
+                message: `Failed to fetch transaction history: ${data.message}`,
+            };
+        }
+
+        const transactions = data.result;
+
+        if (transactions.length === 0) {
+            return {
+                success: true,
+                message: [
+                    "📜 **Transaction History**",
+                    "",
+                    `Address: \`${address}\``,
+                    "",
+                    "No transactions yet. Send or receive funds to see activity here.",
+                ].join("\n"),
+                data: { address, transactions: [] },
+            };
+        }
+
+        // Format transactions
+        const { ethers } = await import("ethers");
+        const lines = ["📜 **Recent Transactions**", "", `Address: \`${address}\``, ""];
+
+        const formattedTxs = transactions.slice(0, limit).map((tx) => {
+            const isIncoming = tx.to.toLowerCase() === address.toLowerCase();
+            const direction = isIncoming ? "⬇️ IN" : "⬆️ OUT";
+            const otherParty = isIncoming ? tx.from : tx.to;
+            const value = ethers.formatEther(tx.value);
+            const date = new Date(Number(tx.timeStamp) * 1000);
+            const dateStr = date.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            });
+            const status = tx.isError === "1" ? "❌" : "✅";
+
+            return {
+                direction,
+                value,
+                otherParty,
+                dateStr,
+                status,
+                hash: tx.hash,
+            };
+        });
+
+        for (const tx of formattedTxs) {
+            const shortAddr = `${tx.otherParty.slice(0, 6)}...${tx.otherParty.slice(-4)}`;
+            lines.push(
+                `${tx.status} ${tx.direction} **${tx.value} ETH** ${tx.direction.includes("IN") ? "from" : "to"} \`${shortAddr}\``,
+            );
+            lines.push(`   ${tx.dateStr} • [View](https://basescan.org/tx/${tx.hash})`);
+            lines.push("");
+        }
+
+        lines.push(`[View all on BaseScan](https://basescan.org/address/${address})`);
+
+        return {
+            success: true,
+            message: lines.join("\n"),
+            data: {
+                address,
+                transactions: formattedTxs.map((tx) => ({
+                    hash: tx.hash,
+                    direction: tx.direction.includes("IN") ? "in" : "out",
+                    value: tx.value,
+                    otherParty: tx.otherParty,
+                    date: tx.dateStr,
+                })),
+            },
+        };
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        return { success: false, message: `Failed to fetch history: ${msg}` };
     }
 };
