@@ -6,6 +6,7 @@ import type { ParsedAction, ActionIntent } from "./types.js";
 import { getEnv } from "../config/env.js";
 import { randomBytes } from "node:crypto";
 import { createDayTTLMap } from "../utils/ttl-map.js";
+import { buildOptimizedContext, type ContextConfig } from "./context-manager.js";
 
 let _client: Anthropic | null = null;
 let _offlineMode = false;
@@ -385,11 +386,16 @@ export async function processMessage(
 
     // ─── Online mode (tool-use) ─────────────────────────
     if (client) {
-        // Build message history for Claude (last 20 messages for rich context)
-        const contextMessages: Anthropic.MessageParam[] = session.messages.slice(-20).map((m) => ({
-            role: m.role,
-            content: m.content,
-        }));
+        // Build optimized message history for Claude
+        // Uses smart truncation to reduce token usage while preserving context
+        const contextResult = buildOptimizedContext(session.messages, {
+            recentWindowSize: 6, // Keep last 6 messages full
+            maxContextTokens: 4000, // Target ~4K tokens for context
+            maxToolResultChars: 500, // Compress tool results to essentials
+            includeSummary: true, // Add summary of truncated history
+        });
+
+        const contextMessages: Anthropic.MessageParam[] = contextResult.messages;
 
         let assistantMessage = "";
         let iterations = 0;
