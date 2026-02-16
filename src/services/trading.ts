@@ -180,7 +180,7 @@ export async function executeSwap(
     toSymbol: string,
     amount: string,
 ): Promise<SwapResult> {
-    const wallet = getSignerWallet(sessionId);
+    const wallet = await getSignerWallet(sessionId);
     if (!wallet) {
         return {
             success: false,

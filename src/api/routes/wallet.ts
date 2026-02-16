@@ -6,16 +6,8 @@
  */
 
 import { Hono } from "hono";
-import {
-    createWallet,
-    hasWallet,
-    getAddress,
-    getBalance,
-} from "../../services/wallet.js";
-import {
-    walletCreateRateLimit,
-    sessionEnumerationRateLimit,
-} from "../../middleware/rate-limit.js";
+import { createWallet, hasWallet, getAddress, getBalance } from "../../services/wallet.js";
+import { walletCreateRateLimit, sessionEnumerationRateLimit } from "../../middleware/rate-limit.js";
 
 export const wallet = new Hono();
 
@@ -32,11 +24,11 @@ wallet.use("/:sessionId/create", walletCreateRateLimit());
 wallet.get("/:sessionId", async (c) => {
     const sessionId = c.req.param("sessionId");
 
-    if (!hasWallet(sessionId)) {
+    if (!(await hasWallet(sessionId))) {
         return c.json({ exists: false, address: null, balance: null });
     }
 
-    const address = getAddress(sessionId);
+    const address = await getAddress(sessionId);
     const balance = await getBalance(sessionId);
 
     return c.json({
@@ -44,13 +36,13 @@ wallet.get("/:sessionId", async (c) => {
         address,
         balance: balance
             ? {
-                eth: balance.ethFormatted,
-                tokens: balance.tokens.map((t) => ({
-                    symbol: t.symbol,
-                    balance: t.formatted,
-                    address: t.address,
-                })),
-            }
+                  eth: balance.ethFormatted,
+                  tokens: balance.tokens.map((t) => ({
+                      symbol: t.symbol,
+                      balance: t.formatted,
+                      address: t.address,
+                  })),
+              }
             : null,
     });
 });
@@ -61,7 +53,7 @@ wallet.get("/:sessionId", async (c) => {
  */
 wallet.post("/:sessionId/create", async (c) => {
     const sessionId = c.req.param("sessionId");
-    const walletInfo = createWallet(sessionId);
+    const walletInfo = await createWallet(sessionId);
 
     return c.json({
         address: walletInfo.address,

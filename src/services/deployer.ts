@@ -113,7 +113,7 @@ export async function deployToken(params: DeployParams, sessionId?: string): Pro
             const repoId = match ? match[1].replace(/\.git$/, "") : githubLink;
 
             // 1. Check if this dev is already verified → use their existing wallet
-            const existingUser = findUserByPlatform("github", repoId);
+            const existingUser = await findUserByPlatform("github", repoId);
             if (existingUser && existingUser.status === "claimed") {
                 devAddress = existingUser.walletAddress;
                 console.log(
@@ -125,7 +125,7 @@ export async function deployToken(params: DeployParams, sessionId?: string): Pro
                 console.log(`[deployer] Existing phantom user: ${repoId} → ${devAddress}`);
             } else {
                 // 3. Brand new — create phantom user + wallet
-                const result = createPhantomIdentity("github", repoId, sessionId);
+                const result = await createPhantomIdentity("github", repoId, sessionId);
                 devAddress = result.walletAddress;
                 console.log(`[deployer] Created phantom user for ${repoId} → ${devAddress}`);
             }

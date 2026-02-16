@@ -60,11 +60,11 @@ verify.use("/status/:id", verifyStatusRateLimit());
  * links their Privy account, the merge logic in claimIdentity()
  * will consolidate identities under one user.
  */
-function tryClaimPhantomIdentity(
+async function tryClaimPhantomIdentity(
     method: VerificationMethod,
     projectId: string,
     walletAddress: string,
-): void {
+): Promise<void> {
     // Map verification method → identity platform
     let platform: string;
     let platformId: string = projectId;
@@ -85,17 +85,17 @@ function tryClaimPhantomIdentity(
     }
 
     // Try claiming — walletAddress acts as user ID until Privy is linked
-    let identity = findIdentity(platform, platformId);
+    let identity = await findIdentity(platform, platformId);
 
     // Fallback: try with github.com prefix
     if (!identity && platform === "github") {
-        identity = findIdentity("github", `github.com/${platformId}`);
+        identity = await findIdentity("github", `github.com/${platformId}`);
         if (identity) platformId = `github.com/${platformId}`;
     }
 
     if (!identity) return;
 
-    const result = claimIdentity(platform, platformId, walletAddress);
+    const result = await claimIdentity(platform, platformId, walletAddress);
     if (result.success) {
         console.log(
             `[verify] Phantom identity claimed: ${platform}/${platformId} → ${walletAddress}` +
@@ -263,7 +263,7 @@ verify.get("/github/callback", async (c) => {
             .where(eq(schema.verifications.id, state));
 
         // Claim any phantom identity tied to this GitHub repo
-        tryClaimPhantomIdentity("github_oauth", record.projectId, record.walletAddress);
+        await tryClaimPhantomIdentity("github_oauth", record.projectId, record.walletAddress);
 
         return c.redirect(`${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=github`);
     }
@@ -315,7 +315,7 @@ verify.get("/facebook/callback", async (c) => {
             .where(eq(schema.verifications.id, state));
 
         // Claim any phantom identity tied to this Facebook account
-        tryClaimPhantomIdentity("facebook_oauth", record.projectId, record.walletAddress);
+        await tryClaimPhantomIdentity("facebook_oauth", record.projectId, record.walletAddress);
 
         return c.redirect(
             `${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=facebook`,
@@ -369,7 +369,7 @@ verify.get("/instagram/callback", async (c) => {
             .where(eq(schema.verifications.id, state));
 
         // Claim any phantom identity tied to this Instagram account
-        tryClaimPhantomIdentity("instagram_graph", record.projectId, record.walletAddress);
+        await tryClaimPhantomIdentity("instagram_graph", record.projectId, record.walletAddress);
 
         return c.redirect(
             `${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=instagram`,
@@ -481,7 +481,7 @@ verify.post("/check", async (c) => {
             .where(eq(schema.verifications.id, verificationId));
 
         // Claim any phantom identity tied to this verified project
-        tryClaimPhantomIdentity(
+        await tryClaimPhantomIdentity(
             record.method as VerificationMethod,
             record.projectId,
             record.walletAddress,
@@ -559,7 +559,7 @@ verify.get("/", privyAuth(), async (c) => {
     }
 
     // Get all wallet addresses owned by this user (includes merged wallets)
-    const userWallets = getWalletAddressesByPrivyId(userId);
+    const userWallets = await getWalletAddressesByPrivyId(userId);
     if (userWallets.length === 0) {
         // User has no linked wallets yet - return empty list
         return c.json({
@@ -653,7 +653,7 @@ verify.get("/:id", privyAuth(), async (c) => {
     }
 
     // SECURITY: Verify ownership - user must own the wallet that created this verification
-    const userWallets = getWalletAddressesByPrivyId(userId);
+    const userWallets = await getWalletAddressesByPrivyId(userId);
     if (!userWallets.includes(record.walletAddress)) {
         // Return 404 instead of 403 to prevent enumeration attacks
         // Attacker can't distinguish between "doesn't exist" and "exists but not yours"
