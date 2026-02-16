@@ -2,15 +2,15 @@
  * Rate Limiting Middleware for Hono
  *
  * Implements sliding window rate limiting with configurable limits per endpoint.
- * Uses in-memory storage (can be upgraded to Redis for multi-instance deployments).
+ * Supports both in-memory (single instance) and Redis (multi-instance) backends.
+ *
+ * Backend selection:
+ * - Set REDIS_URL env var for distributed rate limiting
+ * - Falls back to in-memory when Redis is not configured
  */
 
 import type { Context, Next } from "hono";
-
-interface RateLimitEntry {
-    count: number;
-    resetAt: number;
-}
+import { getRateLimitStore, type RateLimitStore } from "./rate-limit-store.js";
 
 interface RateLimitConfig {
     /** Maximum requests allowed in the window */
@@ -24,23 +24,6 @@ interface RateLimitConfig {
     /** Skip rate limiting for certain requests */
     skip?: (c: Context) => boolean;
 }
-
-// In-memory store for rate limit entries
-// Key format: "prefix:identifier"
-const store = new Map<string, RateLimitEntry>();
-
-// Cleanup interval (every 5 minutes)
-const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
-
-// Periodic cleanup of expired entries
-setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of store.entries()) {
-        if (entry.resetAt < now) {
-            store.delete(key);
-        }
-    }
-}, CLEANUP_INTERVAL_MS);
 
 /**
  * Extract client IP from request headers (handles proxies).
@@ -80,6 +63,9 @@ export function rateLimit(prefix: string, config: RateLimitConfig) {
         skip,
     } = config;
 
+    // Get store lazily to allow configuration at startup
+    let store: RateLimitStore | null = null;
+
     return async (c: Context, next: Next) => {
         // Skip if configured
         if (skip?.(c)) {
@@ -87,22 +73,16 @@ export function rateLimit(prefix: string, config: RateLimitConfig) {
             return;
         }
 
+        // Lazy init store
+        if (!store) {
+            store = getRateLimitStore();
+        }
+
         const identifier = keyGenerator(c);
         const key = `${prefix}:${identifier}`;
         const now = Date.now();
 
-        let entry = store.get(key);
-
-        // Reset if window has passed
-        if (!entry || entry.resetAt < now) {
-            entry = {
-                count: 0,
-                resetAt: now + windowMs,
-            };
-        }
-
-        entry.count++;
-        store.set(key, entry);
+        const entry = await store.increment(key, windowMs);
 
         // Set rate limit headers
         const remaining = Math.max(0, limit - entry.count);
@@ -255,32 +235,22 @@ interface RateLimitCheckResult {
  * @returns Result indicating if request is allowed and remaining quota
  *
  * @example
- * const result = checkServiceRateLimit("deploy", sessionId, { limit: 3, windowMs: 3600000 });
+ * const result = await checkServiceRateLimit("deploy", sessionId, { limit: 3, windowMs: 3600000 });
  * if (!result.allowed) {
  *   throw new Error(`Rate limit exceeded. Try again in ${result.resetInMinutes} minutes.`);
  * }
  */
-export function checkServiceRateLimit(
+export async function checkServiceRateLimit(
     prefix: string,
     identifier: string,
     config: ServiceRateLimitConfig,
-): RateLimitCheckResult {
+): Promise<RateLimitCheckResult> {
     const { limit, windowMs } = config;
     const key = `${prefix}:${identifier}`;
     const now = Date.now();
 
-    let entry = store.get(key);
-
-    // Reset if window has passed
-    if (!entry || entry.resetAt < now) {
-        entry = {
-            count: 0,
-            resetAt: now + windowMs,
-        };
-    }
-
-    entry.count++;
-    store.set(key, entry);
+    const store = getRateLimitStore();
+    const entry = await store.increment(key, windowMs);
 
     const resetInMs = Math.max(0, entry.resetAt - now);
 
@@ -296,19 +266,20 @@ export function checkServiceRateLimit(
  * Check rate limit without incrementing (peek at current state).
  * Useful for displaying remaining quota to users.
  */
-export function peekServiceRateLimit(
+export async function peekServiceRateLimit(
     prefix: string,
     identifier: string,
     config: ServiceRateLimitConfig,
-): RateLimitCheckResult {
+): Promise<RateLimitCheckResult> {
     const { limit, windowMs } = config;
     const key = `${prefix}:${identifier}`;
     const now = Date.now();
 
-    const entry = store.get(key);
+    const store = getRateLimitStore();
+    const entry = await store.get(key);
 
     // No entry or expired = full quota available
-    if (!entry || entry.resetAt < now) {
+    if (!entry) {
         return {
             allowed: true,
             remaining: limit,
@@ -336,12 +307,12 @@ export const DEPLOY_RATE_LIMIT = { limit: 3, windowMs: 60 * 60 * 1000 };
  * Check token deployment rate limit.
  * @throws Error if rate limit exceeded
  */
-export function checkDeployRateLimit(sessionId: string): void {
-    const result = checkServiceRateLimit("deploy", sessionId, DEPLOY_RATE_LIMIT);
+export async function checkDeployRateLimit(sessionId: string): Promise<void> {
+    const result = await checkServiceRateLimit("deploy", sessionId, DEPLOY_RATE_LIMIT);
     if (!result.allowed) {
         throw new Error(
             `Rate limit: max ${DEPLOY_RATE_LIMIT.limit} launches per hour. ` +
-            `Try again in ${result.resetInMinutes} minutes.`
+                `Try again in ${result.resetInMinutes} minutes.`,
         );
     }
 }
@@ -351,13 +322,15 @@ export function checkDeployRateLimit(sessionId: string): void {
 /**
  * Get current store size (for monitoring)
  */
-export function getRateLimitStoreSize(): number {
-    return store.size;
+export async function getRateLimitStoreSize(): Promise<number> {
+    const store = getRateLimitStore();
+    return store.size();
 }
 
 /**
  * Clear all rate limit entries (for testing)
  */
-export function clearRateLimitStore(): void {
-    store.clear();
+export async function clearRateLimitStore(): Promise<void> {
+    const store = getRateLimitStore();
+    await store.clear();
 }
