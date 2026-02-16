@@ -1687,11 +1687,30 @@ input::placeholder {
 .infra-section {
   padding: var(--space-32) 0;
   background: linear-gradient(180deg, #F2F0FF 0%, #E6E1FF 100%);
-  text-align: center;
+  overflow: visible;
+  position: relative;
+}
+
+.infra-section .container {
+  max-width: 1280px;
+}
+
+.infra-split {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: var(--space-16);
+  align-items: stretch;
+}
+
+.infra-text {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .infra-logo {
-  margin: 0 auto var(--space-6);
+  margin-bottom: var(--space-6);
   border-radius: 16px;
   display: block;
 }
@@ -1710,7 +1729,33 @@ input::placeholder {
   line-height: 1.65;
   color: var(--text-secondary);
   max-width: 580px;
-  margin: 0 auto;
+  margin-bottom: var(--space-4);
+}
+
+.infra-video {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.infra-video .demo-video-wrapper {
+  width: 100%;
+}
+
+.infra-video .demo-video {
+  width: 100%;
+  height: auto;
+}
+
+@media (max-width: 768px) {
+  .infra-split {
+    grid-template-columns: 1fr;
+    gap: var(--space-8);
+  }
+
+  .infra-text {
+    text-align: center;
+  }
 }
 
 /* Final CTA */
@@ -1794,6 +1839,37 @@ input::placeholder {
   line-height: 1.7;
   margin: 0 auto var(--space-10);
   text-transform: lowercase;
+}
+
+/* ─── Demo Video Section ─── */
+
+.demo-video-section {
+  padding: var(--space-16) 0 var(--space-20);
+  background: var(--gray-50);
+}
+
+.demo-video-wrapper {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--gray-200);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.demo-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--gray-100);
+}
+
+.demo-video-caption {
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
 }
 
 /* ─── Verify / Fund / Govern Triptych ─── */

@@ -26,6 +26,7 @@ These items must be completed before going fully live.
 - [ ] `ANTHROPIC_API_KEY` set for chat agent
 - [ ] `ATTESTATION_SIGNER_KEY` set for EAS attestations
 - [ ] `DATABASE_URL` pointing to production Postgres
+- [ ] Privy app created at [dashboard.privy.io](https://dashboard.privy.io), `NEXT_PUBLIC_PRIVY_APP_ID` set in `web/.env.local` (fixes nav "Loading..." → "Sign In")
 
 ## Database
 - [ ] Production Postgres provisioned
