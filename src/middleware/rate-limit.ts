@@ -195,6 +195,19 @@ export function sessionEnumerationRateLimit() {
 }
 
 /**
+ * Verification status lookup rate limit: 30 per minute per IP
+ * Protects against enumeration attacks on verification IDs
+ * Allows reasonable polling for OAuth callback status
+ */
+export function verifyStatusRateLimit() {
+    return rateLimit("verify-status", {
+        limit: 30,
+        windowMs: 60 * 1000, // 1 minute
+        message: "Too many status lookups. Please slow down.",
+    });
+}
+
+/**
  * User-based rate limiter factory (for authenticated endpoints)
  * Uses userId from context instead of IP
  */

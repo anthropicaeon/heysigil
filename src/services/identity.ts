@@ -421,3 +421,24 @@ export function findByPlatformId(platform: string, platformId: string) {
         claimedAt: user.claimedAt,
     };
 }
+
+/**
+ * Get all wallet addresses owned by a Privy user.
+ * Includes the primary wallet and any merged phantom wallets.
+ */
+export function getWalletAddressesByPrivyId(privyUserId: string): string[] {
+    const userId = privyUserIndex.get(privyUserId);
+    if (!userId) return [];
+
+    const primaryUser = resolveUser(userId);
+    const addresses = [primaryUser.walletAddress];
+
+    // Include wallets from merged users
+    for (const user of userStore.values()) {
+        if (user.mergedInto === primaryUser.id) {
+            addresses.push(user.walletAddress);
+        }
+    }
+
+    return addresses;
+}

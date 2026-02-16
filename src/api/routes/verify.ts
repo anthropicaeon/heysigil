@@ -1,35 +1,31 @@
 import { Hono } from "hono";
 import { randomBytes } from "node:crypto";
-import { eq, and, desc, type SQL } from "drizzle-orm";
+import { eq, and, desc, inArray, type SQL } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
 import { getEnv } from "../../config/env.js";
 import {
-  getGitHubAuthUrl,
-  verifyGitHubOwnership,
-  verifyGitHubFile,
+    getGitHubAuthUrl,
+    verifyGitHubOwnership,
+    verifyGitHubFile,
 } from "../../verification/github.js";
-import {
-  verifyDomainDns,
-  verifyDomainFile,
-  verifyDomainMeta,
-} from "../../verification/domain.js";
+import { verifyDomainDns, verifyDomainFile, verifyDomainMeta } from "../../verification/domain.js";
 import { createTweetChallenge, verifyTweetProof } from "../../verification/tweet.js";
-import {
-  getFacebookAuthUrl,
-  verifyFacebookOwnership,
-} from "../../verification/facebook.js";
-import {
-  getInstagramAuthUrl,
-  verifyInstagramOwnership,
-} from "../../verification/instagram.js";
+import { getFacebookAuthUrl, verifyFacebookOwnership } from "../../verification/facebook.js";
+import { getInstagramAuthUrl, verifyInstagramOwnership } from "../../verification/instagram.js";
 import { createAttestation } from "../../attestation/eas.js";
 import type { VerificationMethod } from "../../verification/types.js";
-import { findIdentity, claimIdentity } from "../../services/identity.js";
 import {
-  verifyChallengeRateLimit,
-  verifyCheckRateLimit,
-  oauthCallbackRateLimit,
+    findIdentity,
+    claimIdentity,
+    getWalletAddressesByPrivyId,
+} from "../../services/identity.js";
+import {
+    verifyChallengeRateLimit,
+    verifyCheckRateLimit,
+    oauthCallbackRateLimit,
+    verifyStatusRateLimit,
 } from "../../middleware/rate-limit.js";
+import { privyAuth, privyAuthOptional, getUserId } from "../../middleware/auth.js";
 
 const verify = new Hono();
 
@@ -43,6 +39,9 @@ verify.use("/check", verifyCheckRateLimit());
 verify.use("/github/callback", oauthCallbackRateLimit());
 verify.use("/facebook/callback", oauthCallbackRateLimit());
 verify.use("/instagram/callback", oauthCallbackRateLimit());
+
+// Rate limit public status endpoint (30 per minute per IP - enumeration protection)
+verify.use("/status/:id", verifyStatusRateLimit());
 
 // ---------- Phantom identity claim helper ----------
 
@@ -62,47 +61,47 @@ verify.use("/instagram/callback", oauthCallbackRateLimit());
  * will consolidate identities under one user.
  */
 function tryClaimPhantomIdentity(
-  method: VerificationMethod,
-  projectId: string,
-  walletAddress: string,
+    method: VerificationMethod,
+    projectId: string,
+    walletAddress: string,
 ): void {
-  // Map verification method → identity platform
-  let platform: string;
-  let platformId: string = projectId;
+    // Map verification method → identity platform
+    let platform: string;
+    let platformId: string = projectId;
 
-  if (method.startsWith("github")) {
-    platform = "github";
-    platformId = projectId.replace(/^github\.com\//, "");
-  } else if (method.startsWith("facebook")) {
-    platform = "facebook";
-  } else if (method.startsWith("instagram")) {
-    platform = "instagram";
-  } else if (method.startsWith("tweet")) {
-    platform = "twitter";
-  } else if (method.startsWith("domain")) {
-    platform = "domain";
-  } else {
-    return;
-  }
+    if (method.startsWith("github")) {
+        platform = "github";
+        platformId = projectId.replace(/^github\.com\//, "");
+    } else if (method.startsWith("facebook")) {
+        platform = "facebook";
+    } else if (method.startsWith("instagram")) {
+        platform = "instagram";
+    } else if (method.startsWith("tweet")) {
+        platform = "twitter";
+    } else if (method.startsWith("domain")) {
+        platform = "domain";
+    } else {
+        return;
+    }
 
-  // Try claiming — walletAddress acts as user ID until Privy is linked
-  let identity = findIdentity(platform, platformId);
+    // Try claiming — walletAddress acts as user ID until Privy is linked
+    let identity = findIdentity(platform, platformId);
 
-  // Fallback: try with github.com prefix
-  if (!identity && platform === "github") {
-    identity = findIdentity("github", `github.com/${platformId}`);
-    if (identity) platformId = `github.com/${platformId}`;
-  }
+    // Fallback: try with github.com prefix
+    if (!identity && platform === "github") {
+        identity = findIdentity("github", `github.com/${platformId}`);
+        if (identity) platformId = `github.com/${platformId}`;
+    }
 
-  if (!identity) return;
+    if (!identity) return;
 
-  const result = claimIdentity(platform, platformId, walletAddress);
-  if (result.success) {
-    console.log(
-      `[verify] Phantom identity claimed: ${platform}/${platformId} → ${walletAddress}` +
-      (result.merged ? " (MERGED)" : ""),
-    );
-  }
+    const result = claimIdentity(platform, platformId, walletAddress);
+    if (result.success) {
+        console.log(
+            `[verify] Phantom identity claimed: ${platform}/${platformId} → ${walletAddress}` +
+                (result.merged ? " (MERGED)" : ""),
+        );
+    }
 }
 
 // ---------- Challenge creation ----------
@@ -114,114 +113,114 @@ function tryClaimPhantomIdentity(
  * Body: { method, projectId, walletAddress }
  */
 verify.post("/challenge", async (c) => {
-  const { method, projectId, walletAddress } = await c.req.json<{
-    method: VerificationMethod;
-    projectId: string;
-    walletAddress: string;
-  }>();
+    const { method, projectId, walletAddress } = await c.req.json<{
+        method: VerificationMethod;
+        projectId: string;
+        walletAddress: string;
+    }>();
 
-  if (!method || !projectId || !walletAddress) {
-    return c.json({ error: "Missing required fields: method, projectId, walletAddress" }, 400);
-  }
+    if (!method || !projectId || !walletAddress) {
+        return c.json({ error: "Missing required fields: method, projectId, walletAddress" }, 400);
+    }
 
-  const challengeCode = `oc-${randomBytes(12).toString("hex")}`;
-  const db = getDb();
+    const challengeCode = `oc-${randomBytes(12).toString("hex")}`;
+    const db = getDb();
 
-  const [record] = await db
-    .insert(schema.verifications)
-    .values({
-      method,
-      projectId,
-      walletAddress,
-      challengeCode,
-      status: "pending",
-      expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h expiry
-    })
-    .returning();
+    const [record] = await db
+        .insert(schema.verifications)
+        .values({
+            method,
+            projectId,
+            walletAddress,
+            challengeCode,
+            status: "pending",
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h expiry
+        })
+        .returning();
 
-  // Build method-specific instructions
-  let instructions = "";
-  let authUrl = "";
+    // Build method-specific instructions
+    let instructions = "";
+    let authUrl = "";
 
-  switch (method) {
-    case "github_oauth": {
-      authUrl = getGitHubAuthUrl(record.id);
-      instructions = `Click the authorization URL to verify you have admin access to ${projectId}.`;
-      break;
+    switch (method) {
+        case "github_oauth": {
+            authUrl = getGitHubAuthUrl(record.id);
+            instructions = `Click the authorization URL to verify you have admin access to ${projectId}.`;
+            break;
+        }
+        case "github_file": {
+            instructions = [
+                `Add a file at .well-known/pool-claim.txt in the ${projectId} repo with this content:`,
+                ``,
+                `verification-code=${challengeCode}`,
+                `wallet-address=${walletAddress}`,
+                ``,
+                `Then call POST /api/verify/check with your verification ID.`,
+            ].join("\n");
+            break;
+        }
+        case "domain_dns": {
+            instructions = [
+                `Add this DNS TXT record:`,
+                ``,
+                `  _poolclaim.${projectId} TXT "pool-claim-verify=${walletAddress}:${challengeCode}"`,
+                ``,
+                `DNS propagation can take 15 minutes to 72 hours.`,
+                `Then call POST /api/verify/check with your verification ID.`,
+            ].join("\n");
+            break;
+        }
+        case "domain_file": {
+            instructions = [
+                `Place a file at: https://${projectId}/.well-known/pool-claim.txt`,
+                ``,
+                `Content:`,
+                `verification-token=${challengeCode}`,
+                `wallet-address=${walletAddress}`,
+                ``,
+                `Then call POST /api/verify/check with your verification ID.`,
+            ].join("\n");
+            break;
+        }
+        case "domain_meta": {
+            instructions = [
+                `Add this meta tag to the <head> of https://${projectId}:`,
+                ``,
+                `<meta name="pool-claim-verification" content="${walletAddress}:${challengeCode}" />`,
+                ``,
+                `Then call POST /api/verify/check with your verification ID.`,
+            ].join("\n");
+            break;
+        }
+        case "tweet_zktls": {
+            const tweetChallenge = createTweetChallenge(projectId, walletAddress);
+            instructions = tweetChallenge.instructions;
+            break;
+        }
+        case "facebook_oauth": {
+            authUrl = getFacebookAuthUrl(record.id);
+            instructions = `Click the authorization URL to verify you admin the Facebook page "${projectId}".`;
+            break;
+        }
+        case "instagram_graph": {
+            authUrl = getInstagramAuthUrl(record.id);
+            instructions = `Click the authorization URL to verify you own the Instagram account @${projectId}.`;
+            break;
+        }
+        default:
+            return c.json({ error: `Unsupported verification method: ${method}` }, 400);
     }
-    case "github_file": {
-      instructions = [
-        `Add a file at .well-known/pool-claim.txt in the ${projectId} repo with this content:`,
-        ``,
-        `verification-code=${challengeCode}`,
-        `wallet-address=${walletAddress}`,
-        ``,
-        `Then call POST /api/verify/check with your verification ID.`,
-      ].join("\n");
-      break;
-    }
-    case "domain_dns": {
-      instructions = [
-        `Add this DNS TXT record:`,
-        ``,
-        `  _poolclaim.${projectId} TXT "pool-claim-verify=${walletAddress}:${challengeCode}"`,
-        ``,
-        `DNS propagation can take 15 minutes to 72 hours.`,
-        `Then call POST /api/verify/check with your verification ID.`,
-      ].join("\n");
-      break;
-    }
-    case "domain_file": {
-      instructions = [
-        `Place a file at: https://${projectId}/.well-known/pool-claim.txt`,
-        ``,
-        `Content:`,
-        `verification-token=${challengeCode}`,
-        `wallet-address=${walletAddress}`,
-        ``,
-        `Then call POST /api/verify/check with your verification ID.`,
-      ].join("\n");
-      break;
-    }
-    case "domain_meta": {
-      instructions = [
-        `Add this meta tag to the <head> of https://${projectId}:`,
-        ``,
-        `<meta name="pool-claim-verification" content="${walletAddress}:${challengeCode}" />`,
-        ``,
-        `Then call POST /api/verify/check with your verification ID.`,
-      ].join("\n");
-      break;
-    }
-    case "tweet_zktls": {
-      const tweetChallenge = createTweetChallenge(projectId, walletAddress);
-      instructions = tweetChallenge.instructions;
-      break;
-    }
-    case "facebook_oauth": {
-      authUrl = getFacebookAuthUrl(record.id);
-      instructions = `Click the authorization URL to verify you admin the Facebook page "${projectId}".`;
-      break;
-    }
-    case "instagram_graph": {
-      authUrl = getInstagramAuthUrl(record.id);
-      instructions = `Click the authorization URL to verify you own the Instagram account @${projectId}.`;
-      break;
-    }
-    default:
-      return c.json({ error: `Unsupported verification method: ${method}` }, 400);
-  }
 
-  return c.json({
-    verificationId: record.id,
-    challengeCode,
-    method,
-    projectId,
-    walletAddress,
-    instructions,
-    authUrl: authUrl || undefined,
-    expiresAt: record.expiresAt,
-  });
+    return c.json({
+        verificationId: record.id,
+        challengeCode,
+        method,
+        projectId,
+        walletAddress,
+        instructions,
+        authUrl: authUrl || undefined,
+        expiresAt: record.expiresAt,
+    });
 });
 
 // ---------- OAuth callbacks ----------
@@ -231,162 +230,160 @@ verify.post("/challenge", async (c) => {
  * GitHub OAuth callback — completes GitHub verification.
  */
 verify.get("/github/callback", async (c) => {
-  const code = c.req.query("code");
-  const state = c.req.query("state"); // state = verification ID
-  const env = getEnv();
+    const code = c.req.query("code");
+    const state = c.req.query("state"); // state = verification ID
+    const env = getEnv();
 
-  if (!code || !state) {
-    return c.redirect(`${env.FRONTEND_URL}/verify?error=missing_params`);
-  }
+    if (!code || !state) {
+        return c.redirect(`${env.FRONTEND_URL}/verify?error=missing_params`);
+    }
 
-  const db = getDb();
-  const [record] = await db
-    .select()
-    .from(schema.verifications)
-    .where(eq(schema.verifications.id, state))
-    .limit(1);
+    const db = getDb();
+    const [record] = await db
+        .select()
+        .from(schema.verifications)
+        .where(eq(schema.verifications.id, state))
+        .limit(1);
 
-  if (!record || record.status !== "pending") {
-    return c.redirect(`${env.FRONTEND_URL}/verify?error=invalid_state`);
-  }
+    if (!record || record.status !== "pending") {
+        return c.redirect(`${env.FRONTEND_URL}/verify?error=invalid_state`);
+    }
 
-  const result = await verifyGitHubOwnership(code, record.projectId);
+    const result = await verifyGitHubOwnership(code, record.projectId);
 
-  if (result.success) {
+    if (result.success) {
+        await db
+            .update(schema.verifications)
+            .set({
+                status: "verified",
+                platformUsername: result.platformUsername,
+                proof: result.proof,
+                verifiedAt: new Date(),
+            })
+            .where(eq(schema.verifications.id, state));
+
+        // Claim any phantom identity tied to this GitHub repo
+        tryClaimPhantomIdentity("github_oauth", record.projectId, record.walletAddress);
+
+        return c.redirect(`${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=github`);
+    }
+
     await db
-      .update(schema.verifications)
-      .set({
-        status: "verified",
-        platformUsername: result.platformUsername,
-        proof: result.proof,
-        verifiedAt: new Date(),
-      })
-      .where(eq(schema.verifications.id, state));
-
-    // Claim any phantom identity tied to this GitHub repo
-    tryClaimPhantomIdentity("github_oauth", record.projectId, record.walletAddress);
+        .update(schema.verifications)
+        .set({ status: "failed", proof: { error: result.error } })
+        .where(eq(schema.verifications.id, state));
 
     return c.redirect(
-      `${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=github`,
+        `${env.FRONTEND_URL}/verify?status=failed&error=${encodeURIComponent(result.error || "Unknown")}`,
     );
-  }
-
-  await db
-    .update(schema.verifications)
-    .set({ status: "failed", proof: { error: result.error } })
-    .where(eq(schema.verifications.id, state));
-
-  return c.redirect(
-    `${env.FRONTEND_URL}/verify?status=failed&error=${encodeURIComponent(result.error || "Unknown")}`,
-  );
 });
 
 /**
  * GET /api/verify/facebook/callback
  */
 verify.get("/facebook/callback", async (c) => {
-  const code = c.req.query("code");
-  const state = c.req.query("state");
-  const env = getEnv();
+    const code = c.req.query("code");
+    const state = c.req.query("state");
+    const env = getEnv();
 
-  if (!code || !state) {
-    return c.redirect(`${env.FRONTEND_URL}/verify?error=missing_params`);
-  }
+    if (!code || !state) {
+        return c.redirect(`${env.FRONTEND_URL}/verify?error=missing_params`);
+    }
 
-  const db = getDb();
-  const [record] = await db
-    .select()
-    .from(schema.verifications)
-    .where(eq(schema.verifications.id, state))
-    .limit(1);
+    const db = getDb();
+    const [record] = await db
+        .select()
+        .from(schema.verifications)
+        .where(eq(schema.verifications.id, state))
+        .limit(1);
 
-  if (!record || record.status !== "pending") {
-    return c.redirect(`${env.FRONTEND_URL}/verify?error=invalid_state`);
-  }
+    if (!record || record.status !== "pending") {
+        return c.redirect(`${env.FRONTEND_URL}/verify?error=invalid_state`);
+    }
 
-  const result = await verifyFacebookOwnership(code, record.projectId);
+    const result = await verifyFacebookOwnership(code, record.projectId);
 
-  if (result.success) {
+    if (result.success) {
+        await db
+            .update(schema.verifications)
+            .set({
+                status: "verified",
+                platformUsername: result.platformUsername,
+                proof: result.proof,
+                verifiedAt: new Date(),
+            })
+            .where(eq(schema.verifications.id, state));
+
+        // Claim any phantom identity tied to this Facebook account
+        tryClaimPhantomIdentity("facebook_oauth", record.projectId, record.walletAddress);
+
+        return c.redirect(
+            `${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=facebook`,
+        );
+    }
+
     await db
-      .update(schema.verifications)
-      .set({
-        status: "verified",
-        platformUsername: result.platformUsername,
-        proof: result.proof,
-        verifiedAt: new Date(),
-      })
-      .where(eq(schema.verifications.id, state));
-
-    // Claim any phantom identity tied to this Facebook account
-    tryClaimPhantomIdentity("facebook_oauth", record.projectId, record.walletAddress);
+        .update(schema.verifications)
+        .set({ status: "failed", proof: { error: result.error } })
+        .where(eq(schema.verifications.id, state));
 
     return c.redirect(
-      `${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=facebook`,
+        `${env.FRONTEND_URL}/verify?status=failed&error=${encodeURIComponent(result.error || "Unknown")}`,
     );
-  }
-
-  await db
-    .update(schema.verifications)
-    .set({ status: "failed", proof: { error: result.error } })
-    .where(eq(schema.verifications.id, state));
-
-  return c.redirect(
-    `${env.FRONTEND_URL}/verify?status=failed&error=${encodeURIComponent(result.error || "Unknown")}`,
-  );
 });
 
 /**
  * GET /api/verify/instagram/callback
  */
 verify.get("/instagram/callback", async (c) => {
-  const code = c.req.query("code");
-  const state = c.req.query("state");
-  const env = getEnv();
+    const code = c.req.query("code");
+    const state = c.req.query("state");
+    const env = getEnv();
 
-  if (!code || !state) {
-    return c.redirect(`${env.FRONTEND_URL}/verify?error=missing_params`);
-  }
+    if (!code || !state) {
+        return c.redirect(`${env.FRONTEND_URL}/verify?error=missing_params`);
+    }
 
-  const db = getDb();
-  const [record] = await db
-    .select()
-    .from(schema.verifications)
-    .where(eq(schema.verifications.id, state))
-    .limit(1);
+    const db = getDb();
+    const [record] = await db
+        .select()
+        .from(schema.verifications)
+        .where(eq(schema.verifications.id, state))
+        .limit(1);
 
-  if (!record || record.status !== "pending") {
-    return c.redirect(`${env.FRONTEND_URL}/verify?error=invalid_state`);
-  }
+    if (!record || record.status !== "pending") {
+        return c.redirect(`${env.FRONTEND_URL}/verify?error=invalid_state`);
+    }
 
-  const result = await verifyInstagramOwnership(code, record.projectId);
+    const result = await verifyInstagramOwnership(code, record.projectId);
 
-  if (result.success) {
+    if (result.success) {
+        await db
+            .update(schema.verifications)
+            .set({
+                status: "verified",
+                platformUsername: result.platformUsername,
+                proof: result.proof,
+                verifiedAt: new Date(),
+            })
+            .where(eq(schema.verifications.id, state));
+
+        // Claim any phantom identity tied to this Instagram account
+        tryClaimPhantomIdentity("instagram_graph", record.projectId, record.walletAddress);
+
+        return c.redirect(
+            `${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=instagram`,
+        );
+    }
+
     await db
-      .update(schema.verifications)
-      .set({
-        status: "verified",
-        platformUsername: result.platformUsername,
-        proof: result.proof,
-        verifiedAt: new Date(),
-      })
-      .where(eq(schema.verifications.id, state));
-
-    // Claim any phantom identity tied to this Instagram account
-    tryClaimPhantomIdentity("instagram_graph", record.projectId, record.walletAddress);
+        .update(schema.verifications)
+        .set({ status: "failed", proof: { error: result.error } })
+        .where(eq(schema.verifications.id, state));
 
     return c.redirect(
-      `${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=instagram`,
+        `${env.FRONTEND_URL}/verify?status=failed&error=${encodeURIComponent(result.error || "Unknown")}`,
     );
-  }
-
-  await db
-    .update(schema.verifications)
-    .set({ status: "failed", proof: { error: result.error } })
-    .where(eq(schema.verifications.id, state));
-
-  return c.redirect(
-    `${env.FRONTEND_URL}/verify?status=failed&error=${encodeURIComponent(result.error || "Unknown")}`,
-  );
 });
 
 // ---------- Manual check (file/DNS/meta/tweet) ----------
@@ -398,214 +395,282 @@ verify.get("/instagram/callback", async (c) => {
  * Body: { verificationId, tweetProof? }
  */
 verify.post("/check", async (c) => {
-  const { verificationId, tweetProof } = await c.req.json<{
-    verificationId: string;
-    tweetProof?: {
-      proofData: string;
-      provider: "reclaim" | "opacity" | "vlayer";
-      challengeCode: string;
-    };
-  }>();
+    const { verificationId, tweetProof } = await c.req.json<{
+        verificationId: string;
+        tweetProof?: {
+            proofData: string;
+            provider: "reclaim" | "opacity" | "vlayer";
+            challengeCode: string;
+        };
+    }>();
 
-  const db = getDb();
-  const [record] = await db
-    .select()
-    .from(schema.verifications)
-    .where(eq(schema.verifications.id, verificationId))
-    .limit(1);
+    const db = getDb();
+    const [record] = await db
+        .select()
+        .from(schema.verifications)
+        .where(eq(schema.verifications.id, verificationId))
+        .limit(1);
 
-  if (!record) {
-    return c.json({ error: "Verification not found" }, 404);
-  }
-  if (record.status !== "pending") {
-    return c.json({ error: `Verification already ${record.status}` }, 400);
-  }
-  if (record.expiresAt && record.expiresAt < new Date()) {
-    await db
-      .update(schema.verifications)
-      .set({ status: "expired" })
-      .where(eq(schema.verifications.id, verificationId));
-    return c.json({ error: "Verification expired" }, 400);
-  }
+    if (!record) {
+        return c.json({ error: "Verification not found" }, 404);
+    }
+    if (record.status !== "pending") {
+        return c.json({ error: `Verification already ${record.status}` }, 400);
+    }
+    if (record.expiresAt && record.expiresAt < new Date()) {
+        await db
+            .update(schema.verifications)
+            .set({ status: "expired" })
+            .where(eq(schema.verifications.id, verificationId));
+        return c.json({ error: "Verification expired" }, 400);
+    }
 
-  let result;
+    let result;
 
-  switch (record.method) {
-    case "github_file":
-      result = await verifyGitHubFile(
-        record.projectId,
-        record.challengeCode,
-        record.walletAddress,
-      );
-      break;
-    case "domain_dns":
-      result = await verifyDomainDns(
-        record.projectId,
-        record.challengeCode,
-        record.walletAddress,
-      );
-      break;
-    case "domain_file":
-      result = await verifyDomainFile(
-        record.projectId,
-        record.challengeCode,
-        record.walletAddress,
-      );
-      break;
-    case "domain_meta":
-      result = await verifyDomainMeta(
-        record.projectId,
-        record.challengeCode,
-        record.walletAddress,
-      );
-      break;
-    case "tweet_zktls":
-      if (!tweetProof) {
-        return c.json({ error: "Missing tweetProof for tweet_zktls verification" }, 400);
-      }
-      result = await verifyTweetProof(tweetProof, record.projectId, record.challengeCode);
-      break;
-    default:
-      return c.json(
-        { error: `Method ${record.method} uses OAuth — check the callback instead` },
-        400,
-      );
-  }
+    switch (record.method) {
+        case "github_file":
+            result = await verifyGitHubFile(
+                record.projectId,
+                record.challengeCode,
+                record.walletAddress,
+            );
+            break;
+        case "domain_dns":
+            result = await verifyDomainDns(
+                record.projectId,
+                record.challengeCode,
+                record.walletAddress,
+            );
+            break;
+        case "domain_file":
+            result = await verifyDomainFile(
+                record.projectId,
+                record.challengeCode,
+                record.walletAddress,
+            );
+            break;
+        case "domain_meta":
+            result = await verifyDomainMeta(
+                record.projectId,
+                record.challengeCode,
+                record.walletAddress,
+            );
+            break;
+        case "tweet_zktls":
+            if (!tweetProof) {
+                return c.json({ error: "Missing tweetProof for tweet_zktls verification" }, 400);
+            }
+            result = await verifyTweetProof(tweetProof, record.projectId, record.challengeCode);
+            break;
+        default:
+            return c.json(
+                { error: `Method ${record.method} uses OAuth — check the callback instead` },
+                400,
+            );
+    }
 
-  if (result.success) {
-    await db
-      .update(schema.verifications)
-      .set({
-        status: "verified",
-        platformUsername: result.platformUsername,
-        proof: result.proof,
-        verifiedAt: new Date(),
-      })
-      .where(eq(schema.verifications.id, verificationId));
+    if (result.success) {
+        await db
+            .update(schema.verifications)
+            .set({
+                status: "verified",
+                platformUsername: result.platformUsername,
+                proof: result.proof,
+                verifiedAt: new Date(),
+            })
+            .where(eq(schema.verifications.id, verificationId));
 
-    // Claim any phantom identity tied to this verified project
-    tryClaimPhantomIdentity(
-      record.method as VerificationMethod,
-      record.projectId,
-      record.walletAddress,
-    );
-  } else {
-    // Keep as pending so they can retry (don't mark failed yet)
-  }
+        // Claim any phantom identity tied to this verified project
+        tryClaimPhantomIdentity(
+            record.method as VerificationMethod,
+            record.projectId,
+            record.walletAddress,
+        );
+    } else {
+        // Keep as pending so they can retry (don't mark failed yet)
+    }
 
-  return c.json({
-    verificationId,
-    status: result.success ? "verified" : "pending",
-    success: result.success,
-    error: result.error,
-    method: record.method,
-    projectId: record.projectId,
-  });
+    return c.json({
+        verificationId,
+        status: result.success ? "verified" : "pending",
+        success: result.success,
+        error: result.error,
+        method: record.method,
+        projectId: record.projectId,
+    });
 });
 
 // ---------- List & Status ----------
 
 /**
+ * GET /api/verify/status/:id
+ * Public endpoint returning minimal verification status.
+ * Does NOT expose wallet addresses or platform usernames.
+ *
+ * Use case: Frontend polling verification status after OAuth callback.
+ */
+verify.get("/status/:id", async (c) => {
+    const id = c.req.param("id");
+    const db = getDb();
+
+    const [record] = await db
+        .select({
+            id: schema.verifications.id,
+            status: schema.verifications.status,
+            method: schema.verifications.method,
+            projectId: schema.verifications.projectId,
+            createdAt: schema.verifications.createdAt,
+            verifiedAt: schema.verifications.verifiedAt,
+        })
+        .from(schema.verifications)
+        .where(eq(schema.verifications.id, id))
+        .limit(1);
+
+    if (!record) {
+        return c.json({ error: "Verification not found" }, 404);
+    }
+
+    return c.json({
+        id: record.id,
+        status: record.status,
+        method: record.method,
+        projectId: record.projectId,
+        createdAt: record.createdAt,
+        verifiedAt: record.verifiedAt,
+    });
+});
+
+/**
  * GET /api/verify
- * List verifications with optional filtering.
+ * List verifications owned by the authenticated user.
+ * Requires authentication - returns only verifications for user's wallet addresses.
  *
  * Query params:
  *   - status: "pending" | "verified" | "failed" | "expired"
  *   - method: verification method (e.g., "github_oauth", "domain_dns")
- *   - wallet: wallet address to filter by
  *   - projectId: project identifier to filter by
  *   - limit: max results (default 20, max 100)
  *   - offset: pagination offset (default 0)
  */
-verify.get("/", async (c) => {
-  const status = c.req.query("status");
-  const method = c.req.query("method");
-  const wallet = c.req.query("wallet");
-  const projectId = c.req.query("projectId");
-  const limitParam = c.req.query("limit");
-  const offsetParam = c.req.query("offset");
+verify.get("/", privyAuth(), async (c) => {
+    const userId = getUserId(c);
+    if (!userId) {
+        return c.json({ error: "Authentication required" }, 401);
+    }
 
-  // Parse pagination params with sane defaults
-  const limit = Math.min(Math.max(1, Number(limitParam) || 20), 100);
-  const offset = Math.max(0, Number(offsetParam) || 0);
+    // Get all wallet addresses owned by this user (includes merged wallets)
+    const userWallets = getWalletAddressesByPrivyId(userId);
+    if (userWallets.length === 0) {
+        // User has no linked wallets yet - return empty list
+        return c.json({
+            verifications: [],
+            pagination: { limit: 20, offset: 0, count: 0, hasMore: false },
+        });
+    }
 
-  const db = getDb();
+    const status = c.req.query("status");
+    const method = c.req.query("method");
+    const projectId = c.req.query("projectId");
+    const limitParam = c.req.query("limit");
+    const offsetParam = c.req.query("offset");
 
-  // Build conditional where clauses
-  const conditions: SQL[] = [];
+    // Parse pagination params with sane defaults
+    const limit = Math.min(Math.max(1, Number(limitParam) || 20), 100);
+    const offset = Math.max(0, Number(offsetParam) || 0);
 
-  if (status) {
-    conditions.push(eq(schema.verifications.status, status));
-  }
-  if (method) {
-    conditions.push(eq(schema.verifications.method, method));
-  }
-  if (wallet) {
-    conditions.push(eq(schema.verifications.walletAddress, wallet));
-  }
-  if (projectId) {
-    conditions.push(eq(schema.verifications.projectId, projectId));
-  }
+    const db = getDb();
 
-  // Execute query with optional filters
-  const records = await db
-    .select({
-      id: schema.verifications.id,
-      method: schema.verifications.method,
-      projectId: schema.verifications.projectId,
-      walletAddress: schema.verifications.walletAddress,
-      status: schema.verifications.status,
-      platformUsername: schema.verifications.platformUsername,
-      attestationUid: schema.verifications.attestationUid,
-      createdAt: schema.verifications.createdAt,
-      verifiedAt: schema.verifications.verifiedAt,
-    })
-    .from(schema.verifications)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(schema.verifications.createdAt))
-    .limit(limit)
-    .offset(offset);
+    // Build conditional where clauses
+    const conditions: SQL[] = [];
 
-  return c.json({
-    verifications: records,
-    pagination: {
-      limit,
-      offset,
-      count: records.length,
-      hasMore: records.length === limit,
-    },
-  });
+    // SECURITY: Always filter to user's wallet addresses
+    // This is the core authorization check
+    conditions.push(inArray(schema.verifications.walletAddress, userWallets));
+
+    if (status) {
+        conditions.push(eq(schema.verifications.status, status));
+    }
+    if (method) {
+        conditions.push(eq(schema.verifications.method, method));
+    }
+    if (projectId) {
+        conditions.push(eq(schema.verifications.projectId, projectId));
+    }
+
+    // Execute query with ownership filter
+    const records = await db
+        .select({
+            id: schema.verifications.id,
+            method: schema.verifications.method,
+            projectId: schema.verifications.projectId,
+            walletAddress: schema.verifications.walletAddress,
+            status: schema.verifications.status,
+            platformUsername: schema.verifications.platformUsername,
+            attestationUid: schema.verifications.attestationUid,
+            createdAt: schema.verifications.createdAt,
+            verifiedAt: schema.verifications.verifiedAt,
+        })
+        .from(schema.verifications)
+        .where(and(...conditions))
+        .orderBy(desc(schema.verifications.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+    return c.json({
+        verifications: records,
+        pagination: {
+            limit,
+            offset,
+            count: records.length,
+            hasMore: records.length === limit,
+        },
+    });
 });
 
 /**
  * GET /api/verify/:id
- * Get verification status.
+ * Get full verification details. Requires authentication and ownership.
+ *
+ * SECURITY: Returns 404 (not 403) for unauthorized access to prevent enumeration.
  */
-verify.get("/:id", async (c) => {
-  const id = c.req.param("id");
-  const db = getDb();
+verify.get("/:id", privyAuth(), async (c) => {
+    const userId = getUserId(c);
+    if (!userId) {
+        return c.json({ error: "Authentication required" }, 401);
+    }
 
-  const [record] = await db
-    .select()
-    .from(schema.verifications)
-    .where(eq(schema.verifications.id, id))
-    .limit(1);
+    const id = c.req.param("id");
+    const db = getDb();
 
-  if (!record) {
-    return c.json({ error: "Verification not found" }, 404);
-  }
+    const [record] = await db
+        .select()
+        .from(schema.verifications)
+        .where(eq(schema.verifications.id, id))
+        .limit(1);
 
-  return c.json({
-    id: record.id,
-    method: record.method,
-    projectId: record.projectId,
-    walletAddress: record.walletAddress,
-    status: record.status,
-    platformUsername: record.platformUsername,
-    attestationUid: record.attestationUid,
-    createdAt: record.createdAt,
-    verifiedAt: record.verifiedAt,
-  });
+    if (!record) {
+        return c.json({ error: "Verification not found" }, 404);
+    }
+
+    // SECURITY: Verify ownership - user must own the wallet that created this verification
+    const userWallets = getWalletAddressesByPrivyId(userId);
+    if (!userWallets.includes(record.walletAddress)) {
+        // Return 404 instead of 403 to prevent enumeration attacks
+        // Attacker can't distinguish between "doesn't exist" and "exists but not yours"
+        return c.json({ error: "Verification not found" }, 404);
+    }
+
+    return c.json({
+        id: record.id,
+        method: record.method,
+        projectId: record.projectId,
+        walletAddress: record.walletAddress,
+        status: record.status,
+        platformUsername: record.platformUsername,
+        attestationUid: record.attestationUid,
+        createdAt: record.createdAt,
+        verifiedAt: record.verifiedAt,
+    });
 });
 
 export { verify };
