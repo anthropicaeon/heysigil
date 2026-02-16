@@ -1,374 +1,356 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
-const METHODS = [
-  {
-    icon: "GH",
-    name: "GitHub",
-    desc: "Prove admin access to a repository",
-    badge: "OAuth",
-    badgeClass: "badge-oauth",
-  },
-  {
-    icon: "DNS",
-    name: "Domain (DNS)",
-    desc: "Add a TXT record to prove domain ownership",
-    badge: "Manual",
-    badgeClass: "badge-manual",
-  },
-  {
-    icon: "WWW",
-    name: "Domain (File)",
-    desc: "Place a verification file on your website",
-    badge: "Manual",
-    badgeClass: "badge-manual",
-  },
-  {
-    icon: "TW",
-    name: "Tweet + zkTLS",
-    desc: "Cryptographic proof, no X API needed",
-    badge: "zkTLS",
-    badgeClass: "badge-zktls",
-  },
-  {
-    icon: "FB",
-    name: "Facebook Page",
-    desc: "Verify you admin a Facebook Page",
-    badge: "OAuth",
-    badgeClass: "badge-oauth",
-  },
-  {
-    icon: "IG",
-    name: "Instagram",
-    desc: "Verify a Business or Creator account",
-    badge: "OAuth",
-    badgeClass: "badge-oauth",
-  },
+const ROTATING_PROMPTS = [
+  "Fund my next innovation...",
+  "Verify my repo...",
+  "Claim my fees...",
+  "Authenticate my identity...",
 ];
 
 export default function Home() {
   return (
     <main>
-      {/* Hero */}
-      <section className="hero">
-        <div className="container">
-          <div className="hero-eyebrow">We Fund Builders</div>
-          <h1>Build what matters.<br />We handle the rest.</h1>
-          <p>
-            Sigil funds developer projects and provides the tools, community management, and crypto support so you can focus on what you do best.
+      {/* ── Section 1: Hero with @HeySigil + Rotating Text ── */}
+      <section className="hero-sigil">
+        <div className="hero-sigil-center">
+          <p className="hero-eyebrow-protocol">the verification infrastructure of base</p>
+          <div className="hero-sigil-row">
+            <div className="hero-sigil-handle">
+              <Image src="/icons/star-06.svg" alt="" width={28} height={28} className="hero-sigil-icon" />
+              @HeySigil
+            </div>
+            <div className="roller-viewport">
+              <div className="roller-track">
+                {[...ROTATING_PROMPTS, ROTATING_PROMPTS[0]].map((prompt, i) => (
+                  <div key={i} className="roller-item">{prompt}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section 1b: Positioning Statement + CTAs ── */}
+      <section className="positioning-section">
+        <div className="container" style={{ textAlign: "center" }}>
+          <p className="positioning-body">
+            the agentic economy needs infrastructure that can verify real builders,
+            route capital to them, and hold both sides accountable — without
+            depending on any single platform. sigil is that infrastructure.
           </p>
           <div className="hero-actions">
             <Link href="/verify">
               <button className="btn-primary btn-lg">Stamp Your Sigil</button>
             </Link>
-            <Link href="/chat">
-              <button className="btn-outline btn-lg">Talk to Sigil</button>
+            <Link href="/developers">
+              <button className="btn-outline btn-lg">Explore the Protocol</button>
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Problem statement */}
-      <section className="section section-sage">
-        <div className="container" style={{ textAlign: "center" }}>
-          <h2 style={{ fontSize: "var(--text-3xl)", letterSpacing: "-0.03em", marginBottom: "var(--space-6)" }}>
-            The problem is clear.
-          </h2>
-          <p style={{ fontSize: "var(--text-lg)", maxWidth: 600, margin: "0 auto", lineHeight: 1.65 }}>
-            Current launchpads entice developers to claim fees, then leave them stranded. No community support. No guidance through crypto. No protection when platforms revoke API access. Developers end up managing communities instead of building.
-          </p>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-              gap: "var(--space-6)",
-              marginTop: "var(--space-12)",
-              textAlign: "left",
-            }}
-          >
-            <div>
-              <h4 style={{ marginBottom: "var(--space-2)", color: "var(--purple)" }}>
-                API access revoked
-              </h4>
-              <p style={{ fontSize: "var(--text-sm)" }}>
-                Other platforms leave you vulnerable when verification methods disappear. Sigil provides multiple ways to stamp your approval, so you are never locked out.
-              </p>
-            </div>
-            <div>
-              <h4 style={{ marginBottom: "var(--space-2)", color: "var(--purple)" }}>
-                No post-launch support
-              </h4>
-              <p style={{ fontSize: "var(--text-sm)" }}>
-                Claim your fees, then figure it out alone. That created real stress for developers. We exist to change that by providing ongoing support after day one.
-              </p>
-            </div>
-            <div>
-              <h4 style={{ marginBottom: "var(--space-2)", color: "var(--purple)" }}>
-                Builders forced into marketing
-              </h4>
-              <p style={{ fontSize: "var(--text-sm)" }}>
-                Developers should build. Not manage Discord servers, not run Twitter campaigns, not navigate crypto community dynamics they never signed up for.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* How it works */}
-      <section className="feature-section">
+      {/* ── Section 2: Verify · Fund · Govern triptych ── */}
+      <section className="triptych-section">
         <div className="container">
-          <h2>How Sigil works</h2>
-          <p>Five steps from project to funded development.</p>
-          <div
-            className="grid grid-3"
-            style={{ textAlign: "left", marginTop: "var(--space-8)" }}
-          >
-            <div className="feature-card">
-              <div
-                className="feature-icon"
-                style={{ background: "var(--lavender)", color: "var(--purple)" }}
-              >
-                1
-              </div>
-              <h3>Token deployed</h3>
-              <p>
-                Someone deploys a token about your project. The community signals interest before you ever have to get involved.
+          <div className="triptych-grid">
+            <div className="triptych-card">
+              <p className="triptych-label">verify</p>
+              <h3 className="triptych-title">multi-channel trust</h3>
+              <p className="triptych-body">
+                builder identity verified across 5 independent channels. no single platform controls
+                legitimacy. the attestation is onchain and portable.
               </p>
             </div>
-            <div className="feature-card">
-              <div
-                className="feature-icon"
-                style={{ background: "var(--sage)", color: "var(--success)" }}
-              >
-                2
-              </div>
-              <h3>Verify ownership</h3>
-              <p>
-                Prove you own the project through GitHub, domain, tweet, or social accounts. Multiple methods so you are never locked out.
+            <div className="triptych-card">
+              <p className="triptych-label">fund</p>
+              <h3 className="triptych-title">capital routed to builders</h3>
+              <p className="triptych-body">
+                communities back projects with conviction. USDC fees route directly to verified
+                builders. capital follows verification, not promises.
               </p>
             </div>
-            <div className="feature-card">
-              <div
-                className="feature-icon"
-                style={{ background: "var(--rose)", color: "var(--error)" }}
-              >
-                3
-              </div>
-              <h3>Stamp your Sigil</h3>
-              <p>
-                Your on-chain seal of approval. An EAS attestation on Base that signals to the community: this project is real, and the builder is here.
-              </p>
-            </div>
-            <div className="feature-card">
-              <div
-                className="feature-icon"
-                style={{ background: "var(--cream)", color: "var(--warning)" }}
-              >
-                4
-              </div>
-              <h3>Earn USDC</h3>
-              <p>
-                USDC fees from LP activity flow directly to your wallet. Your native tokens stay locked, aligning incentives with your community.
-              </p>
-            </div>
-            <div className="feature-card">
-              <div
-                className="feature-icon"
-                style={{ background: "var(--lavender)", color: "var(--purple)" }}
-              >
-                5
-              </div>
-              <h3>Community milestones</h3>
-              <p>
-                The community votes on milestones to unlock your native tokens. Build, ship, earn. The structure rewards real progress.
-              </p>
-            </div>
-            <div className="feature-card" style={{ background: "var(--purple)", border: "none" }}>
-              <div
-                className="feature-icon"
-                style={{ background: "rgba(255,255,255,0.15)", color: "white" }}
-              >
-                +
-              </div>
-              <h3 style={{ color: "white" }}>Premium support</h3>
-              <p style={{ color: "rgba(255,255,255,0.7)" }}>
-                Opt into community management agents, human specialists, and crypto guidance. A small share of fees powers the SIGIL token buyback flywheel.
+            <div className="triptych-card">
+              <p className="triptych-label">govern</p>
+              <h3 className="triptych-title">milestone accountability</h3>
+              <p className="triptych-body">
+                tokens stay locked. the community validates milestones to unlock them. accountability
+                is structural — not optional.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Three angles */}
-      <section className="section section-gray">
+      {/* ── Section 3: Context — Why This Matters ── */}
+      <section className="context-section">
         <div className="container">
           <div style={{ textAlign: "center", marginBottom: "var(--space-12)" }}>
-            <h2 style={{ fontSize: "var(--text-3xl)", letterSpacing: "-0.03em" }}>
-              Three ways in
+            <p className="section-tag">why this matters</p>
+            <h2 className="section-heading" style={{ textTransform: "lowercase" }}>
+              the agentic economy is scaling.<br />the infrastructure isn&apos;t.
             </h2>
+            <p className="context-intro">
+              AI agents are coordinating capital, managing communities, and operating
+              across platforms at scale. but the infrastructure underneath still
+              depends on single-platform APIs, offers no builder accountability, and
+              can&apos;t separate real projects from noise.
+            </p>
           </div>
-          <div className="grid grid-3">
-            <div
-              className="feature-card"
-              style={{ borderTop: "3px solid var(--purple)" }}
-            >
-              <span
-                className="badge badge-lavender"
-                style={{ marginBottom: "var(--space-4)", display: "inline-block" }}
-              >
-                For supporters
-              </span>
-              <h3>Fund your favorite developer</h3>
-              <p>
-                Deploy a token for a project you believe in. When the developer stamps their Sigil, it is their seal of approval. You decide via milestones whether they earn the full token allocation.
+          <div className="context-problems">
+            <div className="context-problem-card">
+              <Image src="/icons/alert-triangle.svg" alt="" width={24} height={24} className="context-icon" />
+              <h3 className="context-problem-title">fragility</h3>
+              <p className="context-problem-label">platform dependency</p>
+              <p className="context-problem-body">
+                builder verification tied to one platform&apos;s API. when that platform changes
+                policy, the entire trust layer breaks. infrastructure for the agentic economy
+                can&apos;t have a single point of failure.
               </p>
             </div>
-            <div
-              className="feature-card"
-              style={{ borderTop: "3px solid var(--success)" }}
-            >
-              <span
-                className="badge badge-sage"
-                style={{ marginBottom: "var(--space-4)", display: "inline-block" }}
-              >
-                For builders
-              </span>
-              <h3>Create and get funded</h3>
-              <p>
-                Have an idea? Build it. Sigil provides the funding mechanism so you can focus on development. No community management required. No crypto expertise needed.
+            <div className="context-problem-card">
+              <Image src="/icons/target-04.svg" alt="" width={24} height={24} className="context-icon" />
+              <h3 className="context-problem-title">misalignment</h3>
+              <p className="context-problem-label">zero accountability</p>
+              <p className="context-problem-body">
+                builders collect fees with no obligation to ship. no milestones. no governance.
+                capital without accountability creates misaligned incentives at scale.
               </p>
             </div>
-            <div
-              className="feature-card"
-              style={{ borderTop: "3px solid var(--warning)" }}
-            >
-              <span
-                className="badge badge-cream"
-                style={{ marginBottom: "var(--space-4)", display: "inline-block" }}
-              >
-                For newcomers
-              </span>
-              <h3>Get support in a new world</h3>
-              <p>
-                Crypto can be daunting. Sigil provides community management agents and human specialists to guide you. We make the unfamiliar clear and the complex manageable.
+            <div className="context-problem-card">
+              <Image src="/icons/signal-01.svg" alt="" width={24} height={24} className="context-icon" />
+              <h3 className="context-problem-title">noise</h3>
+              <p className="context-problem-label">no signal differentiation</p>
+              <p className="context-problem-body">
+                real dev projects and low-effort entries move through the same channels with no
+                distinction. communities have no reliable way to identify verified builders.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Verification methods */}
-      <section className="feature-section">
+      {/* ── Section 4: How the standard works ── */}
+      <section className="section-lg">
         <div className="container">
-          <h2>Multiple ways to verify</h2>
-          <p>
-            You will never be locked out. No single API dependency. No single point of failure.
-          </p>
-          <div
-            className="grid grid-3"
-            style={{ textAlign: "left" }}
-          >
-            {METHODS.map((m) => (
-              <div key={m.name} className="card">
-                <div className="card-header">
-                  <span
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontWeight: 700,
-                      fontSize: "var(--text-xs)",
-                      background: "var(--gray-100)",
-                      padding: "4px 8px",
-                      borderRadius: "var(--radius-sm)",
-                    }}
-                  >
-                    {m.icon}
-                  </span>
-                  <h3 style={{ fontSize: "var(--text-sm)" }}>{m.name}</h3>
-                  <span className={`badge ${m.badgeClass}`}>{m.badge}</span>
-                </div>
-                <p style={{ fontSize: "var(--text-sm)" }}>{m.desc}</p>
+          <div style={{ textAlign: "center", marginBottom: "var(--space-12)" }}>
+            <p className="section-tag">protocol</p>
+            <h2 className="section-heading" style={{ textTransform: "lowercase" }}>
+              how the standard works.
+            </h2>
+            <p className="context-intro">
+              four phases. permissionless. no single platform dependency at any point in the chain.
+            </p>
+          </div>
+          <div className="steps-grid">
+            {[
+              {
+                num: "01",
+                title: "community backs a project",
+                body: "a community identifies a dev project worth backing and commits capital onchain. the builder doesn't need to be involved. capital is the first signal of conviction.",
+              },
+              {
+                num: "02",
+                title: "builder proves legitimacy",
+                body: "the builder verifies identity across five independent channels — GitHub, X (via zkTLS), Facebook, Instagram, and their domain. verification triggers an EAS attestation on Base.",
+              },
+              {
+                num: "03",
+                title: "stamp your sigil",
+                body: "the sigil is an onchain attestation — portable proof of builder legitimacy. machine-readable. permanent. the verification standard for the agentic economy.",
+              },
+              {
+                num: "04",
+                title: "capital routes + milestones govern",
+                body: "USDC fees from protocol activity route directly to the verified builder. native tokens remain locked under community-governed milestone validation. accountability is the default.",
+              },
+            ].map((step) => (
+              <div key={step.num} className="step-card">
+                <p className="step-num">{step.num}</p>
+                <h3 className="step-title">{step.title}</h3>
+                <p className="step-body">{step.body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* What makes Sigil different */}
-      <section className="section section-lavender">
-        <div className="container" style={{ textAlign: "center" }}>
-          <h2 style={{ fontSize: "var(--text-3xl)", letterSpacing: "-0.03em", marginBottom: "var(--space-6)" }}>
-            Why Sigil exists
-          </h2>
-          <p style={{ fontSize: "var(--text-lg)", maxWidth: 560, margin: "0 auto var(--space-12)", lineHeight: 1.65 }}>
-            We saw what happened when platforms claimed to support developers but walked away the moment fees were collected. We are building the alternative.
-          </p>
-          <div
-            className="grid grid-2"
-            style={{ textAlign: "left", maxWidth: 720, margin: "0 auto" }}
-          >
-            <div>
-              <h4 style={{ marginBottom: "var(--space-2)" }}>Funded, not abandoned</h4>
-              <p style={{ fontSize: "var(--text-sm)" }}>
-                We fund your development and provide tools to keep building. Not a one-time payout. Ongoing support.
+      {/* ── Section 5: Audience Split ── */}
+      <section className="audience-section">
+        <div className="container">
+          <div style={{ textAlign: "center", marginBottom: "var(--space-12)" }}>
+            <p className="section-tag">participants</p>
+          </div>
+          <div className="audience-cards">
+            <div className="audience-card audience-card-supporters">
+              <span className="audience-label">for communities</span>
+              <h3 className="audience-title">back the builders shaping the agentic economy.</h3>
+              <p className="audience-body">
+                back builders with conviction. govern milestones with proof.
               </p>
+              <ul className="audience-bullets">
+                <li>back dev projects with capital — protocols, tools, infra</li>
+                <li>5-channel verification means you&apos;re backing verified builders</li>
+                <li>community governs milestone completion</li>
+              </ul>
+              <Link href="/chat">
+                <button className="btn-primary">Fund a Project</button>
+              </Link>
             </div>
-            <div>
-              <h4 style={{ marginBottom: "var(--space-2)" }}>Verification resilience</h4>
-              <p style={{ fontSize: "var(--text-sm)" }}>
-                Eight verification methods. If one API goes down, you have seven more. Your stamp of authentication is never at risk.
+            <div className="audience-card audience-card-developers">
+              <span className="audience-label">for builders</span>
+              <h3 className="audience-title">get verified. get funded. keep shipping.</h3>
+              <p className="audience-body">
+                the sigil is proof you&apos;re real. the code is proof you shipped.
               </p>
-            </div>
-            <div>
-              <h4 style={{ marginBottom: "var(--space-2)" }}>Community handled</h4>
-              <p style={{ fontSize: "var(--text-sm)" }}>
-                Our agents and specialists manage your crypto community so you can stay focused on code. Opt in when you want more.
-              </p>
-            </div>
-            <div>
-              <h4 style={{ marginBottom: "var(--space-2)" }}>Token flywheel</h4>
-              <p style={{ fontSize: "var(--text-sm)" }}>
-                Premium service fees flow back to SIGIL token buybacks. The more developers succeed, the stronger the ecosystem becomes.
-              </p>
+              <ul className="audience-bullets">
+                <li>verify across GitHub, X (zkTLS), FB, IG, or your domain</li>
+                <li>USDC fees route to your wallet on verification</li>
+                <li>native tokens unlock through community milestones</li>
+                <li>no community management. no content calendar. no platform risk.</li>
+              </ul>
+              <Link href="/verify">
+                <button className="btn-outline">Stamp Your Sigil</button>
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="cta-section section-purple">
-        <div className="container">
-          <h2>Ready to build?</h2>
-          <p>
-            Stamp your Sigil. Earn while you build. Let us handle the rest.
+      {/* ── Section 6: Trust Layer — 5 Channels ── */}
+      <section className="trust-layer-section">
+        <div className="container" style={{ textAlign: "center" }}>
+          <p className="section-tag">trust layer</p>
+          <h2 className="section-heading" style={{ textTransform: "lowercase" }}>
+            five channels.<br />no single point of failure.
+          </h2>
+          <p className="context-intro">
+            the verification standard for the agentic economy can&apos;t depend on one
+            platform&apos;s API. builder legitimacy is confirmed across five independent
+            channels — resilient by architecture.
           </p>
-          <div style={{ display: "flex", gap: "var(--space-4)", justifyContent: "center" }}>
+          <div className="channels-grid">
+            {[
+              { abbr: "GH", name: "GitHub", method: "OAuth", icon: "/icons/git-branch-01.svg" },
+              { abbr: "X", name: "X / Twitter", method: "zkTLS", icon: "/icons/at-sign.svg" },
+              { abbr: "FB", name: "Facebook", method: "OAuth", icon: "/icons/users-01.svg" },
+              { abbr: "IG", name: "Instagram", method: "OAuth", icon: "/icons/fingerprint-04.svg" },
+              { abbr: "◎", name: "Domain", method: "DNS / File", icon: "/icons/browser.svg" },
+            ].map((ch) => (
+              <div key={ch.abbr} className="channel-card">
+                <Image src={ch.icon} alt="" width={24} height={24} className="channel-icon" />
+                <p className="channel-name">{ch.name}</p>
+                <span className="channel-method">{ch.method}</span>
+              </div>
+            ))}
+          </div>
+          <p className="trust-layer-note">
+            X verification via zkTLS — cryptographic proof of account ownership without
+            touching X&apos;s API. no bot. no automation. nothing to revoke.
+          </p>
+        </div>
+      </section>
+
+      {/* ── Section 7: Infrastructure Statement ── */}
+      <section className="infra-section">
+        <div className="container" style={{ textAlign: "center" }}>
+          <Image src="/logo-lavender.png" alt="Sigil" width={64} height={64} className="infra-logo" />
+          <h2 className="infra-heading" style={{ textTransform: "lowercase" }}>
+            the verification standard<br />for the agentic economy.
+          </h2>
+          <p className="infra-body">
+            five-channel verification. onchain attestation. milestone governance.
+            USDC fees route to verified builders. a percentage flows to $SIGIL stakers,
+            powering the protocol flywheel.
+          </p>
+        </div>
+      </section>
+
+      {/* ── Section 8: Proof Section ── */}
+      <section className="proof-section">
+        <div className="container" style={{ textAlign: "center" }}>
+          <p className="section-tag">proof</p>
+          <h2 className="section-heading" style={{ textTransform: "lowercase" }}>
+            don&apos;t trust the copy.<br />verify the infrastructure.
+          </h2>
+          <p className="context-intro">
+            contracts are public. fee logic is onchain. verification is documented.
+            the sigil is an EAS attestation — not a badge on a website.
+          </p>
+          <div className="proof-links">
+            <a href="https://basescan.org" target="_blank" rel="noopener noreferrer" className="proof-link">
+              <Image src="/icons/code-browser.svg" alt="" width={18} height={18} />
+              <span>smart contracts</span>
+              <span className="proof-arrow">→</span>
+            </a>
+            <a href="https://base.easscan.org" target="_blank" rel="noopener noreferrer" className="proof-link">
+              <Image src="/icons/shield-tick.svg" alt="" width={18} height={18} />
+              <span>EAS schema</span>
+              <span className="proof-arrow">→</span>
+            </a>
+            <a href="#" className="proof-link">
+              <Image src="/icons/file-06.svg" alt="" width={18} height={18} />
+              <span>verification docs</span>
+              <span className="proof-arrow">→</span>
+            </a>
+            <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="proof-link">
+              <Image src="/icons/git-branch-01.svg" alt="" width={18} height={18} />
+              <span>source code</span>
+              <span className="proof-arrow">→</span>
+            </a>
+            <a href="#" className="proof-link proof-link-pending">
+              <Image src="/icons/check-verified-02.svg" alt="" width={18} height={18} />
+              <span>audit</span>
+              <span className="proof-badge">pending</span>
+            </a>
+          </div>
+
+          {/* Example attestation */}
+          <div className="proof-attestation">
+            <div className="proof-attestation-header">
+              <span>example · sigil attestation · base</span>
+            </div>
+            <div className="proof-attestation-body">
+              <div className="proof-row"><span className="proof-key">project:</span> <span>vaultprotocol</span></div>
+              <div className="proof-row"><span className="proof-key">builder:</span> <span>0x7f2…3a9c</span></div>
+              <div className="proof-row"><span className="proof-key">verified:</span> <span>2026-02-14 · 09:41 UTC</span></div>
+              <div className="proof-row">
+                <span className="proof-key">channels:</span>
+                <span className="proof-channels">
+                  <span className="proof-check">✓ github</span>
+                  <span className="proof-check">✓ x (zkTLS)</span>
+                  <span className="proof-check">✓ domain</span>
+                  <span className="proof-check">✓ facebook</span>
+                  <span className="proof-check">✓ instagram</span>
+                </span>
+              </div>
+              <div className="proof-row"><span className="proof-key">status:</span> <span className="proof-status-active">SIGIL ACTIVE</span></div>
+              <div className="proof-row"><span className="proof-key">fees routed:</span> <span>$4,217 USDC</span></div>
+              <div className="proof-row"><span className="proof-key">milestones:</span> <span>2 / 4 validated</span></div>
+              <div className="proof-row"><span className="proof-key">attestation:</span> <span>0xea5…7b2f</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section 9: Final CTA ── */}
+      <section className="final-cta-section">
+        <div className="container" style={{ textAlign: "center" }}>
+          <h2 className="final-cta-heading" style={{ textTransform: "lowercase" }}>
+            claim your sigil.
+          </h2>
+          <p className="final-cta-body">
+            the verification standard for the agentic economy. five channels.
+            onchain attestation. milestone governance. dev projects only.
+          </p>
+          <div className="final-cta-actions">
             <Link href="/verify">
-              <button
-                className="btn-lg"
-                style={{
-                  background: "white",
-                  color: "var(--purple)",
-                  fontWeight: 600,
-                  borderRadius: "var(--radius-full)",
-                }}
-              >
-                Get Started
-              </button>
+              <button className="btn-primary btn-lg">Stamp Your Sigil</button>
             </Link>
             <Link href="/chat">
-              <button
-                className="btn-lg"
-                style={{
-                  background: "transparent",
-                  color: "white",
-                  border: "1.5px solid rgba(255,255,255,0.4)",
-                  fontWeight: 500,
-                  borderRadius: "var(--radius-full)",
-                }}
-              >
-                Talk to Sigil
-              </button>
+              <button className="btn-outline btn-lg">Talk to Sigil</button>
             </Link>
           </div>
         </div>

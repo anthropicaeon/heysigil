@@ -16,7 +16,7 @@ import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 ///         2. Pre-compute SigilFactory address via CREATE2 nonce prediction
 ///         3. SigilHook via CREATE2 with mined salt (needs PoolManager, factory, feeVault)
 ///            - Hook address must encode V4 permission flags in its last 14 bits
-///         4. SigilFactory (needs PoolManager, hook, WETH)
+///         4. SigilFactory (needs PoolManager, hook, USDC)
 ///         5. Wire: vault.setHook(hook)
 ///
 ///         Required env vars:
@@ -35,7 +35,7 @@ import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 contract DeploySigil is Script {
     // ─── Base Mainnet Addresses ──────────────────────────
     address constant POOL_MANAGER_BASE = 0x498581fF718922c3f8e6A244956aF099B2652b2b;
-    address constant WETH_BASE = 0x4200000000000000000000000000000000000006;
+    address constant USDC_BASE = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
     address constant EAS_BASE = 0x4200000000000000000000000000000000000021;
 
     function run() external {
@@ -79,11 +79,17 @@ contract DeploySigil is Script {
         // See HookMiner.sol for the mining pattern.
         // For this script, we demonstrate the wiring order.
 
+        // Token escrow — where native token fees are held.
+        // Will be replaced with the proper escrow contract address.
+        address tokenEscrow = vm.envOr("TOKEN_ESCROW", deployer);
+
         SigilHook hook = new SigilHook(
             IPoolManager(POOL_MANAGER_BASE),
             address(0), // factory — set after factory deploy
             address(feeVault),
-            protocolTreasury
+            protocolTreasury,
+            USDC_BASE,
+            tokenEscrow
         );
         console.log("SigilHook deployed at:", address(hook));
 
@@ -91,7 +97,7 @@ contract DeploySigil is Script {
         SigilFactory factory = new SigilFactory(
             POOL_MANAGER_BASE,
             address(hook),
-            WETH_BASE
+            USDC_BASE
         );
         console.log("SigilFactory deployed at:", address(factory));
 
@@ -119,7 +125,7 @@ contract DeploySigil is Script {
         console.log("Factory:      ", address(factory));
         console.log("PoolReward:   ", address(poolReward));
         console.log("PoolManager:  ", POOL_MANAGER_BASE);
-        console.log("WETH:         ", WETH_BASE);
+        console.log("USDC:         ", USDC_BASE);
         console.log("EAS:          ", EAS_BASE);
         console.log("Treasury:     ", protocolTreasury);
         console.log("Attester:     ", trustedAttester);

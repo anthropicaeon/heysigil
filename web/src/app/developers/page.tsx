@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 export default function DevelopersPage() {
     return (
@@ -15,7 +16,7 @@ export default function DevelopersPage() {
                 }}
             >
                 <div className="container">
-                    <div className="hero-eyebrow">For Developers</div>
+                    <div className="hero-eyebrow">for builders</div>
                     <h1
                         style={{
                             fontSize: "var(--text-6xl)",
@@ -24,9 +25,10 @@ export default function DevelopersPage() {
                             lineHeight: 1.05,
                             maxWidth: 780,
                             margin: "0 auto var(--space-6)",
+                            textTransform: "lowercase",
                         }}
                     >
-                        You write code. We run the rest.
+                        get verified. get funded. keep shipping.
                     </h1>
                     <p
                         style={{
@@ -35,10 +37,12 @@ export default function DevelopersPage() {
                             margin: "0 auto",
                             lineHeight: 1.55,
                             color: "var(--text-secondary)",
+                            textTransform: "lowercase",
                         }}
                     >
-                        Stamp your Sigil, earn USDC fees, and let our agents and
-                        specialists manage the community you never wanted to run.
+                        the sigil is proof you're real. the code is proof you shipped.
+                        verify across five channels, earn USDC, and let our agents handle
+                        the community you never wanted to run.
                     </p>
                     <div
                         className="hero-actions"
@@ -67,7 +71,7 @@ export default function DevelopersPage() {
                             marginBottom: "var(--space-4)",
                         }}
                     >
-                        The problem you know
+                        the problem
                     </p>
                     <h2
                         style={{
@@ -77,7 +81,7 @@ export default function DevelopersPage() {
                             margin: "0 auto var(--space-6)",
                         }}
                     >
-                        You got funded. Then you inherited a second job.
+                        the agentic economy is scaling. the infrastructure for builders isn't.
                     </h2>
                     <p
                         style={{
@@ -87,10 +91,9 @@ export default function DevelopersPage() {
                             lineHeight: 1.65,
                         }}
                     >
-                        Claim fees. Answer community questions. Moderate Discord. Post
-                        updates. Manage expectations. Suddenly you are a community manager,
-                        a marketer, and a token strategist. The code that earned the funding
-                        sits untouched.
+                        builder verification tied to single-platform APIs. no accountability
+                        after launch. no way to separate real projects from noise. the
+                        infrastructure underneath fails the builders it's supposed to serve.
                     </p>
                 </div>
             </section>
@@ -101,34 +104,33 @@ export default function DevelopersPage() {
                     <div className="grid grid-3" style={{ textAlign: "left" }}>
                         <div style={{ padding: "var(--space-8) 0" }}>
                             <h3 style={{ marginBottom: "var(--space-3)" }}>
-                                Verification that disappears
+                                fragility
                             </h3>
                             <p style={{ fontSize: "var(--text-sm)", lineHeight: 1.7 }}>
-                                When a platform depends on a single API, one policy change
-                                erases your proof of ownership overnight. Sigil provides eight
-                                independent verification methods. If one path closes, seven
-                                remain.
+                                builder verification tied to one platform's API. when that
+                                platform changes policy, the entire trust layer breaks.
+                                sigil provides five independent channels — if one closes,
+                                four remain.
                             </p>
                         </div>
                         <div style={{ padding: "var(--space-8) 0" }}>
                             <h3 style={{ marginBottom: "var(--space-3)" }}>
-                                Launch and abandon
+                                misalignment
                             </h3>
                             <p style={{ fontSize: "var(--text-sm)", lineHeight: 1.7 }}>
-                                Current platforms optimize for launch volume. More launches,
-                                more fees. Once you claim, you are on your own. Sigil launches
-                                your project and then connects you to a full support system.
+                                builders collect fees with no obligation to ship. no milestones.
+                                no governance. capital without accountability creates misaligned
+                                incentives at scale.
                             </p>
                         </div>
                         <div style={{ padding: "var(--space-8) 0" }}>
                             <h3 style={{ marginBottom: "var(--space-3)" }}>
-                                Roles you never signed up for
+                                noise
                             </h3>
                             <p style={{ fontSize: "var(--text-sm)", lineHeight: 1.7 }}>
-                                A developer should not need to become a community manager, a
-                                crypto strategist, or a marketing lead. These are distinct skill
-                                sets. Sigil separates them cleanly. You build. We handle
-                                everything else.
+                                real dev projects and low-effort entries move through the same
+                                channels with no distinction. communities have no reliable way
+                                to identify verified builders.
                             </p>
                         </div>
                     </div>
@@ -157,7 +159,7 @@ export default function DevelopersPage() {
                             marginBottom: "var(--space-12)",
                         }}
                     >
-                        Three steps. Then back to building.
+                        three steps. then back to building.
                     </h2>
                     <div className="grid grid-3">
                         <div
@@ -188,9 +190,9 @@ export default function DevelopersPage() {
                                 Verify your project
                             </h3>
                             <p>
-                                Connect your GitHub, domain, Twitter, Instagram, or any of
-                                eight supported methods. Prove ownership on your terms, through
-                                any path you choose.
+                                verify identity across five independent channels — GitHub,
+                                X (via zkTLS), Facebook, Instagram, and your domain. onchain.
+                                portable. permanent.
                             </p>
                         </div>
                         <div
@@ -254,9 +256,9 @@ export default function DevelopersPage() {
                                 Earn and build
                             </h3>
                             <p>
-                                USDC fees flow to you from LP activity. Our community
+                                USDC fees route directly to your wallet. our community
                                 management agents handle engagement, moderation, and
-                                communication. You stay in your codebase.
+                                communication. you stay in your codebase.
                             </p>
                         </div>
                     </div>
@@ -289,7 +291,7 @@ export default function DevelopersPage() {
                                 margin: "0 auto",
                             }}
                         >
-                            You build. We handle the rest.
+                            you build. we handle the rest.
                         </h2>
                     </div>
                     <div
@@ -297,6 +299,7 @@ export default function DevelopersPage() {
                         style={{ maxWidth: 800, margin: "0 auto" }}
                     >
                         <div className="feature-card" style={{ background: "var(--white)" }}>
+                            <Image src="/icons/message-chat-circle.svg" alt="" width={24} height={24} style={{ marginBottom: "var(--space-3)", opacity: 0.6 }} />
                             <h3 style={{ marginBottom: "var(--space-2)" }}>
                                 Community management agents
                             </h3>
@@ -307,6 +310,7 @@ export default function DevelopersPage() {
                             </p>
                         </div>
                         <div className="feature-card" style={{ background: "var(--white)" }}>
+                            <Image src="/icons/users-01.svg" alt="" width={24} height={24} style={{ marginBottom: "var(--space-3)", opacity: 0.6 }} />
                             <h3 style={{ marginBottom: "var(--space-2)" }}>
                                 Human specialists
                             </h3>
@@ -317,6 +321,7 @@ export default function DevelopersPage() {
                             </p>
                         </div>
                         <div className="feature-card" style={{ background: "var(--white)" }}>
+                            <Image src="/icons/life-buoy-01.svg" alt="" width={24} height={24} style={{ marginBottom: "var(--space-3)", opacity: 0.6 }} />
                             <h3 style={{ marginBottom: "var(--space-2)" }}>
                                 Crypto guidance
                             </h3>
@@ -327,6 +332,7 @@ export default function DevelopersPage() {
                             </p>
                         </div>
                         <div className="feature-card" style={{ background: "var(--white)" }}>
+                            <Image src="/icons/coins-hand.svg" alt="" width={24} height={24} style={{ marginBottom: "var(--space-3)", opacity: 0.6 }} />
                             <h3 style={{ marginBottom: "var(--space-2)" }}>
                                 Premium services flywheel
                             </h3>
@@ -355,7 +361,7 @@ export default function DevelopersPage() {
                             margin: "0 auto var(--space-6)",
                         }}
                     >
-                        Your stamp. Your proof. Your terms.
+                        your stamp. your proof. your terms.
                     </h2>
                     <p
                         style={{
@@ -365,9 +371,9 @@ export default function DevelopersPage() {
                             lineHeight: 1.65,
                         }}
                     >
-                        Eight independent verification methods. No dependence on any single
-                        platform. If one goes down, seven remain. Your proof of ownership
-                        lives on-chain and cannot be revoked.
+                        five independent verification channels. no dependence on any single
+                        platform. if one goes down, four remain. your proof of ownership
+                        lives onchain and cannot be revoked.
                     </p>
                     <div
                         style={{
@@ -380,14 +386,11 @@ export default function DevelopersPage() {
                         }}
                     >
                         {[
-                            "GitHub OAuth",
-                            "Domain DNS",
-                            "File Verification",
-                            "Meta Tags",
-                            "Twitter + zkTLS",
-                            "Instagram",
-                            "Facebook",
-                            "Well-Known File",
+                            "GitHub · OAuth",
+                            "X / Twitter · zkTLS",
+                            "Facebook · OAuth",
+                            "Instagram · OAuth",
+                            "Domain · DNS / File",
                         ].map((method) => (
                             <span
                                 key={method}
@@ -437,7 +440,7 @@ export default function DevelopersPage() {
                             marginBottom: "var(--space-4)",
                         }}
                     >
-                        Verified, deployed, and supported in 48 hours.
+                        verified, deployed, and supported in 48 hours.
                     </h2>
                     <p
                         style={{
@@ -447,8 +450,8 @@ export default function DevelopersPage() {
                             margin: "0 auto var(--space-10)",
                         }}
                     >
-                        Verification across all methods. First EAS attestation. Token
-                        deployed. Community agent activated. You go back to building.
+                        verification across five channels. first EAS attestation. token
+                        deployed. community agent activated. you go back to building.
                     </p>
                     <div
                         style={{

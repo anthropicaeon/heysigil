@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Image from "next/image";
 import PortfolioSidebar from "../../components/PortfolioSidebar";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -122,23 +123,17 @@ export default function ChatPage() {
         <div className="chat-messages">
           {messages.length === 0 && (
             <div className="chat-empty">
-              <div
+              <Image
+                src="/logo-sage.png"
+                alt="Sigil"
+                width={56}
+                height={56}
                 style={{
-                  width: 56,
-                  height: 56,
-                  background: "var(--purple)",
                   borderRadius: "var(--radius-md)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "white",
-                  fontWeight: 700,
-                  fontSize: "var(--text-xl)",
                   margin: "0 auto var(--space-4)",
+                  display: "block",
                 }}
-              >
-                S
-              </div>
+              />
               <p>What can I help you with?</p>
               <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", marginTop: "var(--space-1)" }}>
                 Stamp your Sigil, trade tokens, check balances, and more.

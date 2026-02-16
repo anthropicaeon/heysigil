@@ -13,6 +13,7 @@ import {SafeCast} from "@uniswap/v4-core/src/libraries/SafeCast.sol";
 import {ModifyLiquidityParams, SwapParams} from "@uniswap/v4-core/src/types/PoolOperation.sol";
 
 import {ISigilFeeVault} from "./interfaces/ISigilFeeVault.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /// @title SigilHook
 /// @notice Uniswap V4 hook that collects 1% fee on every swap.
@@ -25,12 +26,12 @@ import {ISigilFeeVault} from "./interfaces/ISigilFeeVault.sol";
 ///      then forwards them to the SigilFeeVault for split accounting.
 ///
 ///      Fee flow:
-///      1. User swaps TOKEN/WETH (or TOKEN/USDC)
+///      1. User swaps TOKEN/USDC
 ///      2. afterSwap calculates 1% of output
 ///      3. poolManager.take() extracts fee tokens to this contract
-///      4. Tokens forwarded to SigilFeeVault with pool metadata
-///      5. Vault splits: 80% dev, 20% protocol
-///      6. Dev claims accumulated fees (mix of USDC + native token)
+///      4. If USDC: forwarded to SigilFeeVault → 80% dev, 20% protocol
+///      5. If native token: forwarded to tokenEscrow contract
+///      6. Dev claims accumulated USDC fees from vault
 contract SigilHook is BaseHook {
     using PoolIdLibrary for PoolKey;
     using SafeCast for uint256;
@@ -57,6 +58,12 @@ contract SigilHook is BaseHook {
     /// @notice Protocol treasury address for the 20% cut
     address public protocolTreasury;
 
+    /// @notice USDC token address — only USDC fees go to devs
+    address public immutable usdc;
+
+    /// @notice Token escrow contract — native token fees go here
+    address public tokenEscrow;
+
     /// @notice Owner for admin functions
     address public owner;
 
@@ -72,8 +79,11 @@ contract SigilHook is BaseHook {
     // ─── Events ──────────────────────────────────────────
 
     event PoolRegistered(PoolId indexed poolId, address indexed dev, address token, address pairedWith);
+    event PoolDevUpdated(PoolId indexed poolId, address oldDev, address newDev);
     event FeesCollected(PoolId indexed poolId, address currency, uint256 totalFee, uint256 devShare, uint256 protocolShare);
+    event TokenFeesEscrowed(PoolId indexed poolId, address token, uint256 amount);
     event ProtocolTreasuryUpdated(address oldTreasury, address newTreasury);
+    event TokenEscrowUpdated(address oldEscrow, address newEscrow);
     event OwnerUpdated(address oldOwner, address newOwner);
 
     // ─── Errors ──────────────────────────────────────────
@@ -89,14 +99,21 @@ contract SigilHook is BaseHook {
         IPoolManager _poolManager,
         address _factory,
         address _feeVault,
-        address _protocolTreasury
+        address _protocolTreasury,
+        address _usdc,
+        address _tokenEscrow
     ) BaseHook(_poolManager) {
         if (_factory == address(0) || _feeVault == address(0) || _protocolTreasury == address(0)) {
+            revert ZeroAddress();
+        }
+        if (_usdc == address(0) || _tokenEscrow == address(0)) {
             revert ZeroAddress();
         }
         factory = _factory;
         feeVault = ISigilFeeVault(_feeVault);
         protocolTreasury = _protocolTreasury;
+        usdc = _usdc;
+        tokenEscrow = _tokenEscrow;
         owner = msg.sender;
     }
 
@@ -133,7 +150,8 @@ contract SigilHook is BaseHook {
         bool tokenIsCurrency0
     ) external {
         if (msg.sender != factory) revert OnlyFactory();
-        if (dev == address(0)) revert ZeroAddress();
+        // dev == address(0) is allowed — means "unclaimed" (third-party launch)
+        // Fees will go to escrow in the FeeVault until a dev verifies
 
         PoolId poolId = key.toId();
         isRegisteredPool[poolId] = true;
@@ -146,6 +164,25 @@ contract SigilHook is BaseHook {
             tokenIsCurrency0 ? Currency.unwrap(key.currency0) : Currency.unwrap(key.currency1),
             tokenIsCurrency0 ? Currency.unwrap(key.currency1) : Currency.unwrap(key.currency0)
         );
+    }
+
+    /// @notice Update the dev address for a pool after verification.
+    ///         Also assigns any escrowed fees in the vault to the new dev.
+    ///         Only callable by owner (backend after dev verification).
+    function updatePoolDev(PoolId poolId, address newDev) external {
+        if (msg.sender != owner) revert OnlyOwner();
+        if (newDev == address(0)) revert ZeroAddress();
+        if (!isRegisteredPool[poolId]) revert PoolNotRegistered();
+
+        address oldDev = poolDev[poolId];
+        poolDev[poolId] = newDev;
+
+        // If the old dev was address(0) (unclaimed), assign escrowed fees
+        if (oldDev == address(0)) {
+            feeVault.assignDev(poolId, newDev);
+        }
+
+        emit PoolDevUpdated(poolId, oldDev, newDev);
     }
 
     // ─── Hook Implementations ────────────────────────────
@@ -223,7 +260,7 @@ contract SigilHook is BaseHook {
             // Exact output: the "input" side has the unspecified delta
             // Fee on the input token the user pays
             if (params.zeroForOne) {
-                outputAmount = delta.amount0(); // input side (negative = user pays)
+                outputAmount = delta.amount0();
                 feeCurrency = key.currency0;
             } else {
                 outputAmount = delta.amount1();
@@ -242,19 +279,24 @@ contract SigilHook is BaseHook {
         // Take fee tokens from the pool into this contract
         poolManager.take(feeCurrency, address(this), totalFee);
 
-        // Split: 80% dev, 20% protocol
-        uint256 devFee = totalFee * DEV_SHARE_BPS / BPS_DENOMINATOR;
-        uint256 protocolFee = totalFee - devFee;
-
-        address dev = poolDev[poolId];
         address feeToken = Currency.unwrap(feeCurrency);
 
-        // Forward to the fee vault for accumulation
-        // The vault handles the USDC vs native token split
-        _approveFeeVault(feeToken, totalFee);
-        feeVault.depositFees(poolId, dev, feeToken, devFee, protocolFee);
+        if (feeToken == usdc) {
+            // ─── USDC fees: split 80/20 to dev/protocol via FeeVault ───
+            uint256 devFee = totalFee * DEV_SHARE_BPS / BPS_DENOMINATOR;
+            uint256 protocolFee = totalFee - devFee;
+            address dev = poolDev[poolId];
 
-        emit FeesCollected(poolId, feeToken, totalFee, devFee, protocolFee);
+            _approveFeeVault(feeToken, totalFee);
+            feeVault.depositFees(poolId, dev, feeToken, devFee, protocolFee);
+
+            emit FeesCollected(poolId, feeToken, totalFee, devFee, protocolFee);
+        } else {
+            // ─── Native token fees: forward entirely to token escrow ───
+            IERC20(feeToken).transfer(tokenEscrow, totalFee);
+
+            emit TokenFeesEscrowed(poolId, feeToken, totalFee);
+        }
 
         // Return the hook delta — positive means we took from the swap output
         return (this.afterSwap.selector, totalFee.toInt128());
@@ -280,6 +322,13 @@ contract SigilHook is BaseHook {
         if (newTreasury == address(0)) revert ZeroAddress();
         emit ProtocolTreasuryUpdated(protocolTreasury, newTreasury);
         protocolTreasury = newTreasury;
+    }
+
+    function setTokenEscrow(address newEscrow) external {
+        if (msg.sender != owner) revert OnlyOwner();
+        if (newEscrow == address(0)) revert ZeroAddress();
+        emit TokenEscrowUpdated(tokenEscrow, newEscrow);
+        tokenEscrow = newEscrow;
     }
 
     function setOwner(address newOwner) external {

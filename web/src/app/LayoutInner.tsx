@@ -102,6 +102,8 @@ export default function LayoutInner({
                     </Link>
                     <div className="nav-links">
                         <Link href="/developers" className="nav-link">Developers</Link>
+                        <Link href="/dashboard" className="nav-link">Dashboard</Link>
+                        <Link href="/governance" className="nav-link">Governance</Link>
                         <Link href="/chat" className="nav-link">Chat</Link>
                         <Link href="/verify" className="nav-link">Verify</Link>
                         <NavLoginButton />

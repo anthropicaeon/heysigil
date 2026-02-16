@@ -26,14 +26,14 @@ import {SigilHook} from "./SigilHook.sol";
 ///
 ///         Funding is PURELY from swap fees. No community deposits.
 ///         The dev earns fees in whatever token the swap outputs —
-///         a natural mix of WETH and native token without forced selling.
+///         a natural mix of USDC and native token without forced selling.
 contract SigilFactory {
     using PoolIdLibrary for PoolKey;
 
     // ─── Constants ───────────────────────────────────────
 
-    /// @notice Default token supply: 1 billion tokens
-    uint256 public constant DEFAULT_SUPPLY = 1_000_000_000 ether;
+    /// @notice Default token supply: 100 billion tokens (fixed for all Sigil launches)
+    uint256 public constant DEFAULT_SUPPLY = 100_000_000_000 ether;
 
     /// @notice Default LP fee for the V4 pool (0% LP fee since hook takes 1% separately)
     /// We set LP fee to 0 so all fee revenue goes through the hook's afterSwap.
@@ -46,7 +46,7 @@ contract SigilFactory {
 
     IPoolManager public immutable poolManager;
     SigilHook public immutable hook;
-    address public immutable weth;
+    address public immutable usdc;
     address public owner;
 
     /// @notice All launched token addresses
@@ -87,14 +87,14 @@ contract SigilFactory {
     constructor(
         address _poolManager,
         address _hook,
-        address _weth
+        address _usdc
     ) {
-        if (_poolManager == address(0) || _hook == address(0) || _weth == address(0)) {
+        if (_poolManager == address(0) || _hook == address(0) || _usdc == address(0)) {
             revert ZeroAddress();
         }
         poolManager = IPoolManager(_poolManager);
         hook = SigilHook(_hook);
-        weth = _weth;
+        usdc = _usdc;
         owner = msg.sender;
     }
 
@@ -113,14 +113,15 @@ contract SigilFactory {
         string calldata projectId,
         address dev
     ) external returns (address token, PoolId poolId) {
-        if (dev == address(0)) revert ZeroAddress();
+        // dev == address(0) is allowed for third-party launches
+        // Fees will be escrowed in FeeVault until the dev verifies
 
         // 1. Deploy the token — all supply minted to this factory
         SigilToken sigilToken = new SigilToken(name, symbol, DEFAULT_SUPPLY, address(this));
         token = address(sigilToken);
 
         // 2. Sort currencies for the pool key (V4 requires currency0 < currency1)
-        (Currency currency0, Currency currency1, bool tokenIsCurrency0) = _sortCurrencies(token, weth);
+        (Currency currency0, Currency currency1, bool tokenIsCurrency0) = _sortCurrencies(token, usdc);
 
         // 3. Build the pool key
         PoolKey memory key = PoolKey({
@@ -143,7 +144,7 @@ contract SigilFactory {
         uint160 startPrice = _getStartPrice(tokenIsCurrency0);
         poolManager.initialize(key, startPrice);
 
-        // 6. Place single-sided liquidity (all tokens, no WETH)
+        // 6. Place single-sided liquidity (all tokens, no USDC needed)
         //    This creates the "bonding curve" effect — price rises as people buy
         _placeLiquidity(key, token, tokenIsCurrency0);
 
@@ -182,18 +183,18 @@ contract SigilFactory {
     }
 
     /// @dev Calculate starting sqrtPriceX96.
-    ///      We want the token to start at a very low price relative to WETH.
+    ///      We want the token to start at a very low price relative to USDC.
     ///      This creates a bonding curve effect as buyers push the price up.
     function _getStartPrice(bool tokenIsCurrency0) internal pure returns (uint160) {
-        // If token is currency0: price = currency1/currency0 = WETH/TOKEN
-        //   High price means token is cheap in WETH terms
+        // If token is currency0: price = currency1/currency0 = USDC/TOKEN
+        //   High price means token is cheap in USDC terms
         //   We want token cheap → high sqrtPriceX96
-        // If token is currency1: price = currency0/currency1 = WETH/TOKEN inverted
+        // If token is currency1: price = currency0/currency1 = USDC/TOKEN inverted
         //   Low price means token is cheap
         //   We want token cheap → low sqrtPriceX96
 
         if (tokenIsCurrency0) {
-            // Token is currency0, WETH is currency1
+            // Token is currency0, USDC is currency1
             // Start near the max to make token very cheap
             // Use a reasonable starting tick (not extreme)
             return TickMath.getSqrtPriceAtTick(69_000);
