@@ -148,8 +148,18 @@ export function getSignerWallet(sessionId: string): ethers.Wallet | undefined {
     return new ethers.Wallet(privateKey, provider);
 }
 
+// Common tokens on Base with pre-cached decimals (avoids RPC calls)
+const BASE_TOKENS = [
+    { symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", decimals: 6 },
+    { symbol: "WETH", address: "0x4200000000000000000000000000000000000006", decimals: 18 },
+    { symbol: "DAI", address: "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb", decimals: 18 },
+] as const;
+
+const BALANCE_OF_ABI = ["function balanceOf(address) view returns (uint256)"];
+
 /**
- * Get ETH balance for a session's wallet.
+ * Get ETH and token balances for a session's wallet.
+ * Fetches all balances in parallel for optimal performance.
  */
 export async function getBalance(sessionId: string): Promise<WalletBalance | undefined> {
     const stored = walletStore.get(sessionId);
@@ -159,38 +169,29 @@ export async function getBalance(sessionId: string): Promise<WalletBalance | und
     const rpcUrl = env.BASE_RPC_URL || "https://mainnet.base.org";
     const provider = new ethers.JsonRpcProvider(rpcUrl);
 
-    const ethBalance = await provider.getBalance(stored.address);
-
-    // Common tokens on Base to check
-    const baseTokens = [
-        { symbol: "USDC", address: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" },
-        { symbol: "WETH", address: "0x4200000000000000000000000000000000000006" },
-        { symbol: "DAI", address: "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb" },
-    ];
-
-    const erc20Abi = ["function balanceOf(address) view returns (uint256)", "function decimals() view returns (uint8)"];
-
-    const tokens: WalletBalance["tokens"] = [];
-
-    for (const token of baseTokens) {
-        try {
-            const contract = new ethers.Contract(token.address, erc20Abi, provider);
-            const [balance, decimals] = await Promise.all([
-                contract.balanceOf(stored.address),
-                contract.decimals(),
-            ]);
-            if (balance > 0n) {
-                tokens.push({
-                    symbol: token.symbol,
-                    address: token.address,
-                    balance: balance.toString(),
-                    formatted: ethers.formatUnits(balance, decimals),
-                });
+    // Fetch ETH balance and all token balances in parallel
+    const [ethBalance, ...tokenResults] = await Promise.all([
+        provider.getBalance(stored.address),
+        ...BASE_TOKENS.map(async (token) => {
+            try {
+                const contract = new ethers.Contract(token.address, BALANCE_OF_ABI, provider);
+                const balance = await contract.balanceOf(stored.address) as bigint;
+                return { token, balance };
+            } catch {
+                return { token, balance: 0n };
             }
-        } catch {
-            // Skip tokens that fail
-        }
-    }
+        }),
+    ]);
+
+    // Filter to non-zero balances and format
+    const tokens: WalletBalance["tokens"] = tokenResults
+        .filter((result) => result.balance > 0n)
+        .map((result) => ({
+            symbol: result.token.symbol,
+            address: result.token.address,
+            balance: result.balance.toString(),
+            formatted: ethers.formatUnits(result.balance, result.token.decimals),
+        }));
 
     return {
         eth: ethBalance.toString(),
