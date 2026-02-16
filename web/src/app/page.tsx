@@ -253,18 +253,38 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Section 7: Infrastructure Statement ── */}
+      {/* ── Section 7: Infrastructure Statement + Demo ── */}
       <section className="infra-section">
-        <div className="container" style={{ textAlign: "center" }}>
-          <Image src="/logo-lavender.png" alt="Sigil" width={64} height={64} className="infra-logo" />
-          <h2 className="infra-heading" style={{ textTransform: "lowercase" }}>
-            the verification standard<br />for the agentic economy.
-          </h2>
-          <p className="infra-body">
-            five-channel verification. onchain attestation. milestone governance.
-            USDC fees route to verified builders. a percentage flows to $SIGIL stakers,
-            powering the protocol flywheel.
-          </p>
+        <div className="container">
+          <div className="infra-split">
+            <div className="infra-text">
+              <Image src="/logo-lavender.png" alt="Sigil" width={48} height={48} className="infra-logo" />
+              <h2 className="infra-heading" style={{ textTransform: "lowercase" }}>
+                the verification standard<br />for the agentic economy.
+              </h2>
+              <p className="infra-body">
+                five-channel verification. onchain attestation. milestone governance.
+                USDC fees route to verified builders. a percentage flows to $SIGIL stakers,
+                powering the protocol flywheel.
+              </p>
+              <p className="demo-video-caption">
+                from launch to fee claim — one conversation with @HeySigil
+              </p>
+            </div>
+            <div className="infra-video">
+              <div className="demo-video-wrapper">
+                <video
+                  className="demo-video"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                >
+                  <source src="/demo/sigil-demo.mp4" type="video/mp4" />
+                </video>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

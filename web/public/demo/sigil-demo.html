@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sigil Demo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #f5f5f4;
+    --card-bg: #ffffff;
+    --purple: #4a2c6e;
+    --purple-light: #6b4d8a;
+    --purple-faint: rgba(74, 44, 110, 0.06);
+    --green: #16a34a;
+    --green-bg: rgba(22, 163, 74, 0.08);
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b7280;
+    --border: #e5e5e5;
+    --user-bubble: #4a2c6e;
+    --bot-bubble: #ffffff;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    overflow: hidden;
+    width: 1280px;
+    height: 720px;
+    position: relative;
+  }
+
+  /* ── SCENES ── */
+  .scene {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    pointer-events: none;
+  }
+  .scene.active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* ── NAV (shared) ── */
+  .nav {
+    height: 56px;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 12px;
+  }
+  .nav-logo {
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--purple);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .nav-logo svg {
+    width: 22px;
+    height: 22px;
+  }
+  .nav-links {
+    margin-left: auto;
+    display: flex;
+    gap: 24px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .nav-links span.active-link {
+    color: var(--purple);
+    font-weight: 600;
+  }
+
+  /* ── CHAT SCENE ── */
+  .chat-container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100% - 56px);
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 32px 24px 24px;
+  }
+  .messages {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow: hidden;
+  }
+  .message {
+    display: flex;
+    gap: 12px;
+    opacity: 0;
+    transform: translateY(12px);
+    animation: msgIn 0.4s ease forwards;
+  }
+  .message.hidden { display: none; }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+  .avatar-user {
+    background: var(--purple);
+    color: white;
+  }
+  .avatar-bot {
+    background: var(--purple-faint);
+    color: var(--purple);
+    border: 1.5px solid var(--purple);
+  }
+
+  .bubble {
+    padding: 14px 18px;
+    border-radius: 16px;
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 600px;
+  }
+  .bubble-user {
+    background: var(--user-bubble);
+    color: white;
+    border-bottom-left-radius: 4px;
+  }
+  .bubble-bot {
+    background: var(--bot-bubble);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+  .bubble-bot .label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--purple);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* Typing indicator */
+  .typing-dots {
+    display: flex;
+    gap: 4px;
+    padding: 14px 18px;
+    background: var(--bot-bubble);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    border-bottom-left-radius: 4px;
+  }
+  .typing-dots span {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-secondary);
+    animation: dotPulse 1.2s ease infinite;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+  /* TX card inside bot bubble */
+  .tx-card {
+    margin-top: 12px;
+    background: var(--purple-faint);
+    border: 1px solid rgba(74, 44, 110, 0.12);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 13px;
+  }
+  .tx-card .tx-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+  }
+  .tx-card .tx-label {
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+  .tx-card .tx-value {
+    font-weight: 600;
+    color: var(--purple);
+  }
+  .tx-card .tx-value.green {
+    color: var(--green);
+  }
+
+  /* Chat input */
+  .chat-input {
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 16px;
+  }
+  .chat-input-text {
+    flex: 1;
+    font-size: 15px;
+    color: var(--text-primary);
+    font-family: inherit;
+  }
+  .chat-input-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 1.2em;
+    background: var(--purple);
+    animation: blink 0.8s step-end infinite;
+    vertical-align: text-bottom;
+  }
+  .send-btn {
+    width: 36px;
+    height: 36px;
+    background: var(--purple);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .send-btn svg { width: 16px; height: 16px; }
+
+  /* ── DASHBOARD SCENE ── */
+  .dashboard {
+    height: calc(100% - 56px);
+    padding: 32px 40px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto 1fr;
+    gap: 20px;
+  }
+  .dashboard-header {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .dashboard-header h2 {
+    font-size: 22px;
+    font-weight: 700;
+  }
+  .dashboard-header .wallet-badge {
+    background: var(--purple-faint);
+    color: var(--purple);
+    padding: 8px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .stat-card .stat-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .stat-card .stat-value {
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--text-primary);
+  }
+  .stat-card .stat-value.green {
+    color: var(--green);
+  }
+  .stat-card .stat-change {
+    font-size: 13px;
+    color: var(--green);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .stat-card.highlight {
+    border: 2px solid var(--purple);
+    box-shadow: 0 0 0 4px rgba(74, 44, 110, 0.08);
+  }
+
+  /* Fee counter glow */
+  .fee-glow {
+    animation: pulse-glow 1.5s ease infinite;
+  }
+
+  /* Token list */
+  .token-list {
+    grid-column: 1 / -1;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .token-list h3 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .token-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+  .token-row:last-child { border-bottom: none; }
+  .token-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--purple);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .token-name {
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .token-chain {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .token-fee {
+    margin-left: auto;
+    text-align: right;
+  }
+  .token-fee-value {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--green);
+  }
+  .token-fee-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  /* ── FINAL FRAME ── */
+  .final-frame {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    background: var(--bg);
+    gap: 20px;
+  }
+  .final-handle {
+    font-size: 64px;
+    font-weight: 800;
+    color: var(--purple);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    opacity: 0;
+    transform: scale(0.9);
+    animation: finalIn 0.8s ease forwards;
+    animation-delay: 0.3s;
+  }
+  .final-handle svg {
+    width: 48px;
+    height: 48px;
+  }
+  .final-tagline {
+    font-size: 20px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    opacity: 0;
+    animation: fadeUp 0.6s ease forwards;
+    animation-delay: 0.8s;
+    text-transform: lowercase;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes msgIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+  @keyframes dotPulse {
+    0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+    40% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 4px rgba(74, 44, 110, 0.08); }
+    50% { box-shadow: 0 0 0 8px rgba(74, 44, 110, 0.15); }
+  }
+  @keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
+    from { transform: translateY(8px); }
+  }
+  @keyframes finalIn {
+    to { opacity: 1; transform: scale(1); }
+  }
+  @keyframes countUp {
+    from { opacity: 0.6; }
+    to { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════ SCENE 1: CHAT — LAUNCH ═══════ -->
+<div id="scene-chat-launch" class="scene active">
+  <nav class="nav">
+    <div class="nav-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      Sigil
+    </div>
+    <div class="nav-links">
+      <span>Developers</span>
+      <span>Dashboard</span>
+      <span>Governance</span>
+      <span class="active-link">Chat</span>
+      <span>Verify</span>
+    </div>
+  </nav>
+  <div class="chat-container">
+    <div class="messages" id="launch-messages">
+      <!-- Messages injected by script -->
+    </div>
+    <div class="chat-input">
+      <span class="chat-input-text" id="launch-input"></span>
+      <span class="chat-input-cursor" id="launch-cursor"></span>
+      <div style="flex:1"></div>
+      <div class="send-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ SCENE 2: DASHBOARD ═══════ -->
+<div id="scene-dashboard" class="scene">
+  <nav class="nav">
+    <div class="nav-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      Sigil
+    </div>
+    <div class="nav-links">
+      <span>Developers</span>
+      <span class="active-link">Dashboard</span>
+      <span>Governance</span>
+      <span>Chat</span>
+      <span>Verify</span>
+    </div>
+  </nav>
+  <div class="dashboard">
+    <div class="dashboard-header">
+      <h2>Developer Dashboard</h2>
+      <div class="wallet-badge">0x7a3f...c91d</div>
+    </div>
+    <div class="stat-card highlight fee-glow">
+      <span class="stat-label">USDC Fees Earned</span>
+      <span class="stat-value green" id="fee-counter">$0.00</span>
+      <span class="stat-change">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 10V2M6 2L2 6M6 2L10 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        accumulating from swaps
+      </span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Tokens Launched</span>
+      <span class="stat-value">1</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Verification Status</span>
+      <span class="stat-value" style="font-size: 24px; color: var(--green);">✓ Verified</span>
+    </div>
+    <div class="token-list">
+      <h3>Your Launches</h3>
+      <div class="token-row">
+        <div class="token-icon">SIG</div>
+        <div>
+          <div class="token-name">Sigil (SIG)</div>
+          <div class="token-chain">Base · Deployed 2 min ago</div>
+        </div>
+        <div class="token-fee">
+          <div class="token-fee-value" id="token-fee-value">$0.00</div>
+          <div class="token-fee-label">USDC fees</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ SCENE 3: CHAT — CLAIM ═══════ -->
+<div id="scene-chat-claim" class="scene">
+  <nav class="nav">
+    <div class="nav-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      Sigil
+    </div>
+    <div class="nav-links">
+      <span>Developers</span>
+      <span>Dashboard</span>
+      <span>Governance</span>
+      <span class="active-link">Chat</span>
+      <span>Verify</span>
+    </div>
+  </nav>
+  <div class="chat-container">
+    <div class="messages" id="claim-messages"></div>
+    <div class="chat-input">
+      <span class="chat-input-text" id="claim-input"></span>
+      <span class="chat-input-cursor" id="claim-cursor"></span>
+      <div style="flex:1"></div>
+      <div class="send-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ SCENE 4: FINAL FRAME ═══════ -->
+<div id="scene-final" class="scene">
+  <div class="final-frame">
+    <div class="final-handle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      @HeySigil
+    </div>
+    <div class="final-tagline">the verification infrastructure of base</div>
+  </div>
+</div>
+
+<script>
+// ── Utilities ──
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function typeText(el, text, speed = 45) {
+  return new Promise(resolve => {
+    let i = 0;
+    const interval = setInterval(() => {
+      el.textContent += text[i];
+      i++;
+      if (i >= text.length) { clearInterval(interval); resolve(); }
+    }, speed);
+  });
+}
+
+function addMessage(container, type, html, delay = 0) {
+  return new Promise(async resolve => {
+    if (delay) await wait(delay);
+    const msg = document.createElement('div');
+    msg.className = 'message';
+    msg.innerHTML = `
+      <div class="avatar ${type === 'user' ? 'avatar-user' : 'avatar-bot'}">
+        ${type === 'user' ? 'You' : '✦'}
+      </div>
+      ${html}
+    `;
+    container.appendChild(msg);
+    resolve();
+  });
+}
+
+function showTyping(container) {
+  const msg = document.createElement('div');
+  msg.className = 'message';
+  msg.id = 'typing-indicator';
+  msg.innerHTML = `
+    <div class="avatar avatar-bot">✦</div>
+    <div class="typing-dots"><span></span><span></span><span></span></div>
+  `;
+  container.appendChild(msg);
+}
+
+function hideTyping() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+function switchScene(from, to) {
+  document.getElementById(from).classList.remove('active');
+  document.getElementById(to).classList.add('active');
+}
+
+// ── FEE COUNTER ──
+function animateFees(duration = 5000) {
+  const counter = document.getElementById('fee-counter');
+  const tokenFee = document.getElementById('token-fee-value');
+  const start = Date.now();
+  const targetFee = 847.32;
+
+  function tick() {
+    const elapsed = Date.now() - start;
+    const progress = Math.min(elapsed / duration, 1);
+    // Ease-out curve
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const current = (targetFee * eased).toFixed(2);
+    counter.textContent = `$${current}`;
+    tokenFee.textContent = `$${current}`;
+    if (progress < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+// ── MAIN SEQUENCE ──
+async function runDemo() {
+  const launchMsgs = document.getElementById('launch-messages');
+  const launchInput = document.getElementById('launch-input');
+  const launchCursor = document.getElementById('launch-cursor');
+  const claimMsgs = document.getElementById('claim-messages');
+  const claimInput = document.getElementById('claim-input');
+  const claimCursor = document.getElementById('claim-cursor');
+
+  // ── SCENE 1: Chat Launch ──
+  await wait(800);
+
+  // Type user message
+  await typeText(launchInput, '@HeySigil launch Sigil on Base. Link my github to it', 40);
+  await wait(400);
+  launchInput.textContent = '';
+  launchCursor.style.display = 'none';
+
+  // Show user bubble
+  await addMessage(launchMsgs, 'user', `
+    <div class="bubble bubble-user">@HeySigil launch Sigil on Base. Link my github to it</div>
+  `);
+  await wait(600);
+
+  // Typing indicator
+  showTyping(launchMsgs);
+  await wait(1800);
+  hideTyping();
+
+  // Bot response
+  await addMessage(launchMsgs, 'bot', `
+    <div class="bubble bubble-bot">
+      <div class="label">@HeySigil</div>
+      <div>Got it! Launched <strong>Sigil (SIG)</strong> on Base ✓</div>
+      <div style="margin-top: 6px;">Fees have been linked to your account to claim.</div>
+      <div class="tx-card">
+        <div class="tx-row"><span class="tx-label">Token</span><span class="tx-value">SIG</span></div>
+        <div class="tx-row"><span class="tx-label">Chain</span><span class="tx-value">Base</span></div>
+        <div class="tx-row"><span class="tx-label">Pool</span><span class="tx-value">SIG/USDC</span></div>
+        <div class="tx-row"><span class="tx-label">GitHub</span><span class="tx-value green">✓ Linked</span></div>
+        <div class="tx-row"><span class="tx-label">Fee Routing</span><span class="tx-value green">✓ Active</span></div>
+      </div>
+    </div>
+  `);
+
+  await wait(2500);
+
+  // ── SCENE 2: Dashboard ──
+  switchScene('scene-chat-launch', 'scene-dashboard');
+  await wait(600);
+  animateFees(4500);
+  await wait(5000);
+
+  // ── SCENE 3: Chat Claim ──
+  switchScene('scene-dashboard', 'scene-chat-claim');
+  await wait(800);
+
+  // Type claim message
+  await typeText(claimInput, '@HeySigil claim my fees', 45);
+  await wait(400);
+  claimInput.textContent = '';
+  claimCursor.style.display = 'none';
+
+  // User bubble
+  await addMessage(claimMsgs, 'user', `
+    <div class="bubble bubble-user">@HeySigil claim my fees</div>
+  `);
+  await wait(600);
+
+  // Typing
+  showTyping(claimMsgs);
+  await wait(1500);
+  hideTyping();
+
+  // Bot claim response
+  await addMessage(claimMsgs, 'bot', `
+    <div class="bubble bubble-bot">
+      <div class="label">@HeySigil</div>
+      <div>Done! <strong>$847.32 USDC</strong> claimed and sent to your wallet ✓</div>
+      <div class="tx-card">
+        <div class="tx-row"><span class="tx-label">Amount</span><span class="tx-value green">$847.32 USDC</span></div>
+        <div class="tx-row"><span class="tx-label">To</span><span class="tx-value">0x7a3f...c91d</span></div>
+        <div class="tx-row"><span class="tx-label">Status</span><span class="tx-value green">✓ Confirmed</span></div>
+      </div>
+    </div>
+  `);
+
+  await wait(2500);
+
+  // ── SCENE 4: Final Frame ──
+  switchScene('scene-chat-claim', 'scene-final');
+  // holds indefinitely
+}
+
+// Start the demo
+runDemo();
+</script>
+</body>
+</html>
