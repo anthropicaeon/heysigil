@@ -60,3 +60,8 @@ export function getEnv(): Env {
   }
   return _env;
 }
+
+// For testing: reset the cached environment
+export function resetEnv(): void {
+  _env = null;
+}
