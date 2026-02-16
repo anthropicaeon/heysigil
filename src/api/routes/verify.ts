@@ -24,8 +24,70 @@ import {
 } from "../../verification/instagram.js";
 import { createAttestation } from "../../attestation/eas.js";
 import type { VerificationMethod } from "../../verification/types.js";
+import { findIdentity, claimIdentity } from "../../services/identity.js";
 
 const verify = new Hono();
+
+// ---------- Phantom identity claim helper ----------
+
+/**
+ * After any verification succeeds, check if a phantom identity exists
+ * for the verified platform/project and claim it.
+ *
+ * Maps verification methods to identity platforms:
+ *   github_oauth, github_oidc, github_file → "github"
+ *   facebook_oauth                          → "facebook"
+ *   instagram_graph                         → "instagram"
+ *   tweet_zktls                             → "twitter"
+ *   domain_dns, domain_file, domain_meta    → "domain"
+ *
+ * Uses walletAddress as the user identifier. When the dev later
+ * links their Privy account, the merge logic in claimIdentity()
+ * will consolidate identities under one user.
+ */
+function tryClaimPhantomIdentity(
+  method: VerificationMethod,
+  projectId: string,
+  walletAddress: string,
+): void {
+  // Map verification method → identity platform
+  let platform: string;
+  let platformId: string = projectId;
+
+  if (method.startsWith("github")) {
+    platform = "github";
+    platformId = projectId.replace(/^github\.com\//, "");
+  } else if (method.startsWith("facebook")) {
+    platform = "facebook";
+  } else if (method.startsWith("instagram")) {
+    platform = "instagram";
+  } else if (method.startsWith("tweet")) {
+    platform = "twitter";
+  } else if (method.startsWith("domain")) {
+    platform = "domain";
+  } else {
+    return;
+  }
+
+  // Try claiming — walletAddress acts as user ID until Privy is linked
+  let identity = findIdentity(platform, platformId);
+
+  // Fallback: try with github.com prefix
+  if (!identity && platform === "github") {
+    identity = findIdentity("github", `github.com/${platformId}`);
+    if (identity) platformId = `github.com/${platformId}`;
+  }
+
+  if (!identity) return;
+
+  const result = claimIdentity(platform, platformId, walletAddress);
+  if (result.success) {
+    console.log(
+      `[verify] Phantom identity claimed: ${platform}/${platformId} → ${walletAddress}` +
+      (result.merged ? " (MERGED)" : ""),
+    );
+  }
+}
 
 // ---------- Challenge creation ----------
 
@@ -185,6 +247,9 @@ verify.get("/github/callback", async (c) => {
       })
       .where(eq(schema.verifications.id, state));
 
+    // Claim any phantom identity tied to this GitHub repo
+    tryClaimPhantomIdentity("github_oauth", record.projectId, record.walletAddress);
+
     return c.redirect(
       `${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=github`,
     );
@@ -236,6 +301,9 @@ verify.get("/facebook/callback", async (c) => {
       })
       .where(eq(schema.verifications.id, state));
 
+    // Claim any phantom identity tied to this Facebook account
+    tryClaimPhantomIdentity("facebook_oauth", record.projectId, record.walletAddress);
+
     return c.redirect(
       `${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=facebook`,
     );
@@ -286,6 +354,9 @@ verify.get("/instagram/callback", async (c) => {
         verifiedAt: new Date(),
       })
       .where(eq(schema.verifications.id, state));
+
+    // Claim any phantom identity tied to this Instagram account
+    tryClaimPhantomIdentity("instagram_graph", record.projectId, record.walletAddress);
 
     return c.redirect(
       `${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=instagram`,
@@ -395,6 +466,13 @@ verify.post("/check", async (c) => {
         verifiedAt: new Date(),
       })
       .where(eq(schema.verifications.id, verificationId));
+
+    // Claim any phantom identity tied to this verified project
+    tryClaimPhantomIdentity(
+      record.method as VerificationMethod,
+      record.projectId,
+      record.walletAddress,
+    );
   } else {
     // Keep as pending so they can retry (don't mark failed yet)
   }

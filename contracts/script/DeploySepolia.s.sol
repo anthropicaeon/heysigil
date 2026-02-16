@@ -36,7 +36,7 @@ contract DeploySigilSepolia is Script {
     // NOTE: These are Base Sepolia testnet addresses.
     //       Verify against latest Uniswap V4 docs before deploying.
     address constant POOL_MANAGER_SEPOLIA = 0x05E73354cFDd6745C338b50BcFDfA3Aa6fA03408;
-    address constant WETH_SEPOLIA = 0x4200000000000000000000000000000000000006;
+    address constant USDC_SEPOLIA = 0x036CbD53842c5426634e7929541eC2318f3dCF7e;
     // EAS on Base Sepolia (OP Stack predeploy — same address as mainnet)
     address constant EAS_SEPOLIA = 0x4200000000000000000000000000000000000021;
 
@@ -68,11 +68,15 @@ contract DeploySigilSepolia is Script {
         // with HookMiner on a fork.
         //
         // Setting factory to address(0) initially, updated after factory deploy.
+        address tokenEscrow = deployer; // Placeholder — use proper escrow in production
+
         SigilHook hook = new SigilHook(
             IPoolManager(POOL_MANAGER_SEPOLIA),
             address(0), // factory — set after factory deploy
             address(feeVault),
-            protocolTreasury
+            protocolTreasury,
+            USDC_SEPOLIA,
+            tokenEscrow
         );
         console.log("SigilHook deployed at:", address(hook));
 
@@ -80,7 +84,7 @@ contract DeploySigilSepolia is Script {
         SigilFactory factory = new SigilFactory(
             POOL_MANAGER_SEPOLIA,
             address(hook),
-            WETH_SEPOLIA
+            USDC_SEPOLIA
         );
         console.log("SigilFactory deployed at:", address(factory));
 
@@ -107,7 +111,7 @@ contract DeploySigilSepolia is Script {
         console.log("Factory:      ", address(factory));
         console.log("PoolReward:   ", address(poolReward));
         console.log("PoolManager:  ", POOL_MANAGER_SEPOLIA);
-        console.log("WETH:         ", WETH_SEPOLIA);
+        console.log("USDC:         ", USDC_SEPOLIA);
         console.log("EAS:          ", EAS_SEPOLIA);
         console.log("Treasury:     ", protocolTreasury);
         console.log("Attester:     ", trustedAttester);

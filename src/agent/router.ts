@@ -339,15 +339,22 @@ const handlers: Record<string, ActionHandler> = {
 
     // Deploy on-chain! 🚀
     try {
+      const isSelfLaunch = params.isSelfLaunch as boolean | undefined;
       const result = await deployToken({
         name: tokenName,
         symbol: tokenSymbol,
         projectId,
+        isSelfLaunch: isSelfLaunch ?? true,
+        devLinks: parsedLinks.map(l => l.displayUrl),
       });
 
       const linkSummary = parsedLinks.map((l) =>
         `• **${l.platform}** — [${l.projectId}](${l.displayUrl})`,
       );
+
+      const feeMessage = isSelfLaunch === false
+        ? "A phantom wallet has been created for the developer. When they verify their GitHub, they'll inherit this wallet and all accumulated fees."
+        : "You'll earn 80% of all swap fees. The remaining 20% goes to the Sigil protocol.";
 
       return {
         success: true,
@@ -362,7 +369,7 @@ const handlers: Record<string, ActionHandler> = {
           "**Developer links:**",
           ...linkSummary,
           "",
-          "The developer can now verify any of these links to stamp their Sigil and start earning 80% of swap fees.",
+          feeMessage,
           `Say "verify ${primaryLink.displayUrl}" to start the verification process.`,
         ].join("\n"),
         data: {
@@ -374,6 +381,7 @@ const handlers: Record<string, ActionHandler> = {
           txHash: result.txHash,
           explorerUrl: result.explorerUrl,
           dexUrl: result.dexUrl,
+          isSelfLaunch: isSelfLaunch ?? true,
           status: "deployed",
         },
       };

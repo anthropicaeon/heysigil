@@ -9,6 +9,7 @@
 
 import { ethers } from "ethers";
 import { getEnv } from "../config/env.js";
+import { createPhantomIdentity, findByPlatformId, findUserByPlatform } from "./identity.js";
 
 // ─── ABI ────────────────────────────────────────────────
 // Minimal ABI for SigilFactory.launch()
@@ -25,7 +26,9 @@ export interface DeployParams {
     name: string;
     symbol: string;
     projectId: string;
-    devAddress?: string; // Optional — uses deployer as placeholder if not known
+    devAddress?: string;
+    isSelfLaunch?: boolean;
+    devLinks?: string[]; // GitHub URLs, etc. Used to create phantom identity
 }
 
 export interface DeployResult {
@@ -119,9 +122,43 @@ export async function deployToken(
     const wallet = getWallet();
     const factory = getFactory();
 
-    // Use deployer address as placeholder dev if none provided
-    // The real dev will be set when they verify ownership
-    const devAddress = params.devAddress || wallet.address;
+    // Determine dev address based on launch type
+    let devAddress: string;
+
+    if (params.devAddress) {
+        // Explicit dev address provided (self-launch with known wallet)
+        devAddress = params.devAddress;
+    } else if (params.isSelfLaunch === false && params.devLinks?.length) {
+        // Third-party launch: check if dev already exists in our system
+        const githubLink = params.devLinks.find(l => l.includes("github.com"));
+        if (githubLink) {
+            // Extract org/repo from GitHub URL
+            const match = githubLink.match(/github\.com\/([^/]+\/[^/]+)/);
+            const repoId = match ? match[1].replace(/\.git$/, "") : githubLink;
+
+            // 1. Check if this dev is already verified → use their existing wallet
+            const existingUser = findUserByPlatform("github", repoId);
+            if (existingUser && existingUser.status === "claimed") {
+                devAddress = existingUser.walletAddress;
+                console.log(`[deployer] Dev already verified: ${repoId} → ${devAddress} (direct routing)`);
+            } else if (existingUser && existingUser.status === "phantom") {
+                // 2. Phantom exists from a previous launch → reuse their wallet
+                devAddress = existingUser.walletAddress;
+                console.log(`[deployer] Existing phantom user: ${repoId} → ${devAddress}`);
+            } else {
+                // 3. Brand new — create phantom user + wallet
+                const result = createPhantomIdentity("github", repoId, sessionId);
+                devAddress = result.walletAddress;
+                console.log(`[deployer] Created phantom user for ${repoId} → ${devAddress}`);
+            }
+        } else {
+            // No GitHub link — fall back to address(0) → contract escrow
+            devAddress = ethers.ZeroAddress;
+        }
+    } else {
+        // No dev info at all — fees go to contract escrow
+        devAddress = ethers.ZeroAddress;
+    }
 
     console.log(`[deployer] Deploying token: ${params.name} ($${params.symbol})`);
     console.log(`[deployer]   projectId: ${params.projectId}`);

@@ -7,6 +7,13 @@ import {ISigilFeeVault} from "./interfaces/ISigilFeeVault.sol";
 /// @title SigilFeeVault
 /// @notice Accumulates swap fees and allows devs/protocol to claim.
 ///
+///         Fee routing rules:
+///         - 20% ALWAYS goes to protocol treasury
+///         - 80% goes to the dev IF a dev wallet is specified at launch
+///         - 80% goes to ESCROW if no dev wallet (third-party launch)
+///         - Escrowed fees can be assigned to a dev after verification
+///         - Escrowed fees expire to protocol treasury after 30 days
+///
 ///         Design principle: Fees are NOT converted. Whatever token the fee was
 ///         collected in, that's what accumulates. In a TOKEN/WETH pool:
 ///         - Buys (WETH → TOKEN): fee is in TOKEN → dev earns native token
@@ -16,8 +23,13 @@ import {ISigilFeeVault} from "./interfaces/ISigilFeeVault.sol";
 ///         from trading activity WITHOUT any forced sells. No dump pressure.
 ///
 ///         The 80/20 split is enforced by the hook before deposit.
-///         This vault simply accumulates and allows claims.
+///         This vault accumulates and allows claims.
 contract SigilFeeVault is ISigilFeeVault {
+    // ─── Constants ──────────────────────────────────────
+
+    /// @notice Unclaimed dev fees expire to protocol after 30 days
+    uint256 public constant EXPIRY_PERIOD = 30 days;
+
     // ─── State ───────────────────────────────────────────
 
     /// @notice The SigilHook address — only it can deposit fees
@@ -45,6 +57,21 @@ contract SigilFeeVault is ISigilFeeVault {
     mapping(address => address[]) public devFeeTokens;
     mapping(address => mapping(address => bool)) internal _devHasToken;
 
+    // ─── Unclaimed/Escrow State ─────────────────────────
+
+    /// @notice Unclaimed fees per pool per token: poolId => token => amount
+    mapping(bytes32 => mapping(address => uint256)) public unclaimedFees;
+
+    /// @notice Timestamp of first unclaimed deposit per pool
+    mapping(bytes32 => uint256) public unclaimedDepositedAt;
+
+    /// @notice Track which tokens have unclaimed fees per pool
+    mapping(bytes32 => address[]) public unclaimedFeeTokens;
+    mapping(bytes32 => mapping(address => bool)) internal _unclaimedHasToken;
+
+    /// @notice Whether a pool has been assigned to a dev
+    mapping(bytes32 => bool) public poolAssigned;
+
     // ─── Events ──────────────────────────────────────────
 
     event FeesDeposited(
@@ -53,6 +80,21 @@ contract SigilFeeVault is ISigilFeeVault {
         address indexed token,
         uint256 devAmount,
         uint256 protocolAmount
+    );
+    event FeesEscrowed(
+        PoolId indexed poolId,
+        address indexed token,
+        uint256 amount
+    );
+    event DevAssigned(
+        PoolId indexed poolId,
+        address indexed dev,
+        uint256 tokensTransferred
+    );
+    event FeesExpired(
+        PoolId indexed poolId,
+        address indexed token,
+        uint256 amount
     );
     event DevFeesClaimed(address indexed dev, address indexed token, uint256 amount);
     event ProtocolFeesClaimed(address indexed token, uint256 amount, address to);
@@ -65,6 +107,9 @@ contract SigilFeeVault is ISigilFeeVault {
     error ZeroAddress();
     error NothingToClaim();
     error TransferFailed();
+    error PoolAlreadyAssigned();
+    error NotExpiredYet();
+    error NoUnclaimedFees();
 
     // ─── Constructor ─────────────────────────────────────
 
@@ -100,8 +145,6 @@ contract SigilFeeVault is ISigilFeeVault {
 
         // Pull tokens from the hook
         if (token == address(0)) {
-            // Native ETH — should be sent as msg.value
-            // For V4, fees are typically in WETH, not native ETH
             revert("SIGIL: USE_WETH");
         }
 
@@ -116,21 +159,109 @@ contract SigilFeeVault is ISigilFeeVault {
         );
         if (!success) revert TransferFailed();
 
-        // Accumulate balances
-        devFees[dev][token] += devAmount;
+        // Protocol 20% — ALWAYS goes to protocol
         protocolFees[token] += protocolAmount;
-
-        // Track lifetime earnings
-        totalDevFeesEarned[dev][token] += devAmount;
         totalProtocolFeesEarned[token] += protocolAmount;
 
-        // Track token list for dev
-        if (!_devHasToken[dev][token]) {
-            _devHasToken[dev][token] = true;
-            devFeeTokens[dev].push(token);
+        // Dev 80% — route based on whether dev is known
+        if (dev != address(0)) {
+            // ── Known dev: direct to their balance ──
+            devFees[dev][token] += devAmount;
+            totalDevFeesEarned[dev][token] += devAmount;
+
+            if (!_devHasToken[dev][token]) {
+                _devHasToken[dev][token] = true;
+                devFeeTokens[dev].push(token);
+            }
+
+            emit FeesDeposited(poolId, dev, token, devAmount, protocolAmount);
+        } else {
+            // ── Unknown dev: escrow under poolId ──
+            bytes32 poolKey = PoolId.unwrap(poolId);
+
+            unclaimedFees[poolKey][token] += devAmount;
+
+            // Set timestamp on first deposit
+            if (unclaimedDepositedAt[poolKey] == 0) {
+                unclaimedDepositedAt[poolKey] = block.timestamp;
+            }
+
+            // Track token list
+            if (!_unclaimedHasToken[poolKey][token]) {
+                _unclaimedHasToken[poolKey][token] = true;
+                unclaimedFeeTokens[poolKey].push(token);
+            }
+
+            emit FeesEscrowed(poolId, token, devAmount);
+        }
+    }
+
+    // ─── Dev Assignment (after verification) ─────────────
+
+    /// @inheritdoc ISigilFeeVault
+    function assignDev(PoolId poolId, address dev) external onlyOwner {
+        if (dev == address(0)) revert ZeroAddress();
+
+        bytes32 poolKey = PoolId.unwrap(poolId);
+        if (poolAssigned[poolKey]) revert PoolAlreadyAssigned();
+
+        address[] storage tokens = unclaimedFeeTokens[poolKey];
+        uint256 len = tokens.length;
+        if (len == 0) revert NoUnclaimedFees();
+
+        uint256 totalTransferred = 0;
+
+        // Move all escrowed fees to the dev's balance
+        for (uint256 i; i < len; ++i) {
+            address token = tokens[i];
+            uint256 amount = unclaimedFees[poolKey][token];
+            if (amount > 0) {
+                unclaimedFees[poolKey][token] = 0;
+                devFees[dev][token] += amount;
+                totalDevFeesEarned[dev][token] += amount;
+                totalTransferred += amount;
+
+                if (!_devHasToken[dev][token]) {
+                    _devHasToken[dev][token] = true;
+                    devFeeTokens[dev].push(token);
+                }
+            }
         }
 
-        emit FeesDeposited(poolId, dev, token, devAmount, protocolAmount);
+        poolAssigned[poolKey] = true;
+
+        emit DevAssigned(poolId, dev, totalTransferred);
+    }
+
+    // ─── Expiry Sweep ────────────────────────────────────
+
+    /// @notice Sweep expired unclaimed fees to protocol treasury.
+    ///         Anyone can call this after the 30-day expiry period.
+    /// @param poolId The pool whose unclaimed fees to sweep
+    function sweepExpiredFees(PoolId poolId) external {
+        bytes32 poolKey = PoolId.unwrap(poolId);
+
+        uint256 depositedAt = unclaimedDepositedAt[poolKey];
+        if (depositedAt == 0) revert NoUnclaimedFees();
+        if (block.timestamp < depositedAt + EXPIRY_PERIOD) revert NotExpiredYet();
+        if (poolAssigned[poolKey]) revert PoolAlreadyAssigned();
+
+        address[] storage tokens = unclaimedFeeTokens[poolKey];
+        uint256 len = tokens.length;
+
+        for (uint256 i; i < len; ++i) {
+            address token = tokens[i];
+            uint256 amount = unclaimedFees[poolKey][token];
+            if (amount > 0) {
+                unclaimedFees[poolKey][token] = 0;
+                protocolFees[token] += amount;
+
+                emit FeesExpired(poolId, token, amount);
+            }
+        }
+
+        // Reset the timestamp so future fees get a fresh 30-day window
+        unclaimedDepositedAt[poolKey] = 0;
     }
 
     // ─── Dev Claims ──────────────────────────────────────
@@ -195,6 +326,25 @@ contract SigilFeeVault is ISigilFeeVault {
         for (uint256 i; i < tokens.length; ++i) {
             balances[i] = devFees[dev][tokens[i]];
         }
+    }
+
+    /// @notice Get unclaimed fee balances for a pool
+    function getUnclaimedFeeBalances(PoolId poolId) external view returns (
+        address[] memory tokens,
+        uint256[] memory balances,
+        uint256 depositedAt,
+        bool expired,
+        bool assigned
+    ) {
+        bytes32 poolKey = PoolId.unwrap(poolId);
+        tokens = unclaimedFeeTokens[poolKey];
+        balances = new uint256[](tokens.length);
+        for (uint256 i; i < tokens.length; ++i) {
+            balances[i] = unclaimedFees[poolKey][tokens[i]];
+        }
+        depositedAt = unclaimedDepositedAt[poolKey];
+        expired = depositedAt > 0 && block.timestamp >= depositedAt + EXPIRY_PERIOD;
+        assigned = poolAssigned[poolKey];
     }
 
     /// @notice Get lifetime earnings for a dev across a specific token
