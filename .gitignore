@@ -13,3 +13,4 @@ contracts/cache/
 Created
 /.claude
 .claude_settings.json
+bun.lock
