@@ -22,6 +22,7 @@
 
 import { ethers } from "ethers";
 import crypto from "node:crypto";
+import { getEnv } from "../config/env.js";
 import { encryptKey, decryptKey } from "../utils/crypto.js";
 
 // ─── Types ──────────────────────────────────────────────
@@ -65,17 +66,20 @@ export interface ClaimResult {
 
 const userStore = new Map<string, User>();
 const identityStore = new Map<string, Identity>();
-const walletKeyStore = new Map<string, {
-    address: string;
-    encryptedKey: string;
-    iv: string;
-    authTag: string;
-}>();
+const walletKeyStore = new Map<
+    string,
+    {
+        address: string;
+        encryptedKey: string;
+        iv: string;
+        authTag: string;
+    }
+>();
 
 // Indexes
-const platformIndex = new Map<string, string>();     // "platform:platformId" → identityId
-const privyUserIndex = new Map<string, string>();    // privyUserId → userId
-const walletUserIndex = new Map<string, string>();   // walletAddress → userId
+const platformIndex = new Map<string, string>(); // "platform:platformId" → identityId
+const privyUserIndex = new Map<string, string>(); // privyUserId → userId
+const walletUserIndex = new Map<string, string>(); // walletAddress → userId
 
 // ─── Core: Create ───────────────────────────────────────
 
@@ -163,7 +167,10 @@ export function claimIdentity(
     const indexKey = `${platform}:${platformId}`;
     const identityId = platformIndex.get(indexKey);
     if (!identityId) {
-        return { success: false, message: `No phantom identity found for ${platform}/${platformId}` };
+        return {
+            success: false,
+            message: `No phantom identity found for ${platform}/${platformId}`,
+        };
     }
 
     const identity = identityStore.get(identityId)!;
@@ -197,9 +204,13 @@ export function claimIdentity(
     privyUserIndex.set(privyUserId, phantomUser.id);
 
     const stored = walletKeyStore.get(phantomUser.id);
-    const privateKey = stored ? decryptKey(stored.encryptedKey, stored.iv, stored.authTag) : undefined;
+    const privateKey = stored
+        ? decryptKey(stored.encryptedKey, stored.iv, stored.authTag)
+        : undefined;
 
-    console.log(`[identity] User claimed: ${platform}/${platformId} → ${privyUserId} (wallet: ${phantomUser.walletAddress})`);
+    console.log(
+        `[identity] User claimed: ${platform}/${platformId} → ${privyUserId} (wallet: ${phantomUser.walletAddress})`,
+    );
 
     return {
         success: true,
@@ -240,15 +251,15 @@ function mergeUsers(
     // Log the merge for audit
     console.log(
         `[identity] MERGE: user ${phantomUser.id} (wallet ${phantomUser.walletAddress}) → ` +
-        `user ${primaryUser.id} (wallet ${primaryUser.walletAddress})`
+            `user ${primaryUser.id} (wallet ${primaryUser.walletAddress})`,
     );
     console.log(
         `[identity]   Trigger: ${triggeringIdentity.platform}/${triggeringIdentity.platformId} ` +
-        `claimed by ${privyUserId}`
+            `claimed by ${privyUserId}`,
     );
     console.log(
         `[identity]   ⚠️  Phantom wallet ${phantomUser.walletAddress} has accumulated fees.` +
-        ` Funds should be swept to primary wallet ${primaryUser.walletAddress}.`
+            ` Funds should be swept to primary wallet ${primaryUser.walletAddress}.`,
     );
 
     return {
@@ -330,7 +341,7 @@ export function hasIdentity(platform: string, platformId: string): boolean {
  */
 export function getUserIdentities(userId: string): Identity[] {
     const resolved = resolveUser(userId);
-    return Array.from(identityStore.values()).filter(i => {
+    return Array.from(identityStore.values()).filter((i) => {
         try {
             return resolveUser(i.userId).id === resolved.id;
         } catch {
@@ -373,7 +384,7 @@ export function getUserWallet(userId: string): ethers.Wallet | null {
  * List all phantom users (admin/debug).
  */
 export function listPhantomUsers(): User[] {
-    return Array.from(userStore.values()).filter(u => u.status === "phantom" && !u.mergedInto);
+    return Array.from(userStore.values()).filter((u) => u.status === "phantom" && !u.mergedInto);
 }
 
 // ─── Backward compatibility ─────────────────────────────
@@ -383,7 +394,11 @@ export function listPhantomUsers(): User[] {
 export function createPhantomIdentity(platform: string, platformId: string, createdBy?: string) {
     const result = createPhantomUser(platform, platformId, createdBy);
     return {
-        identity: { ...result.identity, walletAddress: result.walletAddress, status: result.user.status },
+        identity: {
+            ...result.identity,
+            walletAddress: result.walletAddress,
+            status: result.user.status,
+        },
         walletAddress: result.walletAddress,
         isNew: result.isNew,
     };

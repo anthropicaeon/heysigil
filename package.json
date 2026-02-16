@@ -9,7 +9,14 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "register-schema": "bun run src/scripts/register-schema.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write src",
+    "format:check": "prettier --check src",
+    "typecheck": "tsc --noEmit",
+    "check": "bun run typecheck && bun run lint && bun run format:check",
+    "prepare": "husky"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -28,8 +35,21 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.17.0",
     "@types/bun": "latest",
     "drizzle-kit": "^0.31.9",
-    "typescript": "^5.6.0"
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.11",
+    "prettier": "^3.4.2",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.18.2"
+  },
+  "lint-staged": {
+    "src/**/*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   }
 }
