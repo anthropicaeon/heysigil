@@ -89,13 +89,10 @@ function getFactory(): ethers.Contract {
  * @param sessionId - Session ID for rate limiting (optional)
  * @returns Deploy result with token address, pool ID, and tx hash
  */
-export async function deployToken(
-    params: DeployParams,
-    sessionId?: string,
-): Promise<DeployResult> {
+export async function deployToken(params: DeployParams, sessionId?: string): Promise<DeployResult> {
     // Rate limit check (uses shared rate-limit middleware)
     if (sessionId) {
-        checkDeployRateLimit(sessionId);
+        await checkDeployRateLimit(sessionId);
     }
 
     const wallet = getWallet();
@@ -109,7 +106,7 @@ export async function deployToken(
         devAddress = params.devAddress;
     } else if (params.isSelfLaunch === false && params.devLinks?.length) {
         // Third-party launch: check if dev already exists in our system
-        const githubLink = params.devLinks.find(l => l.includes("github.com"));
+        const githubLink = params.devLinks.find((l) => l.includes("github.com"));
         if (githubLink) {
             // Extract org/repo from GitHub URL
             const match = githubLink.match(/github\.com\/([^/]+\/[^/]+)/);
@@ -119,7 +116,9 @@ export async function deployToken(
             const existingUser = findUserByPlatform("github", repoId);
             if (existingUser && existingUser.status === "claimed") {
                 devAddress = existingUser.walletAddress;
-                console.log(`[deployer] Dev already verified: ${repoId} → ${devAddress} (direct routing)`);
+                console.log(
+                    `[deployer] Dev already verified: ${repoId} → ${devAddress} (direct routing)`,
+                );
             } else if (existingUser && existingUser.status === "phantom") {
                 // 2. Phantom exists from a previous launch → reuse their wallet
                 devAddress = existingUser.walletAddress;
@@ -145,12 +144,7 @@ export async function deployToken(
     console.log(`[deployer]   from: ${wallet.address}`);
 
     // Call factory.launch()
-    const tx = await factory.launch(
-        params.name,
-        params.symbol,
-        params.projectId,
-        devAddress,
-    );
+    const tx = await factory.launch(params.name, params.symbol, params.projectId, devAddress);
 
     console.log(`[deployer] Tx submitted: ${tx.hash}`);
 
@@ -190,9 +184,10 @@ export async function deployToken(
         blockNumber: receipt.blockNumber,
         deployer: wallet.address,
         explorerUrl: `https://basescan.org/tx/${receipt.hash}`,
-        dexUrl: tokenAddress !== "pending"
-            ? `https://dexscreener.com/base/${tokenAddress}`
-            : `https://basescan.org/tx/${receipt.hash}`,
+        dexUrl:
+            tokenAddress !== "pending"
+                ? `https://dexscreener.com/base/${tokenAddress}`
+                : `https://basescan.org/tx/${receipt.hash}`,
     };
 
     console.log(`[deployer] ✅ Token deployed: ${tokenAddress}`);
