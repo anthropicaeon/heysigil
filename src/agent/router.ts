@@ -6,11 +6,7 @@
  */
 
 import type { ParsedAction, ActionResult } from "./types.js";
-import {
-    screenAction,
-    screenPrompt,
-    formatScreenMessage,
-} from "../services/sentinel.js";
+import { screenAction, screenPrompt, formatScreenMessage } from "../services/sentinel.js";
 import { createWallet, hasWallet } from "../services/wallet.js";
 
 // Import domain-specific handlers
@@ -25,6 +21,7 @@ import {
     depositHandler,
     exportKeyHandler,
     sendHandler,
+    historyHandler,
     // Launch
     launchTokenHandler,
     // Verify
@@ -50,6 +47,7 @@ const handlers: Record<string, ActionHandler> = {
     deposit: depositHandler,
     export_key: exportKeyHandler,
     send: sendHandler,
+    history: historyHandler,
 
     // Token Launch
     launch_token: launchTokenHandler,
@@ -96,7 +94,9 @@ export async function executeAction(
         if (
             typeof val === "string" &&
             /^0x[0-9a-fA-F]{40}$/.test(val) &&
-            ["to", "from", "address", "wallet", "devAddress", "recipient", "tokenAddress"].includes(key)
+            ["to", "from", "address", "wallet", "devAddress", "recipient", "tokenAddress"].includes(
+                key,
+            )
         ) {
             addresses.push(val);
         }

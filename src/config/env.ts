@@ -36,6 +36,9 @@ const envSchema = z.object({
     // Trading (0x API)
     ZEROX_API_KEY: z.string().default(""),
 
+    // Basescan API (optional — for transaction history)
+    BASESCAN_API_KEY: z.string().default(""),
+
     // Database (optional — uses in-memory store when not set)
     DATABASE_URL: z.string().default(""),
 

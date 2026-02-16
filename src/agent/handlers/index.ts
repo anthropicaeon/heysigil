@@ -8,7 +8,13 @@ export type { ActionHandler } from "./types.js";
 export { swapHandler, bridgeHandler, priceHandler } from "./trading.js";
 
 // Wallet
-export { balanceHandler, depositHandler, exportKeyHandler, sendHandler } from "./wallet.js";
+export {
+    balanceHandler,
+    depositHandler,
+    exportKeyHandler,
+    sendHandler,
+    historyHandler,
+} from "./wallet.js";
 
 // Token Launch
 export { launchTokenHandler } from "./launch.js";
