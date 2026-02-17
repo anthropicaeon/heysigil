@@ -6,7 +6,8 @@
  */
 
 import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
-import { OAuthCallbackQuerySchema, RateLimitResponseSchema } from "../schemas/verify.js";
+import { OAuthCallbackQuerySchema } from "../schemas/verify.js";
+import { RateLimitResponseSchema } from "../schemas/common.js";
 import { getQuery } from "./request.js";
 import { handleOAuthCallback, type OAuthCallbackConfig } from "./oauth-callback.js";
 import { handler } from "./route.js";
