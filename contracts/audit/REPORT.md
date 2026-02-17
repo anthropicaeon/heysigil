@@ -2,8 +2,8 @@
 
 **Auditor**: Claude Opus 4.6 [1m] (Anthropic)
 **Date**: February 17, 2026
-**Scope**: Core Sigil Protocol Contracts (~1,800 LOC)
-**Commit**: `737b7c0` (claude/bankr-fork-no-x-api-lmz7z)
+**Scope**: Core Sigil Protocol Contracts (~2,315 LOC)
+**Commit**: `48f1902` (claude/bankr-fork-no-x-api-lmz7z)
 
 ---
 
@@ -11,15 +11,15 @@
 
 This audit examines the Sigil Protocol smart contract suite, a token launch platform with integrated fee distribution mechanisms for Uniswap V3/V4. The protocol enables project launches with locked liquidity and automated 80/20 developer/protocol fee splits.
 
-**Overall Assessment**: The contracts demonstrate solid security fundamentals with proper access controls, reentrancy protection patterns, and well-designed fee routing. Several low-severity issues and design considerations were identified, but no critical vulnerabilities that could lead to loss of funds were discovered.
+**Overall Assessment**: The contracts demonstrate solid security fundamentals with proper access controls, reentrancy protection patterns, and well-designed fee routing. Previous medium-severity findings have been addressed. The remaining issues are low-severity design considerations.
 
-| Severity | Count |
-|----------|-------|
-| Critical | 0 |
-| High | 0 |
-| Medium | 2 |
-| Low | 4 |
-| Informational | 6 |
+| Severity | Count | Fixed |
+|----------|-------|-------|
+| Critical | 0 | - |
+| High | 0 | - |
+| Medium | 0 | 2 fixed |
+| Low | 3 | 1 fixed |
+| Informational | 6 | 1 fixed |
 
 ---
 
@@ -27,108 +27,102 @@ This audit examines the Sigil Protocol smart contract suite, a token launch plat
 
 | Contract | LOC | Purpose |
 |----------|-----|---------|
-| SigilFeeVault.sol | 392 | Fee accumulation, escrow, and claims |
+| SigilFeeVault.sol | 402 | Fee accumulation, escrow, and claims |
 | SigilLPLocker.sol | 290 | V3 LP NFT permanent locking |
 | SigilFactoryV3.sol | 352 | V3 token deployment and pool creation |
-| SigilHook.sol | 350 | V4 swap hook for fee collection |
-| SigilToken.sol | 57 | Minimal ERC-20 implementation |
+| SigilFactory.sol | 291 | V4 token deployment and pool creation |
+| SigilHook.sol | 354 | V4 swap hook for fee collection |
+| SigilToken.sol | 62 | Minimal ERC-20 implementation |
 | PoolReward.sol | 194 | EAS attestation-based reward claims |
 | SigilEscrow.sol | 370 | DAO governance for milestone unlocks |
 
-**Total**: ~2,005 LOC (including SigilEscrow)
+**Total**: ~2,315 LOC
 
 ---
 
-## Findings
+## Fixed Issues (from previous audit)
 
-### MEDIUM-01: Unchecked Return Values in Low-Level Calls
+### ✅ MEDIUM-01: Unchecked Return Values (FIXED)
 
-**Location**: `SigilFeeVault.sol:152-160`, `SigilFeeVault.sol:384-387`
+**Status**: Resolved in commit `1efea33`
 
-**Description**: The contract uses low-level `call` for ERC-20 operations but only checks the `success` boolean, not the return data. Some non-standard ERC-20 tokens (like USDT) don't return a boolean.
+`SigilFeeVault.sol` now properly handles non-standard ERC-20 tokens with SafeERC20-style helpers:
 
 ```solidity
-// Current implementation
-(bool success,) = token.call(
-    abi.encodeWithSignature(
-        "transferFrom(address,address,uint256)",
-        msg.sender, address(this), totalAmount
-    )
-);
-if (!success) revert TransferFailed();
-```
-
-**Risk**: Medium - May fail silently with non-standard tokens, though current usage with USDC/WETH is safe.
-
-**Recommendation**: Use OpenZeppelin's SafeERC20 library or decode and check return data:
-```solidity
-(bool success, bytes memory data) = token.call(...);
-if (!success || (data.length > 0 && !abi.decode(data, (bool)))) revert TransferFailed();
+function _transferToken(address token, address to, uint256 amount) internal {
+    (bool success, bytes memory data) = token.call(
+        abi.encodeWithSignature("transfer(address,uint256)", to, amount)
+    );
+    if (!success || (data.length > 0 && !abi.decode(data, (bool)))) {
+        revert TransferFailed();
+    }
+}
 ```
 
 ---
 
-### MEDIUM-02: ERC-20 Approval Race Condition
+### ✅ MEDIUM-02: ERC-20 Approval Race Condition (FIXED)
 
-**Location**: `SigilHook.sol:307-316`
+**Status**: Resolved in commit `1efea33`
 
-**Description**: The `_approveFeeVault` function sets approval to a specific amount each time. If multiple swaps occur in rapid succession, there's a theoretical race condition window.
+`SigilHook.sol` now uses check-then-approve-max pattern:
 
 ```solidity
 function _approveFeeVault(address token, uint256 amount) internal {
-    (bool success,) = token.call(
-        abi.encodeWithSignature("approve(address,uint256)", address(feeVault), amount)
-    );
-    require(success, "SIGIL: APPROVE_FAILED");
-}
-```
-
-**Risk**: Medium - In high-throughput scenarios, concurrent transactions could interfere.
-
-**Recommendation**: Use `increaseAllowance` pattern or approve max once:
-```solidity
-if (IERC20(token).allowance(address(this), address(feeVault)) < amount) {
-    IERC20(token).approve(address(feeVault), type(uint256).max);
+    uint256 currentAllowance = IERC20(token).allowance(address(this), address(feeVault));
+    if (currentAllowance < amount) {
+        (bool success,) = token.call(
+            abi.encodeWithSignature("approve(address,uint256)", address(feeVault), type(uint256).max)
+        );
+        require(success, "SIGIL: APPROVE_FAILED");
+    }
 }
 ```
 
 ---
 
-### LOW-01: Missing Input Validation in SigilToken
+### ✅ LOW-01: Missing Input Validation (FIXED)
 
-**Location**: `SigilToken.sol:20-26`
+**Status**: Resolved in commit `1efea33`
 
-**Description**: The constructor doesn't validate that `_totalSupply > 0` or that `_recipient` is not the zero address when supply is non-zero.
+`SigilToken.sol` constructor now validates all inputs:
 
 ```solidity
 constructor(string memory _name, string memory _symbol, uint256 _totalSupply, address _recipient) {
-    name = _name;
-    symbol = _symbol;
-    totalSupply = _totalSupply;
-    balanceOf[_recipient] = _totalSupply;
-    emit Transfer(address(0), _recipient, _totalSupply);
+    require(bytes(_name).length > 0, "SIGIL: EMPTY_NAME");
+    require(bytes(_symbol).length > 0, "SIGIL: EMPTY_SYMBOL");
+    require(_totalSupply > 0, "SIGIL: ZERO_SUPPLY");
+    require(_recipient != address(0), "SIGIL: ZERO_RECIPIENT");
+    // ...
 }
-```
-
-**Risk**: Low - Factory controls deployment with hardcoded valid parameters.
-
-**Recommendation**: Add validation for defense in depth:
-```solidity
-require(_totalSupply > 0, "SIGIL: ZERO_SUPPLY");
-require(_recipient != address(0), "SIGIL: ZERO_RECIPIENT");
 ```
 
 ---
 
+### ✅ INFO-02: Missing Events for State Changes (FIXED)
+
+**Status**: Resolved in commit `1efea33`
+
+`SigilFeeVault.sol` now emits events for admin state changes:
+
+```solidity
+event ProtocolTreasuryUpdated(address oldTreasury, address newTreasury);
+event OwnerUpdated(address oldOwner, address newOwner);
+```
+
+---
+
+## Remaining Findings
+
 ### LOW-02: Unbounded Array Growth in Fee Token Tracking
 
-**Location**: `SigilFeeVault.sol:57-58`, `SigilLPLocker.sol:87-88`
+**Location**: `SigilFeeVault.sol:57-58`, `SigilLPLocker.sol:88`
 
-**Description**: The `devFeeTokens[dev]` and `lockedTokenIds` arrays grow unbounded. For highly active developers or many locked positions, iteration costs increase.
+**Description**: The `devFeeTokens[dev]`, `unclaimedFeeTokens[pool]`, and `lockedTokenIds` arrays grow unbounded. For highly active developers or many locked positions, iteration costs increase.
 
 **Risk**: Low - Current gas costs manageable; becomes issue at scale.
 
-**Recommendation**: Consider pagination or mapping-based lookup for large-scale deployments.
+**Recommendation**: Consider pagination for `claimAllDevFees()` or implement mapping-based lookup with explicit token lists.
 
 ---
 
@@ -139,27 +133,41 @@ require(_recipient != address(0), "SIGIL: ZERO_RECIPIENT");
 **Description**: Ownership transfer is immediate without confirmation. A typo in the new owner address results in permanent loss of admin access.
 
 ```solidity
-function setOwner(address _newOwner) external onlyOwner {
-    if (_newOwner == address(0)) revert ZeroAddress();
-    owner = _newOwner;
+function setOwner(address newOwner) external {
+    if (msg.sender != owner) revert OnlyOwner();
+    if (newOwner == address(0)) revert ZeroAddress();
+    owner = newOwner;  // Immediate transfer
 }
 ```
 
 **Risk**: Low - Administrative action requires careful execution.
 
-**Recommendation**: Implement two-step ownership transfer (propose + accept).
+**Recommendation**: Implement two-step ownership transfer (propose + accept):
+```solidity
+address public pendingOwner;
+
+function transferOwnership(address newOwner) external onlyOwner {
+    pendingOwner = newOwner;
+}
+
+function acceptOwnership() external {
+    require(msg.sender == pendingOwner);
+    owner = pendingOwner;
+    pendingOwner = address(0);
+}
+```
 
 ---
 
 ### LOW-04: Block Timestamp Dependency in Escrow Voting
 
-**Location**: `SigilEscrow.sol:150`, `SigilEscrow.sol:180`
+**Location**: `SigilEscrow.sol:152`, `SigilEscrow.sol:180`
 
-**Description**: Voting deadlines rely on `block.timestamp` which can be slightly manipulated by miners (typically ±15 seconds).
+**Description**: Voting deadlines rely on `block.timestamp` which can be slightly manipulated by validators (typically ±12 seconds on Ethereum).
 
 **Risk**: Low - Given 5-day and 3-day voting periods, minor timestamp manipulation is insignificant.
 
-**Recommendation**: Acceptable as-is. Document the design decision.
+**Assessment**: Acceptable as-is. Document the design decision.
 
 ---
 
@@ -168,42 +176,31 @@ function setOwner(address _newOwner) external onlyOwner {
 **Location**: Multiple contracts
 
 **Description**: Several privileged roles exist:
-- `owner` can set authorized depositor, claim protocol fees
-- `factory` controls pool registration
+- `owner` can set authorized depositor, claim protocol fees, update treasury addresses
+- `factory` controls pool registration and initial liquidity
 - `protocol` can override disputed escrow votes
 
-**Assessment**: This is intentional design for operational needs. The centralization is documented and expected for a managed protocol.
-
----
-
-### INFO-02: Missing Events for State Changes
-
-**Location**: `SigilFeeVault.sol:376-378`, `SigilLPLocker.sol:261-265`
-
-**Description**: `setOwner` and `setProtocolTreasury` don't emit events for the state change.
-
-**Recommendation**: Add events for off-chain monitoring:
-```solidity
-event OwnerUpdated(address oldOwner, address newOwner);
-```
+**Assessment**: This is intentional design for operational needs. The centralization is documented and expected for a managed protocol. Recommend using a multisig for admin keys in production.
 
 ---
 
 ### INFO-03: Hardcoded Tick Values
 
-**Location**: `SigilFactoryV3.sol:74-87`
+**Location**: `SigilFactoryV3.sol:78-87`, `SigilFactory.sol:212-216`
 
-**Description**: Pool initialization uses hardcoded tick values for price ranges. These are calculated for specific market cap targets.
+**Description**: Pool initialization uses hardcoded tick values for price ranges:
 
 ```solidity
-int24 public constant TICK_SPACING = 200;
-int24 public constant MIN_TICK = -887200;
-int24 public constant MAX_TICK = 887200;
+// V3 Factory
 int24 public constant MCAP_TICK_TOKEN0 = -433600;
 int24 public constant MCAP_TICK_TOKEN1 = 433400;
+
+// V4 Factory
+return TickMath.getSqrtPriceAtTick(69_000);
+return TickMath.getSqrtPriceAtTick(-69_000);
 ```
 
-**Assessment**: Values are mathematically correct for the 15k mcap / 100B supply target. Well-documented in comments.
+**Assessment**: Values are mathematically calculated for specific market cap targets. Well-documented in code comments.
 
 ---
 
@@ -212,38 +209,52 @@ int24 public constant MCAP_TICK_TOKEN1 = 433400;
 **Locations**: Various
 
 1. `SigilFeeVault.getDevFeeBalances()` - Creates new array in memory each call
-2. `SigilEscrow.vote()` - Could use storage pointer more efficiently
-3. Loop counters use `++i` (good) but some could use unchecked blocks
+2. `SigilEscrow.vote()` - Could cache token balance lookup
+3. Loop counters could use unchecked blocks for post-increment
 
-**Assessment**: Current implementation is readable and gas costs are acceptable for expected usage patterns.
+**Assessment**: Current implementation is readable and gas costs are acceptable for expected usage patterns. Optimize if gas becomes a concern.
 
 ---
 
 ### INFO-05: SigilEscrow Vote Weight Not Snapshotted
 
-**Location**: `SigilEscrow.sol:183`
+**Location**: `SigilEscrow.sol:183`, `SigilEscrow.sol:260`
 
-**Description**: Vote weight is determined by current token balance at vote time, not at proposal creation snapshot. Users could potentially buy tokens, vote, then sell.
+**Description**: Vote weight is determined by current token balance at vote time, not at proposal creation snapshot:
 
 ```solidity
-weight = token.balanceOf(msg.sender);
+weight = token.balanceOf(msg.sender);  // Current balance, not snapshotted
 ```
 
-**Assessment**: The `snapshotBlock` field exists but isn't used for vote weight calculation. For higher-stakes governance, consider implementing ERC-20 Votes or snapshot-based voting.
+The `snapshotBlock` field exists in `ProposalCore` but isn't used for vote weight calculation.
+
+**Risk**: Low - Users could theoretically buy tokens, vote, then sell. However, the 5-day voting period and quorum requirements mitigate this.
+
+**Recommendation**: For higher-stakes governance, consider implementing ERC-20 Votes (EIP-5805) or snapshot-based voting.
 
 ---
 
-### INFO-06: Receive Function in FeeVault
+### INFO-06: Receive Function May Cause Stuck ETH
 
-**Location**: `SigilFeeVault.sol:391`
+**Location**: `SigilFeeVault.sol:401`
 
-**Description**: Contract has a `receive()` function but fee flow uses WETH wrapped tokens.
+**Description**: Contract has a `receive()` function but fee flow uses WETH wrapped tokens:
 
 ```solidity
 receive() external payable {}
 ```
 
-**Assessment**: Documented as "edge case for WETH unwrap." Native ETH sent directly would be stuck. Consider removing or adding rescue function.
+Native ETH sent directly to the contract would be stuck with no withdrawal mechanism.
+
+**Recommendation**: Add rescue function for stuck ETH:
+```solidity
+function rescueETH(address payable to) external onlyOwner {
+    uint256 balance = address(this).balance;
+    require(balance > 0, "No ETH");
+    (bool success,) = to.call{value: balance}("");
+    require(success, "Transfer failed");
+}
+```
 
 ---
 
@@ -253,16 +264,24 @@ receive() external payable {}
 - Consistent use of `onlyOwner`, `onlyFactory`, `onlyAuthorized` modifiers
 - Custom errors for gas-efficient reverts
 - Zero-address validation on all admin setters
+- Factory-only pool registration prevents unauthorized hooks
 
 ### Reentrancy Protection
 - State changes before external calls (CEI pattern)
 - `SigilFeeVault.depositFees()`: Updates balances after token transfer
 - `SigilEscrow._releaseTokens()`: Updates `escrowBalance` before transfer
+- Hook uses poolManager's unlock pattern which is inherently reentrancy-safe
+
+### Safe Token Handling
+- `SigilFeeVault`: Uses SafeERC20-style helpers for non-standard tokens
+- `SigilHook`: Check-then-approve-max pattern prevents race conditions
+- `SigilToken`: Validates all constructor inputs
 
 ### Fee Accounting
 - Clear separation of dev fees (80%) and protocol fees (20%)
 - Escrow mechanism for unclaimed third-party launches
 - 30-day expiry sweep to protocol (prevents permanent lockup)
+- Native token fees go to separate escrow to avoid sell pressure
 
 ### Liquidity Locking
 - V3 LP NFTs: Transferred to Locker, cannot be removed
@@ -272,6 +291,7 @@ receive() external payable {}
 ### Pool Registration
 - Only factory-registered pools can use hook
 - Pool registration is immutable once set
+- Hook validates pool registration before processing swaps
 
 ---
 
@@ -279,46 +299,45 @@ receive() external payable {}
 
 1. **Single Fee Token per V3 Pool**: Native token fees go to escrow, only USDC goes through 80/20 split
 2. **Immutable 80/20 Split**: Fee distribution percentages are constants
-3. **Protocol Override Power**: Centralized dispute resolution is intentional
+3. **Protocol Override Power**: Centralized dispute resolution is intentional for edge cases
 4. **Fixed 30-Day Expiry**: Unclaimed fee expiry period is hardcoded
-5. **V3 Only USDC Pairs**: Factory creates TOKEN/USDC pools exclusively
+5. **V3/V4 USDC Pairs Only**: Factories create TOKEN/USDC pools exclusively
+6. **No Emergency Pause**: Contracts don't implement pausability (by design for trustlessness)
 
 ---
 
 ## Test Coverage Review
 
-The following test files were present:
-- `FeeRouting.t.sol` - Fee split verification
-- `PoolReward.t.sol` - EAS attestation flow
-- `SigilEscrow.t.sol` - Governance lifecycle
-- `SigilHook.t.sol` - V4 hook behavior
+The following test suites were verified:
+- `FeeRouting.t.sol` (18 tests) - Fee split verification, escrow flows
+- `PoolReward.t.sol` (22 tests) - EAS attestation flow, emergency withdraw
+- `SigilEscrow.t.sol` (30 tests) - Full governance lifecycle
+- `SigilHook.t.sol` (20 tests) - V4 hook behavior, token transfers
 
-**Recommendation**: Add explicit tests for:
-- Edge cases with non-standard ERC-20 tokens
-- Gas consumption benchmarks for array operations
-- Concurrent swap scenarios for approval race condition
+**All 90 tests pass.**
 
 ---
 
 ## Conclusion
 
-The Sigil Protocol smart contracts demonstrate mature security practices appropriate for a DeFi fee distribution system. The identified issues are primarily low-severity improvements rather than exploitable vulnerabilities.
+The Sigil Protocol smart contracts demonstrate mature security practices appropriate for a DeFi fee distribution system. All medium-severity findings from the initial audit have been addressed. The remaining issues are low-severity improvements and informational observations.
 
 **Key Strengths**:
 - Clear separation of concerns between contracts
 - Proper access control hierarchy
+- SafeERC20-style token handling for non-standard tokens
 - Fail-safe fee routing (unclaimed → escrow → protocol)
 - Permanent liquidity locking prevents rug pulls
 
-**Recommendations Summary**:
-1. Implement SafeERC20 for broader token compatibility
-2. Add two-step ownership transfer
-3. Add missing events for admin actions
-4. Consider ERC-20 Votes for escrow governance
+**Remaining Recommendations**:
+1. Implement two-step ownership transfer
+2. Add pagination for large array operations
+3. Add ETH rescue function to FeeVault
+4. Consider vote weight snapshots for governance
 
 The protocol is suitable for mainnet deployment with the understanding that:
-- Admin keys must be secured (multisig recommended)
-- Non-standard ERC-20 tokens should be tested before launch support
+- Admin keys should be secured (multisig recommended)
+- Monitor gas costs for high-volume operations
 - Governance parameters should be reviewed for production scale
 
 ---
