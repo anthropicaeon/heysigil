@@ -23,7 +23,7 @@ import { verifyDomainDns, verifyDomainFile, verifyDomainMeta } from "../../verif
 import { createTweetChallenge, verifyTweetProof } from "../../verification/tweet.js";
 import { getFacebookAuthUrl, verifyFacebookOwnership } from "../../verification/facebook.js";
 import { getInstagramAuthUrl, verifyInstagramOwnership } from "../../verification/instagram.js";
-import type { VerificationMethod } from "../../verification/types.js";
+import { type VerificationMethod, getPlatformFromMethod } from "../../verification/types.js";
 import {
     findIdentity,
     claimIdentity,
@@ -85,22 +85,11 @@ async function tryClaimPhantomIdentity(
     walletAddress: string,
 ): Promise<void> {
     // Map verification method → identity platform
-    let platform: string;
+    const platform = getPlatformFromMethod(method);
     let platformId: string = projectId;
 
-    if (method.startsWith("github")) {
-        platform = "github";
+    if (platform === "github") {
         platformId = projectId.replace(/^github\.com\//, "");
-    } else if (method.startsWith("facebook")) {
-        platform = "facebook";
-    } else if (method.startsWith("instagram")) {
-        platform = "instagram";
-    } else if (method.startsWith("tweet")) {
-        platform = "twitter";
-    } else if (method.startsWith("domain")) {
-        platform = "domain";
-    } else {
-        return;
     }
 
     // Try claiming — walletAddress acts as user ID until Privy is linked
