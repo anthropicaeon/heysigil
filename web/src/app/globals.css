@@ -901,7 +901,7 @@ input::placeholder {
 
 .chat-layout {
   display: flex;
-  height: 100vh;
+  height: calc(100vh - 52px);
   overflow: hidden;
 }
 
@@ -910,7 +910,7 @@ input::placeholder {
   flex-direction: column;
   flex: 1;
   min-width: 0;
-  height: 100vh;
+  height: 100%;
   max-width: 720px;
   margin: 0 auto;
 }
@@ -982,6 +982,13 @@ input::placeholder {
   display: flex;
   gap: var(--space-3);
   background: var(--bg);
+  flex-shrink: 0;
+}
+
+/* Hide footer on chat page */
+.chat-layout~footer,
+body:has(.chat-layout) .footer {
+  display: none;
 }
 
 .chat-input-area input {

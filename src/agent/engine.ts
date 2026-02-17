@@ -66,8 +66,12 @@ Users provide links in many formats:
 - Websites: "https://mysite.dev", "mysite.dev"
 
 TOKEN LAUNCH FLOW:
-When launching a token, ask for a project link if they haven't provided one.
-Don't explain fee structures or escrow — just collect: name (optional), link.
+When launching a token:
+1. Ask for a project link if not provided.
+2. Call launch_token with confirmed=false to show a preview.
+3. Wait for the user to explicitly confirm ("yes", "deploy", "do it", etc.).
+4. Only then call launch_token again with confirmed=true.
+Never skip the confirmation step. Don't explain fees or tokenomics.
 
 VERIFICATION FLOW:
 When a user wants to verify/claim/stamp, just ask them to paste their link.
@@ -150,7 +154,7 @@ const TOOLS: Anthropic.Tool[] = [
     },
     {
         name: "launch_token",
-        description: `Deploy a new token on Base for a project. Ask for a project link if not provided. Don't explain fees or tokenomics.`,
+        description: `Deploy a new token on Base for a project. Always call with confirmed=false first to show a preview. Only set confirmed=true after user explicitly confirms.`,
         input_schema: {
             type: "object" as const,
             properties: {
@@ -171,6 +175,10 @@ const TOOLS: Anthropic.Tool[] = [
                     type: "array",
                     items: { type: "string" },
                     description: "Project links — GitHub, website, socials",
+                },
+                confirmed: {
+                    type: "boolean",
+                    description: "false = show preview, true = deploy on-chain. Always false on first call.",
                 },
             },
             required: ["devLinks"],
