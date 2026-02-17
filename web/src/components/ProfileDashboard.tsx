@@ -7,6 +7,7 @@ import { useFeeVault } from "@/hooks/useFeeVault";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import { ErrorAlert } from "@/components/common/ErrorAlert";
 import { LoadingButton } from "@/components/common/LoadingButton";
+import { formatNumericString, truncateAddress } from "@/lib/format";
 import type { TokenInfo } from "@/types";
 
 // ─── Mock Data (token holdings — live fee data comes from hook) ─
@@ -76,17 +77,6 @@ const MOCK_HELD_TOKENS: TokenInfo[] = [
         projectId: "datavault",
     },
 ];
-
-// ─── Helpers ─────────────────────────────────────────
-
-function formatNum(val: string): string {
-    const num = parseFloat(val.replace(/,/g, ""));
-    if (isNaN(num)) return val;
-    if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
-    if (num >= 1e6) return `${(num / 1e6).toFixed(0)}M`;
-    if (num >= 1e3) return `${(num / 1e3).toFixed(0)}K`;
-    return val;
-}
 
 // ─── Fee Claim Card ──────────────────────────────────
 
@@ -210,11 +200,11 @@ function TokenCard({ token }: { token: TokenInfo }) {
             {/* Stats */}
             <div className="token-card-stats">
                 <div className="token-stat">
-                    <div className="stat-value">{formatNum(token.balance)}</div>
+                    <div className="stat-value">{formatNumericString(token.balance)}</div>
                     <div className="stat-label">Your Balance</div>
                 </div>
                 <div className="token-stat">
-                    <div className="stat-value">{formatNum(token.escrowBalance)}</div>
+                    <div className="stat-value">{formatNumericString(token.escrowBalance)}</div>
                     <div className="stat-label">In Escrow</div>
                 </div>
             </div>
@@ -264,7 +254,7 @@ export default function ProfileDashboard() {
     const privy = useOptionalPrivy();
     const walletAddress = privy?.user?.wallet?.address as string | undefined;
     const displayAddress = walletAddress
-        ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+        ? truncateAddress(walletAddress)
         : "Not connected";
 
     // Fee vault hook — reads on-chain data

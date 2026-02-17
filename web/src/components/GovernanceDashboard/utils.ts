@@ -3,6 +3,7 @@
  */
 
 import type { ProposalStatus } from "./types";
+import { formatTokens as formatTokensUtil } from "@/lib/format";
 
 export function statusClass(s: ProposalStatus): string {
     const map: Record<ProposalStatus, string> = {
@@ -30,9 +31,4 @@ export function votePercentage(yes: string, no: string): number {
     return (y / (y + n)) * 100;
 }
 
-export function formatTokens(val: string): string {
-    const num = parseFloat(val.replace(/,/g, ""));
-    if (num >= 1e9) return `${(num / 1e9).toFixed(1)}B`;
-    if (num >= 1e6) return `${(num / 1e6).toFixed(1)}M`;
-    return val;
-}
+export const formatTokens = formatTokensUtil;
