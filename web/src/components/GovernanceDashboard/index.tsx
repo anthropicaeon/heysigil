@@ -2,17 +2,18 @@
  * GovernanceDashboard
  *
  * Main governance dashboard component for viewing and creating proposals.
+ * Orchestrates child components for header, filtering, and proposal list.
  */
 
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
-import Image from "next/image";
 
 import type { Proposal, TabFilter } from "./types";
-import { formatTokens } from "./utils";
 import { MOCK_PROPOSALS, MOCK_ESCROW_BALANCE } from "./hooks/useMockProposals";
-import { ProposalCard } from "./components/ProposalCard";
+import { GovernanceHeader } from "./components/GovernanceHeader";
+import { ProposalFilter } from "./components/ProposalFilter";
+import { ProposalListView } from "./components/ProposalListView";
 import { ProposalDetail } from "./components/ProposalDetail";
 import { CreateProposalModal } from "./components/CreateProposalModal";
 
@@ -71,75 +72,20 @@ export default function GovernanceDashboard() {
 
     return (
         <div className="container" style={{ padding: "var(--space-12) var(--space-6)" }}>
-            {/* Header */}
-            <div className="gov-header">
-                <div>
-                    <h1>Governance</h1>
-                    <p>
-                        Propose milestones, vote on unlocks, and shape the future of this project.
-                        Developers earn tokens by delivering on their promises.
-                    </p>
-                </div>
-                <div className="gov-stats">
-                    <div className="gov-stat">
-                        <div className="gov-stat-value">{formatTokens(MOCK_ESCROW_BALANCE)}</div>
-                        <div className="gov-stat-label">In Escrow</div>
-                    </div>
-                    <div className="gov-stat">
-                        <div className="gov-stat-value">{proposals.filter((p) => p.status === "Voting").length}</div>
-                        <div className="gov-stat-label">Active Votes</div>
-                    </div>
-                    <div className="gov-stat">
-                        <div className="gov-stat-value">{proposals.filter((p) => ["Completed", "Overridden"].includes(p.status)).length}</div>
-                        <div className="gov-stat-label">Completed</div>
-                    </div>
-                </div>
-            </div>
+            <GovernanceHeader proposals={proposals} escrowBalance={MOCK_ESCROW_BALANCE} />
 
-            {/* Tabs + Create */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                <div className="gov-tabs">
-                    {(["all", "active", "completed", "rejected"] as TabFilter[]).map((tab) => (
-                        <button
-                            key={tab}
-                            type="button"
-                            className={`gov-tab ${activeTab === tab ? "active" : ""}`}
-                            onClick={() => setActiveTab(tab)}
-                        >
-                            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                        </button>
-                    ))}
-                </div>
-                <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => setShowCreate(true)}
-                    style={{ marginBottom: "var(--space-6)" }}
-                >
-                    + New Proposal
-                </button>
-            </div>
+            <ProposalFilter
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                onCreateClick={() => setShowCreate(true)}
+            />
 
-            {/* Proposal List */}
-            {filteredProposals.length > 0 ? (
-                <div className="proposal-list">
-                    {filteredProposals.map((p) => (
-                        <ProposalCard key={p.id} proposal={p} onClick={() => setSelectedProposal(p)} />
-                    ))}
-                </div>
-            ) : (
-                <div className="gov-empty">
-                    <Image src="/icons/check-verified-02.svg" alt="" width={48} height={48} className="gov-empty-icon" style={{ opacity: 0.4, display: "block", margin: "0 auto var(--space-4)" }} />
-                    <h3>No proposals yet</h3>
-                    <p>
-                        {activeTab === "all"
-                            ? "Be the first to propose a milestone for this project."
-                            : `No ${activeTab} proposals found.`}
-                    </p>
-                </div>
-            )}
+            <ProposalListView
+                proposals={filteredProposals}
+                activeTab={activeTab}
+                onSelectProposal={setSelectedProposal}
+            />
 
-            {/* Create Modal */}
             {showCreate && (
                 <CreateProposalModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />
             )}
