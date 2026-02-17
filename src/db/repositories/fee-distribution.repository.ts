@@ -738,15 +738,3 @@ export async function linkPoolToProject(poolId: string, projectId: string): Prom
         throw err;
     }
 }
-
-/**
- * Check if database is available.
- */
-export function isDatabaseAvailable(): boolean {
-    try {
-        getDb();
-        return true;
-    } catch {
-        return false;
-    }
-}

@@ -408,15 +408,3 @@ export async function updateIdentitiesUserId(
         throw err;
     }
 }
-
-/**
- * Check if database is available.
- */
-export function isDatabaseAvailable(): boolean {
-    try {
-        getDb();
-        return true;
-    } catch {
-        return false;
-    }
-}
