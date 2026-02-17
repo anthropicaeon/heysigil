@@ -13,6 +13,7 @@ import { useIsPrivyConfigured } from "@/providers/PrivyAuthProvider";
 
 // Type for Privy user object
 interface PrivyUser {
+    id?: string;
     github?: { username: string };
     telegram?: { username: string };
     email?: { address: string };
