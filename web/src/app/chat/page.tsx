@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import PortfolioSidebar from "../../components/PortfolioSidebar";
+import type { ChatApiResponse } from "../../types/chat";
+import { isChatSuccess } from "../../types/chat";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -98,21 +100,23 @@ export default function ChatPage() {
         }),
       });
 
-      const data = await res.json();
+      const data: ChatApiResponse = await res.json();
 
-      if (data.sessionId && !sessionId) {
-        setSessionId(data.sessionId);
+      if (isChatSuccess(data)) {
+        if (!sessionId) {
+          setSessionId(data.sessionId);
+        }
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: data.response },
+        ]);
+      } else {
+        // Error response
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: data.error || "Unknown error" },
+        ]);
       }
-
-      // Ensure content is always a string — backend may return error objects
-      const rawContent = data.response || data.error || "No response";
-      const content =
-        typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
-
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content },
-      ]);
     } catch {
       setMessages((prev) => [
         ...prev,
