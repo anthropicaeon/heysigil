@@ -94,7 +94,10 @@ export function useChatMessages(
             } catch {
                 setMessages((prev) => [
                     ...prev,
-                    { role: "assistant", content: "Connection error. Is the backend running?" },
+                    {
+                        role: "assistant",
+                        content: `Connection error. Is the backend running at ${API_BASE}?`,
+                    },
                 ]);
             } finally {
                 setLoading(false);
