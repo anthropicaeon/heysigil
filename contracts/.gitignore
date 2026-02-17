@@ -1,0 +1,9 @@
+# Dependencies (managed by forge)
+lib/
+
+# Build artifacts
+out/
+cache/
+
+# Broadcast (deployment artifacts)
+broadcast/
