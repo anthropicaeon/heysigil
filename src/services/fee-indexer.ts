@@ -16,6 +16,7 @@
 import { ethers } from "ethers";
 import { getEnv } from "../config/env.js";
 import { getErrorMessage } from "../utils/errors.js";
+import { loggers } from "../utils/logger.js";
 import {
     createFeeDistribution,
     getLastProcessedBlock,
@@ -23,6 +24,8 @@ import {
     type FeeEventType,
     type FeeDistributionInsert,
 } from "../db/repositories/index.js";
+
+const log = loggers.feeIndexer;
 
 // ─── Constants ──────────────────────────────────────────
 
@@ -95,7 +98,7 @@ export class FeeIndexer {
         this.startBlock = config.startBlock || 0;
 
         if (!this.feeVaultAddress) {
-            console.warn("[fee-indexer] SIGIL_FEE_VAULT_ADDRESS not configured — indexer disabled");
+            log.warn("SIGIL_FEE_VAULT_ADDRESS not configured — indexer disabled");
         }
 
         this.provider = new ethers.JsonRpcProvider(rpcUrl);
@@ -107,12 +110,12 @@ export class FeeIndexer {
      */
     async start(): Promise<void> {
         if (!this.feeVaultAddress) {
-            console.warn("[fee-indexer] Cannot start — SIGIL_FEE_VAULT_ADDRESS not configured");
+            log.warn("Cannot start — SIGIL_FEE_VAULT_ADDRESS not configured");
             return;
         }
 
         if (this.isRunning) {
-            console.warn("[fee-indexer] Already running");
+            log.warn("Already running");
             return;
         }
 
@@ -120,9 +123,10 @@ export class FeeIndexer {
         this.startedAt = new Date();
         this.lastError = null;
 
-        console.log(`[fee-indexer] Starting...`);
-        console.log(`[fee-indexer]   RPC: ${this.provider._getConnection().url}`);
-        console.log(`[fee-indexer]   Fee Vault: ${this.feeVaultAddress}`);
+        log.info(
+            { rpc: this.provider._getConnection().url, feeVault: this.feeVaultAddress },
+            "Starting fee indexer",
+        );
 
         // Initial backfill
         await this.catchUp();
@@ -130,7 +134,7 @@ export class FeeIndexer {
         // Start polling loop
         this.schedulePoll();
 
-        console.log("[fee-indexer] Running");
+        log.info("Fee indexer running");
     }
 
     /**
@@ -141,7 +145,7 @@ export class FeeIndexer {
             return;
         }
 
-        console.log("[fee-indexer] Stopping...");
+        log.info("Stopping fee indexer...");
         this.isRunning = false;
 
         if (this.pollTimer) {
@@ -149,7 +153,7 @@ export class FeeIndexer {
             this.pollTimer = null;
         }
 
-        console.log("[fee-indexer] Stopped");
+        log.info("Fee indexer stopped");
     }
 
     /**
@@ -161,7 +165,7 @@ export class FeeIndexer {
             throw new Error("SIGIL_FEE_VAULT_ADDRESS not configured");
         }
 
-        console.log(`[fee-indexer] Backfilling from block ${fromBlock}...`);
+        log.info({ fromBlock }, "Backfilling from block");
 
         const currentBlock = await this.provider.getBlockNumber();
         let processedBlock = fromBlock;
@@ -169,7 +173,7 @@ export class FeeIndexer {
         while (processedBlock < currentBlock) {
             const toBlock = Math.min(processedBlock + BACKFILL_BATCH_SIZE, currentBlock);
 
-            console.log(`[fee-indexer] Backfill: blocks ${processedBlock} → ${toBlock}`);
+            log.debug({ from: processedBlock, to: toBlock }, "Backfill batch");
 
             await this.processBlockRange(processedBlock, toBlock);
             processedBlock = toBlock + 1;
@@ -178,7 +182,7 @@ export class FeeIndexer {
             await updateLastProcessedBlock(toBlock);
         }
 
-        console.log(`[fee-indexer] Backfill complete. Processed to block ${currentBlock}`);
+        log.info({ toBlock: currentBlock }, "Backfill complete");
     }
 
     /**
@@ -225,7 +229,7 @@ export class FeeIndexer {
             this.lastError = null;
         } catch (err) {
             const message = getErrorMessage(err, String(err));
-            console.error(`[fee-indexer] Poll error: ${message}`);
+            log.error({ err, retryDelay: this.retryDelay }, "Poll error");
             this.lastError = message;
 
             // Exponential backoff
@@ -274,9 +278,7 @@ export class FeeIndexer {
 
         if (logs.length === 0) return;
 
-        console.log(
-            `[fee-indexer] Processing ${logs.length} events in blocks ${fromBlock}-${toBlock}`,
-        );
+        log.info({ eventCount: logs.length, fromBlock, toBlock }, "Processing fee vault events");
 
         // Get block timestamps for all unique blocks
         const blockNumbers = [...new Set(logs.map((log) => log.blockNumber))];
@@ -381,7 +383,7 @@ export class FeeIndexer {
                     return null;
             }
         } catch (err) {
-            console.error(`[fee-indexer] Failed to parse log: ${err}`);
+            log.error({ err, txHash: log.transactionHash }, "Failed to parse log");
             return null;
         }
     }

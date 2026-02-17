@@ -3,6 +3,9 @@ import { createApp } from "./api/server.js";
 import { getEnv } from "./config/env.js";
 import { runStartupChecks } from "./config/startup-checks.js";
 import { getFeeIndexer, isFeeIndexerConfigured } from "./services/fee-indexer.js";
+import { loggers } from "./utils/logger.js";
+
+const log = loggers.server;
 
 // Run security checks before accepting requests
 runStartupChecks();
@@ -10,37 +13,38 @@ runStartupChecks();
 const env = getEnv();
 const app = createApp();
 
-console.log(`Sigil starting on port ${env.PORT}`);
-console.log(`Frontend URL: ${env.FRONTEND_URL}`);
-console.log(`Base URL: ${env.BASE_URL}`);
+log.info(
+    { port: env.PORT, frontendUrl: env.FRONTEND_URL, baseUrl: env.BASE_URL },
+    "Sigil starting",
+);
 
 serve({
     fetch: app.fetch,
     port: env.PORT,
 });
 
-console.log(`Server running at ${env.BASE_URL}`);
+log.info({ url: env.BASE_URL }, "Server running");
 
 // Start fee indexer if configured
 if (isFeeIndexerConfigured()) {
     const feeIndexer = getFeeIndexer();
     feeIndexer.start().catch((err) => {
-        console.error("[fee-indexer] Failed to start:", err);
+        loggers.feeIndexer.error({ err }, "Failed to start fee indexer");
     });
-    console.log("[fee-indexer] Started");
+    loggers.feeIndexer.info("Fee indexer started");
 
     // Graceful shutdown
     process.on("SIGINT", () => {
-        console.log("\nShutting down...");
+        log.info("Shutting down (SIGINT)...");
         feeIndexer.stop();
         process.exit(0);
     });
 
     process.on("SIGTERM", () => {
-        console.log("\nShutting down...");
+        log.info("Shutting down (SIGTERM)...");
         feeIndexer.stop();
         process.exit(0);
     });
 } else {
-    console.log("[fee-indexer] Disabled (SIGIL_FEE_VAULT_ADDRESS not set)");
+    loggers.feeIndexer.info("Fee indexer disabled (SIGIL_FEE_VAULT_ADDRESS not set)");
 }
