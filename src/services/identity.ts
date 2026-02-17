@@ -30,6 +30,7 @@ import { getEnv } from "../config/env.js";
 import { encryptKey, decryptKey } from "../utils/crypto.js";
 import * as identityRepo from "../db/repositories/identity.repository.js";
 import * as walletRepo from "../db/repositories/wallet.repository.js";
+import { loggers } from "../utils/logger.js";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -141,7 +142,10 @@ export async function createPhantomUser(
         keyId: userId,
     });
 
-    console.log(`[identity] Created phantom user: ${platform}/${platformId} → ${wallet.address}`);
+    loggers.identity.info(
+        { platform, platformId, walletAddress: wallet.address, userId },
+        "Created phantom user",
+    );
 
     return { user, identity, walletAddress: wallet.address, isNew: true };
 }
@@ -206,8 +210,15 @@ export async function claimIdentity(
         ? decryptKey(storedWallet.encryptedKey, storedWallet.iv, storedWallet.authTag)
         : undefined;
 
-    console.log(
-        `[identity] User claimed: ${platform}/${platformId} → ${privyUserId} (wallet: ${updatedUser.walletAddress})`,
+    loggers.identity.info(
+        {
+            platform,
+            platformId,
+            privyUserId,
+            walletAddress: updatedUser.walletAddress,
+            userId: updatedUser.id,
+        },
+        "User claimed identity",
     );
 
     return {
@@ -241,17 +252,24 @@ async function mergeUsers(
     });
 
     // Log the merge for audit
-    console.log(
-        `[identity] MERGE: user ${phantomUser.id} (wallet ${phantomUser.walletAddress}) → ` +
-            `user ${primaryUser.id} (wallet ${primaryUser.walletAddress})`,
+    loggers.identity.info(
+        {
+            sourceUserId: phantomUser.id,
+            sourceWalletAddress: phantomUser.walletAddress,
+            targetUserId: primaryUser.id,
+            targetWalletAddress: primaryUser.walletAddress,
+            triggerPlatform: triggeringIdentity.platform,
+            triggerPlatformId: triggeringIdentity.platformId,
+            privyUserId,
+        },
+        "Merged phantom user into claimed user",
     );
-    console.log(
-        `[identity]   Trigger: ${triggeringIdentity.platform}/${triggeringIdentity.platformId} ` +
-            `claimed by ${privyUserId}`,
-    );
-    console.log(
-        `[identity]   ⚠️  Phantom wallet ${phantomUser.walletAddress} has accumulated fees.` +
-            ` Funds should be swept to primary wallet ${primaryUser.walletAddress}.`,
+    loggers.identity.warn(
+        {
+            phantomWalletAddress: phantomUser.walletAddress,
+            primaryWalletAddress: primaryUser.walletAddress,
+        },
+        "Phantom wallet may have accrued fees and should be swept",
     );
 
     return {

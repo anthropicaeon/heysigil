@@ -56,6 +56,7 @@ import {
 } from "../schemas/verify.js";
 import type { AnyHandler } from "../types.js";
 import { handleOAuthCallback } from "../helpers/oauth-callback.js";
+import { loggers } from "../../utils/logger.js";
 
 const verify = new OpenAPIHono();
 
@@ -105,9 +106,14 @@ async function tryClaimPhantomIdentity(
 
     const result = await claimIdentity(platform, platformId, walletAddress);
     if (result.success) {
-        console.log(
-            `[verify] Phantom identity claimed: ${platform}/${platformId} → ${walletAddress}` +
-                (result.merged ? " (MERGED)" : ""),
+        loggers.verify.info(
+            {
+                platform,
+                platformId,
+                walletAddress,
+                merged: result.merged ?? false,
+            },
+            "Phantom identity claimed after verification",
         );
     }
 }
