@@ -34,14 +34,29 @@ export interface VerificationRequest {
     attestationUid?: string;
 }
 
-export interface VerificationResult {
-    success: boolean;
+/**
+ * Discriminated union for verification results.
+ * Enables TypeScript to narrow types based on `success` property.
+ */
+export type VerificationResult = VerificationSuccess | VerificationFailure;
+
+export interface VerificationSuccess {
+    success: true;
     method: VerificationMethod;
     projectId: string;
     platformUsername?: string;
     /** Platform-specific proof data */
     proof?: Record<string, unknown>;
-    error?: string;
+}
+
+export interface VerificationFailure {
+    success: false;
+    method: VerificationMethod;
+    projectId: string;
+    error: string;
+    platformUsername?: string;
+    /** Platform-specific proof data */
+    proof?: Record<string, unknown>;
 }
 
 export interface VerificationChallenge {

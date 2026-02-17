@@ -2,9 +2,10 @@
  * Verification Result Builder
  *
  * Utility functions for constructing consistent VerificationResult objects.
+ * Returns discriminated union types for proper TypeScript narrowing.
  */
 
-import type { VerificationResult, VerificationMethod } from "./types.js";
+import type { VerificationSuccess, VerificationFailure, VerificationMethod } from "./types.js";
 
 /**
  * Build a successful verification result.
@@ -14,7 +15,7 @@ export function buildSuccess(
     projectId: string,
     platformUsername?: string,
     proof?: Record<string, unknown>,
-): VerificationResult {
+): VerificationSuccess {
     return {
         success: true,
         method,
@@ -32,7 +33,7 @@ export function buildFailure(
     projectId: string,
     error: string,
     options?: { platformUsername?: string; proof?: Record<string, unknown> },
-): VerificationResult {
+): VerificationFailure {
     return {
         success: false,
         method,
