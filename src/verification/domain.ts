@@ -2,10 +2,8 @@ import dns from "node:dns/promises";
 import { load } from "cheerio";
 import type { VerificationResult } from "./types.js";
 import { parseConfigFile } from "../utils/config-parser.js";
-
-function getDomainVerificationError(err: unknown): string {
-    return err instanceof Error ? err.message : "Unknown error";
-}
+import { getErrorMessage } from "../utils/errors.js";
+import { buildSuccess, buildFailure } from "./result-builder.js";
 
 /**
  * Verify domain ownership via DNS TXT record.
@@ -31,38 +29,29 @@ export async function verifyDomainDns(
         );
 
         if (!found) {
-            return {
-                success: false,
-                method: "domain_dns",
+            return buildFailure(
+                "domain_dns",
                 projectId,
-                error: `DNS TXT record not found. Add this record:\n  ${lookupHost} TXT "${expectedValue}"`,
-                proof: { recordsFound: flatRecords },
-            };
+                `DNS TXT record not found. Add this record:\n  ${lookupHost} TXT "${expectedValue}"`,
+                { recordsFound: flatRecords },
+            );
         }
 
-        return {
-            success: true,
-            method: "domain_dns",
-            projectId,
-            proof: { record: expectedValue, host: lookupHost },
-        };
+        return buildSuccess("domain_dns", projectId, undefined, {
+            record: expectedValue,
+            host: lookupHost,
+        });
     } catch (err) {
-        const message = getDomainVerificationError(err);
+        const message = getErrorMessage(err);
         // ENOTFOUND / ENODATA means no records exist
         if (message.includes("ENOTFOUND") || message.includes("ENODATA")) {
-            return {
-                success: false,
-                method: "domain_dns",
+            return buildFailure(
+                "domain_dns",
                 projectId,
-                error: `No DNS TXT records found for ${lookupHost}. Add:\n  ${lookupHost} TXT "pool-claim-verify=${expectedWallet}:${expectedCode}"`,
-            };
+                `No DNS TXT records found for ${lookupHost}. Add:\n  ${lookupHost} TXT "pool-claim-verify=${expectedWallet}:${expectedCode}"`,
+            );
         }
-        return {
-            success: false,
-            method: "domain_dns",
-            projectId,
-            error: message,
-        };
+        return buildFailure("domain_dns", projectId, message);
     }
 }
 
@@ -88,12 +77,11 @@ export async function verifyDomainFile(
         });
 
         if (!response.ok) {
-            return {
-                success: false,
-                method: "domain_file",
+            return buildFailure(
+                "domain_file",
                 projectId,
-                error: `Could not fetch ${url} — HTTP ${response.status}. Place a file at that URL with your verification token.`,
-            };
+                `Could not fetch ${url} — HTTP ${response.status}. Place a file at that URL with your verification token.`,
+            );
         }
 
         const content = await response.text();
@@ -102,36 +90,16 @@ export async function verifyDomainFile(
         const fileWallet = parsed["wallet-address"];
 
         if (fileToken !== expectedCode) {
-            return {
-                success: false,
-                method: "domain_file",
-                projectId,
-                error: "Verification token does not match",
-            };
+            return buildFailure("domain_file", projectId, "Verification token does not match");
         }
 
         if (fileWallet?.toLowerCase() !== expectedWallet.toLowerCase()) {
-            return {
-                success: false,
-                method: "domain_file",
-                projectId,
-                error: "Wallet address does not match",
-            };
+            return buildFailure("domain_file", projectId, "Wallet address does not match");
         }
 
-        return {
-            success: true,
-            method: "domain_file",
-            projectId,
-            proof: { url, content },
-        };
+        return buildSuccess("domain_file", projectId, undefined, { url, content });
     } catch (err) {
-        return {
-            success: false,
-            method: "domain_file",
-            projectId,
-            error: getDomainVerificationError(err),
-        };
+        return buildFailure("domain_file", projectId, getErrorMessage(err));
     }
 }
 
@@ -154,12 +122,11 @@ export async function verifyDomainMeta(
         });
 
         if (!response.ok) {
-            return {
-                success: false,
-                method: "domain_meta",
+            return buildFailure(
+                "domain_meta",
                 projectId,
-                error: `Could not fetch ${url} — HTTP ${response.status}`,
-            };
+                `Could not fetch ${url} — HTTP ${response.status}`,
+            );
         }
 
         const html = await response.text();
@@ -167,36 +134,24 @@ export async function verifyDomainMeta(
         const metaContent = $('meta[name="pool-claim-verification"]').attr("content");
 
         if (!metaContent) {
-            return {
-                success: false,
-                method: "domain_meta",
+            return buildFailure(
+                "domain_meta",
                 projectId,
-                error: `Meta tag not found. Add to your <head>:\n  <meta name="pool-claim-verification" content="${expectedWallet}:${expectedCode}" />`,
-            };
+                `Meta tag not found. Add to your <head>:\n  <meta name="pool-claim-verification" content="${expectedWallet}:${expectedCode}" />`,
+            );
         }
 
         const expectedContent = `${expectedWallet}:${expectedCode}`;
         if (metaContent.trim().toLowerCase() !== expectedContent.toLowerCase()) {
-            return {
-                success: false,
-                method: "domain_meta",
+            return buildFailure(
+                "domain_meta",
                 projectId,
-                error: `Meta tag content mismatch. Expected: "${expectedContent}", got: "${metaContent}"`,
-            };
+                `Meta tag content mismatch. Expected: "${expectedContent}", got: "${metaContent}"`,
+            );
         }
 
-        return {
-            success: true,
-            method: "domain_meta",
-            projectId,
-            proof: { url, metaContent },
-        };
+        return buildSuccess("domain_meta", projectId, undefined, { url, metaContent });
     } catch (err) {
-        return {
-            success: false,
-            method: "domain_meta",
-            projectId,
-            error: getDomainVerificationError(err),
-        };
+        return buildFailure("domain_meta", projectId, getErrorMessage(err));
     }
 }
