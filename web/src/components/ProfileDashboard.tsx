@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useFeeVault } from "@/hooks/useFeeVault";
@@ -203,7 +203,7 @@ function FeeClaimCard({
 
 // ─── Token Card ──────────────────────────────────────
 
-function TokenCard({ token }: { token: TokenInfo }) {
+const TokenCard = memo(function TokenCard({ token }: { token: TokenInfo }) {
     const isAboveThreshold =
         token.role === "holder" &&
         parseFloat(token.balance.replace(/,/g, "")) >= 50_000_000;
@@ -272,7 +272,7 @@ function TokenCard({ token }: { token: TokenInfo }) {
             </div>
         </div>
     );
-}
+});
 
 // ─── Main Dashboard ──────────────────────────────────
 
