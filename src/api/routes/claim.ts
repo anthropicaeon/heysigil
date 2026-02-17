@@ -8,6 +8,7 @@
 import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
+import { find } from "../../db/helpers.js";
 import { createAttestation } from "../../attestation/eas.js";
 import { ErrorResponseSchema, NotFoundResponseSchema } from "../schemas/common.js";
 import {
@@ -96,11 +97,7 @@ claim.openapi(createClaimRoute, (async (c) => {
     const db = getDb();
 
     // Get the verification record
-    const [verification] = await db
-        .select()
-        .from(schema.verifications)
-        .where(eq(schema.verifications.id, body.verificationId))
-        .limit(1);
+    const verification = await find.verification(body.verificationId);
 
     if (!verification) {
         return c.json({ error: "Verification not found" }, 404);
@@ -221,13 +218,8 @@ claim.openapi(getClaimStatusRoute, (async (c) => {
     const { projectId } = (c.req as any).valid("param") as z.infer<
         typeof ClaimProjectIdParamSchema
     >;
-    const db = getDb();
 
-    const [project] = await db
-        .select()
-        .from(schema.projects)
-        .where(eq(schema.projects.projectId, projectId))
-        .limit(1);
+    const project = await find.projectByProjectId(projectId);
 
     if (!project) {
         return c.json({
