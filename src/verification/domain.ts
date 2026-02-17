@@ -2,6 +2,7 @@ import dns from "node:dns/promises";
 import { load } from "cheerio";
 import type { VerificationResult } from "./types.js";
 import { getErrorMessage } from "../utils/errors.js";
+import { parseConfigFile } from "../utils/config-parser.js";
 
 /**
  * Verify domain ownership via DNS TXT record.
@@ -93,12 +94,9 @@ export async function verifyDomainFile(
         }
 
         const content = await response.text();
-        const lines = content.split("\n").map((l) => l.trim());
-        const tokenLine = lines.find((l) => l.startsWith("verification-token="));
-        const walletLine = lines.find((l) => l.startsWith("wallet-address="));
-
-        const fileToken = tokenLine?.split("=")[1]?.trim();
-        const fileWallet = walletLine?.split("=")[1]?.trim();
+        const parsed = parseConfigFile(content, ["verification-token", "wallet-address"]);
+        const fileToken = parsed["verification-token"];
+        const fileWallet = parsed["wallet-address"];
 
         if (fileToken !== expectedCode) {
             return {
