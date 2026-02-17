@@ -9,7 +9,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import type { Proposal } from "../types";
-import { statusClass, statusLabel, formatTokens } from "../utils";
+import { statusClass, statusLabel, formatTokens, isPostVoting, isCompletionVoting, isFinalStatus } from "../utils";
 import { VoteBar } from "./VoteBar";
 import { Countdown } from "./Countdown";
 
@@ -70,7 +70,7 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
                 </div>
                 <div
                     className={`timeline-item ${proposal.status === "Voting" ? "active" :
-                        ["Approved", "ProofSubmitted", "Completed", "Disputed", "Overridden"].includes(proposal.status) ? "done" : ""
+                        isPostVoting(proposal.status) ? "done" : ""
                     }`}
                 >
                     <div className="timeline-title">Community Vote</div>
@@ -86,11 +86,11 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
                         )}
                     </div>
                 </div>
-                {["Approved", "ProofSubmitted", "Completed", "Disputed", "Overridden"].includes(proposal.status) && (
+                {isPostVoting(proposal.status) && (
                     <>
                         <div
                             className={`timeline-item ${proposal.status === "Approved" ? "active" :
-                                ["ProofSubmitted", "Completed", "Disputed", "Overridden"].includes(proposal.status) ? "done" : ""
+                                isCompletionVoting(proposal.status) ? "done" : ""
                             }`}
                         >
                             <div className="timeline-title">Development</div>
@@ -100,10 +100,10 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
                                     : "Proof submitted \u2713"}
                             </div>
                         </div>
-                        {["ProofSubmitted", "Completed", "Disputed", "Overridden"].includes(proposal.status) && (
+                        {isCompletionVoting(proposal.status) && (
                             <div
                                 className={`timeline-item ${proposal.status === "ProofSubmitted" ? "active" :
-                                    ["Completed", "Overridden"].includes(proposal.status) ? "done" : ""
+                                    isFinalStatus(proposal.status) ? "done" : ""
                                 }`}
                             >
                                 <div className="timeline-title">Completion Vote</div>

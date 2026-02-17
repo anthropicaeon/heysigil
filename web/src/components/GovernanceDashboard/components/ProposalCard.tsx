@@ -6,7 +6,7 @@
 
 import Image from "next/image";
 import type { Proposal } from "../types";
-import { statusClass, statusLabel, formatTokens } from "../utils";
+import { statusClass, statusLabel, formatTokens, isCompletionVoting } from "../utils";
 import { VoteBar } from "./VoteBar";
 import { Countdown } from "./Countdown";
 
@@ -16,11 +16,7 @@ interface ProposalCardProps {
 }
 
 export function ProposalCard({ proposal, onClick }: ProposalCardProps) {
-    const showCompletionVotes =
-        proposal.status === "ProofSubmitted" ||
-        proposal.status === "Completed" ||
-        proposal.status === "Disputed" ||
-        proposal.status === "Overridden";
+    const showCompletionVotes = isCompletionVoting(proposal.status);
 
     return (
         <div className="proposal-card" onClick={onClick}>
