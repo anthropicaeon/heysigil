@@ -11,6 +11,7 @@ import {
     generateName,
     generateSymbol,
 } from "../../services/deployer.js";
+import { getErrorMessage } from "../../utils/errors.js";
 
 export const launchTokenHandler: ActionHandler = async (params) => {
     const rawLinks = params.devLinks;
@@ -67,7 +68,9 @@ export const launchTokenHandler: ActionHandler = async (params) => {
                 ...linkSummary,
                 "",
                 "Deployer not configured. Set `DEPLOYER_PRIVATE_KEY` and `SIGIL_FACTORY_ADDRESS` to deploy.",
-            ].filter(Boolean).join("\n"),
+            ]
+                .filter(Boolean)
+                .join("\n"),
             data: {
                 name: tokenName,
                 symbol: tokenSymbol,
@@ -87,8 +90,8 @@ export const launchTokenHandler: ActionHandler = async (params) => {
     const confirmed = params.confirmed === true;
 
     if (!confirmed) {
-        const linkSummary = parsedLinks.map((l) =>
-            `• **${l.platform}** — [${l.projectId}](${l.displayUrl})`,
+        const linkSummary = parsedLinks.map(
+            (l) => `• **${l.platform}** — [${l.projectId}](${l.displayUrl})`,
         );
 
         return {
@@ -122,11 +125,11 @@ export const launchTokenHandler: ActionHandler = async (params) => {
             symbol: tokenSymbol,
             projectId,
             isSelfLaunch: isSelfLaunch ?? true,
-            devLinks: parsedLinks.map(l => l.displayUrl),
+            devLinks: parsedLinks.map((l) => l.displayUrl),
         });
 
-        const linkSummary = parsedLinks.map((l) =>
-            `• **${l.platform}** — [${l.projectId}](${l.displayUrl})`,
+        const linkSummary = parsedLinks.map(
+            (l) => `• **${l.platform}** — [${l.projectId}](${l.displayUrl})`,
         );
 
         return {
@@ -161,7 +164,7 @@ export const launchTokenHandler: ActionHandler = async (params) => {
             },
         };
     } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : "Unknown deployment error";
+        const errorMsg = getErrorMessage(err, "Unknown deployment error");
         return {
             success: false,
             message: [

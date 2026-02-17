@@ -8,6 +8,7 @@
 
 import type { VerificationMethod, VerificationResult } from "./types.js";
 import { getEnv } from "../config/env.js";
+import { getErrorMessage } from "../utils/errors.js";
 
 export interface OAuthConfig {
     /** OAuth provider name for logging */
@@ -81,7 +82,7 @@ export abstract class OAuthVerifier {
             success: false,
             method: this.config.method,
             projectId,
-            error: err instanceof Error ? err.message : "Unknown error",
+            error: getErrorMessage(err),
         };
     }
 

@@ -1,6 +1,7 @@
 import dns from "node:dns/promises";
 import { load } from "cheerio";
 import type { VerificationResult } from "./types.js";
+import { getErrorMessage } from "../utils/errors.js";
 
 /**
  * Verify domain ownership via DNS TXT record.
@@ -8,57 +9,57 @@ import type { VerificationResult } from "./types.js";
  * Expected record: _poolclaim.example.com TXT "pool-claim-verify=<walletAddress>:<code>"
  */
 export async function verifyDomainDns(
-  domain: string,
-  expectedCode: string,
-  expectedWallet: string,
+    domain: string,
+    expectedCode: string,
+    expectedWallet: string,
 ): Promise<VerificationResult> {
-  const projectId = domain;
-  const lookupHost = `_poolclaim.${domain}`;
+    const projectId = domain;
+    const lookupHost = `_poolclaim.${domain}`;
 
-  try {
-    const records = await dns.resolveTxt(lookupHost);
-    // records is string[][] — each TXT record is an array of strings (chunks)
-    const flatRecords = records.map((chunks) => chunks.join(""));
+    try {
+        const records = await dns.resolveTxt(lookupHost);
+        // records is string[][] — each TXT record is an array of strings (chunks)
+        const flatRecords = records.map((chunks) => chunks.join(""));
 
-    const expectedValue = `pool-claim-verify=${expectedWallet}:${expectedCode}`;
-    const found = flatRecords.some(
-      (r) => r.trim().toLowerCase() === expectedValue.toLowerCase(),
-    );
+        const expectedValue = `pool-claim-verify=${expectedWallet}:${expectedCode}`;
+        const found = flatRecords.some(
+            (r) => r.trim().toLowerCase() === expectedValue.toLowerCase(),
+        );
 
-    if (!found) {
-      return {
-        success: false,
-        method: "domain_dns",
-        projectId,
-        error: `DNS TXT record not found. Add this record:\n  ${lookupHost} TXT "${expectedValue}"`,
-        proof: { recordsFound: flatRecords },
-      };
+        if (!found) {
+            return {
+                success: false,
+                method: "domain_dns",
+                projectId,
+                error: `DNS TXT record not found. Add this record:\n  ${lookupHost} TXT "${expectedValue}"`,
+                proof: { recordsFound: flatRecords },
+            };
+        }
+
+        return {
+            success: true,
+            method: "domain_dns",
+            projectId,
+            proof: { record: expectedValue, host: lookupHost },
+        };
+    } catch (err) {
+        const message = getErrorMessage(err);
+        // ENOTFOUND / ENODATA means no records exist
+        if (message.includes("ENOTFOUND") || message.includes("ENODATA")) {
+            return {
+                success: false,
+                method: "domain_dns",
+                projectId,
+                error: `No DNS TXT records found for ${lookupHost}. Add:\n  ${lookupHost} TXT "pool-claim-verify=${expectedWallet}:${expectedCode}"`,
+            };
+        }
+        return {
+            success: false,
+            method: "domain_dns",
+            projectId,
+            error: message,
+        };
     }
-
-    return {
-      success: true,
-      method: "domain_dns",
-      projectId,
-      proof: { record: expectedValue, host: lookupHost },
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    // ENOTFOUND / ENODATA means no records exist
-    if (message.includes("ENOTFOUND") || message.includes("ENODATA")) {
-      return {
-        success: false,
-        method: "domain_dns",
-        projectId,
-        error: `No DNS TXT records found for ${lookupHost}. Add:\n  ${lookupHost} TXT "pool-claim-verify=${expectedWallet}:${expectedCode}"`,
-      };
-    }
-    return {
-      success: false,
-      method: "domain_dns",
-      projectId,
-      error: message,
-    };
-  }
 }
 
 /**
@@ -70,67 +71,67 @@ export async function verifyDomainDns(
  *   wallet-address=<address>
  */
 export async function verifyDomainFile(
-  domain: string,
-  expectedCode: string,
-  expectedWallet: string,
+    domain: string,
+    expectedCode: string,
+    expectedWallet: string,
 ): Promise<VerificationResult> {
-  const projectId = domain;
-  const url = `https://${domain}/.well-known/pool-claim.txt`;
+    const projectId = domain;
+    const url = `https://${domain}/.well-known/pool-claim.txt`;
 
-  try {
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(10_000),
-    });
+    try {
+        const response = await fetch(url, {
+            signal: AbortSignal.timeout(10_000),
+        });
 
-    if (!response.ok) {
-      return {
-        success: false,
-        method: "domain_file",
-        projectId,
-        error: `Could not fetch ${url} — HTTP ${response.status}. Place a file at that URL with your verification token.`,
-      };
+        if (!response.ok) {
+            return {
+                success: false,
+                method: "domain_file",
+                projectId,
+                error: `Could not fetch ${url} — HTTP ${response.status}. Place a file at that URL with your verification token.`,
+            };
+        }
+
+        const content = await response.text();
+        const lines = content.split("\n").map((l) => l.trim());
+        const tokenLine = lines.find((l) => l.startsWith("verification-token="));
+        const walletLine = lines.find((l) => l.startsWith("wallet-address="));
+
+        const fileToken = tokenLine?.split("=")[1]?.trim();
+        const fileWallet = walletLine?.split("=")[1]?.trim();
+
+        if (fileToken !== expectedCode) {
+            return {
+                success: false,
+                method: "domain_file",
+                projectId,
+                error: "Verification token does not match",
+            };
+        }
+
+        if (fileWallet?.toLowerCase() !== expectedWallet.toLowerCase()) {
+            return {
+                success: false,
+                method: "domain_file",
+                projectId,
+                error: "Wallet address does not match",
+            };
+        }
+
+        return {
+            success: true,
+            method: "domain_file",
+            projectId,
+            proof: { url, content },
+        };
+    } catch (err) {
+        return {
+            success: false,
+            method: "domain_file",
+            projectId,
+            error: getErrorMessage(err),
+        };
     }
-
-    const content = await response.text();
-    const lines = content.split("\n").map((l) => l.trim());
-    const tokenLine = lines.find((l) => l.startsWith("verification-token="));
-    const walletLine = lines.find((l) => l.startsWith("wallet-address="));
-
-    const fileToken = tokenLine?.split("=")[1]?.trim();
-    const fileWallet = walletLine?.split("=")[1]?.trim();
-
-    if (fileToken !== expectedCode) {
-      return {
-        success: false,
-        method: "domain_file",
-        projectId,
-        error: "Verification token does not match",
-      };
-    }
-
-    if (fileWallet?.toLowerCase() !== expectedWallet.toLowerCase()) {
-      return {
-        success: false,
-        method: "domain_file",
-        projectId,
-        error: "Wallet address does not match",
-      };
-    }
-
-    return {
-      success: true,
-      method: "domain_file",
-      projectId,
-      proof: { url, content },
-    };
-  } catch (err) {
-    return {
-      success: false,
-      method: "domain_file",
-      projectId,
-      error: err instanceof Error ? err.message : "Unknown error",
-    };
-  }
 }
 
 /**
@@ -139,62 +140,62 @@ export async function verifyDomainFile(
  * Expected tag: <meta name="pool-claim-verification" content="<walletAddress>:<code>" />
  */
 export async function verifyDomainMeta(
-  domain: string,
-  expectedCode: string,
-  expectedWallet: string,
+    domain: string,
+    expectedCode: string,
+    expectedWallet: string,
 ): Promise<VerificationResult> {
-  const projectId = domain;
-  const url = `https://${domain}`;
+    const projectId = domain;
+    const url = `https://${domain}`;
 
-  try {
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(10_000),
-    });
+    try {
+        const response = await fetch(url, {
+            signal: AbortSignal.timeout(10_000),
+        });
 
-    if (!response.ok) {
-      return {
-        success: false,
-        method: "domain_meta",
-        projectId,
-        error: `Could not fetch ${url} — HTTP ${response.status}`,
-      };
+        if (!response.ok) {
+            return {
+                success: false,
+                method: "domain_meta",
+                projectId,
+                error: `Could not fetch ${url} — HTTP ${response.status}`,
+            };
+        }
+
+        const html = await response.text();
+        const $ = load(html);
+        const metaContent = $('meta[name="pool-claim-verification"]').attr("content");
+
+        if (!metaContent) {
+            return {
+                success: false,
+                method: "domain_meta",
+                projectId,
+                error: `Meta tag not found. Add to your <head>:\n  <meta name="pool-claim-verification" content="${expectedWallet}:${expectedCode}" />`,
+            };
+        }
+
+        const expectedContent = `${expectedWallet}:${expectedCode}`;
+        if (metaContent.trim().toLowerCase() !== expectedContent.toLowerCase()) {
+            return {
+                success: false,
+                method: "domain_meta",
+                projectId,
+                error: `Meta tag content mismatch. Expected: "${expectedContent}", got: "${metaContent}"`,
+            };
+        }
+
+        return {
+            success: true,
+            method: "domain_meta",
+            projectId,
+            proof: { url, metaContent },
+        };
+    } catch (err) {
+        return {
+            success: false,
+            method: "domain_meta",
+            projectId,
+            error: getErrorMessage(err),
+        };
     }
-
-    const html = await response.text();
-    const $ = load(html);
-    const metaContent = $('meta[name="pool-claim-verification"]').attr("content");
-
-    if (!metaContent) {
-      return {
-        success: false,
-        method: "domain_meta",
-        projectId,
-        error: `Meta tag not found. Add to your <head>:\n  <meta name="pool-claim-verification" content="${expectedWallet}:${expectedCode}" />`,
-      };
-    }
-
-    const expectedContent = `${expectedWallet}:${expectedCode}`;
-    if (metaContent.trim().toLowerCase() !== expectedContent.toLowerCase()) {
-      return {
-        success: false,
-        method: "domain_meta",
-        projectId,
-        error: `Meta tag content mismatch. Expected: "${expectedContent}", got: "${metaContent}"`,
-      };
-    }
-
-    return {
-      success: true,
-      method: "domain_meta",
-      projectId,
-      proof: { url, metaContent },
-    };
-  } catch (err) {
-    return {
-      success: false,
-      method: "domain_meta",
-      projectId,
-      error: err instanceof Error ? err.message : "Unknown error",
-    };
-  }
 }

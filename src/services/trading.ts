@@ -15,6 +15,7 @@ import { ethers } from "ethers";
 import { getSignerWallet } from "./wallet.js";
 import { getEnv } from "../config/env.js";
 import { resolveToken, NATIVE_ETH_ADDRESS, BASE_CHAIN_ID } from "../config/tokens.js";
+import { getErrorMessage } from "../utils/errors.js";
 
 // Re-export resolveToken for backwards compatibility
 export { resolveToken };
@@ -168,7 +169,7 @@ export async function getQuote(
 
         return quote;
     } catch (err) {
-        return { error: `Failed to get quote: ${err instanceof Error ? err.message : "unknown"}` };
+        return { error: `Failed to get quote: ${getErrorMessage(err, "unknown")}` };
     }
 }
 
@@ -310,7 +311,7 @@ export async function executeSwap(
             explorerUrl: `https://basescan.org/tx/${receipt?.hash || tx.hash}`,
         };
     } catch (err) {
-        const msg = err instanceof Error ? err.message : "Unknown error";
+        const msg = getErrorMessage(err);
 
         // Common error cases
         if (msg.includes("insufficient funds")) {

@@ -9,6 +9,8 @@
  * Every action passes through Sentinel before execution.
  */
 
+import { getErrorMessage } from "../utils/errors.js";
+
 // ─── Types ──────────────────────────────────────────────
 
 export interface ScreenResult {
@@ -169,9 +171,7 @@ export async function screenToken(
             holderCount: 0,
             lpLocked: false,
             riskLevel: "warning",
-            reasons: [
-                `GoPlus check failed: ${err instanceof Error ? err.message : "unknown error"}`,
-            ],
+            reasons: [`GoPlus check failed: ${getErrorMessage(err, "unknown error")}`],
         };
     }
 }
