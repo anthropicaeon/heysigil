@@ -9,7 +9,7 @@
 
 import { ethers } from "ethers";
 import { getEnv } from "../config/env.js";
-import { createPhantomIdentity, findByPlatformId, findUserByPlatform } from "./identity.js";
+import { createPhantomUser, findUserByPlatform } from "./identity.js";
 import { checkDeployRateLimit } from "../middleware/rate-limit.js";
 import { linkPoolToProject } from "../db/repositories/index.js";
 
@@ -126,7 +126,7 @@ export async function deployToken(params: DeployParams, sessionId?: string): Pro
                 console.log(`[deployer] Existing phantom user: ${repoId} → ${devAddress}`);
             } else {
                 // 3. Brand new — create phantom user + wallet
-                const result = await createPhantomIdentity("github", repoId, sessionId);
+                const result = await createPhantomUser("github", repoId, sessionId);
                 devAddress = result.walletAddress;
                 console.log(`[deployer] Created phantom user for ${repoId} → ${devAddress}`);
             }
@@ -149,7 +149,10 @@ export async function deployToken(params: DeployParams, sessionId?: string): Pro
     const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
     const usdcContract = new ethers.Contract(
         USDC_ADDRESS,
-        ["function approve(address,uint256) external returns (bool)", "function balanceOf(address) view returns (uint256)"],
+        [
+            "function approve(address,uint256) external returns (bool)",
+            "function balanceOf(address) view returns (uint256)",
+        ],
         wallet,
     );
     const usdcBalance = await usdcContract.balanceOf(wallet.address);
@@ -159,7 +162,9 @@ export async function deployToken(params: DeployParams, sessionId?: string): Pro
         await approveTx.wait(1);
         console.log(`[deployer] Approved ${seedAmount} USDC for seed swap`);
     } else {
-        console.log(`[deployer] No USDC — pool will launch without seed swap (may need manual activation)`);
+        console.log(
+            `[deployer] No USDC — pool will launch without seed swap (may need manual activation)`,
+        );
     }
 
     // Call factory.launch()
