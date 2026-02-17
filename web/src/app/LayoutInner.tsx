@@ -7,6 +7,7 @@ import PrivyAuthProvider from "../providers/PrivyAuthProvider";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { useOptionalPrivy, getUserDisplay } from "@/hooks/useOptionalPrivy";
 import { useIsPrivyConfigured } from "@/providers/PrivyAuthProvider";
+import { EnvironmentReadinessBanner } from "@/components/common/EnvironmentReadinessBanner";
 
 function NavLoginButton() {
     const isPrivyConfigured = useIsPrivyConfigured();
@@ -105,6 +106,7 @@ export default function LayoutInner({
                         </div>
                     </div>
                 </nav>
+                <EnvironmentReadinessBanner />
                 {children}
                 <footer className="footer">
                     <div className="footer-inner">
