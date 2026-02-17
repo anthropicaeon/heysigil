@@ -337,8 +337,10 @@ button {
   cursor: pointer;
   border: none;
   border-radius: var(--radius-full);
-  padding: 14px 28px; /* Fitts: larger default touch target */
-  min-height: 44px; /* Fitts: minimum touch target size */
+  padding: 14px 28px;
+  /* Fitts: larger default touch target */
+  min-height: 44px;
+  /* Fitts: minimum touch target size */
   transition: all var(--duration) var(--ease);
   display: inline-flex;
   align-items: center;
@@ -392,8 +394,15 @@ button:disabled {
 }
 
 @keyframes btnEmphasisPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(72, 40, 99, 0.3); }
-  50% { box-shadow: 0 0 0 6px rgba(72, 40, 99, 0); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(72, 40, 99, 0.3);
+  }
+
+  50% {
+    box-shadow: 0 0 0 6px rgba(72, 40, 99, 0);
+  }
 }
 
 .btn-secondary {
@@ -418,10 +427,12 @@ button:disabled {
 }
 
 .btn-lg {
-  padding: 18px 36px; /* Fitts: generous padding for primary CTAs */
+  padding: 18px 36px;
+  /* Fitts: generous padding for primary CTAs */
   font-size: var(--text-base);
   font-weight: 600;
-  min-height: 56px; /* Fitts: extra large touch target */
+  min-height: 56px;
+  /* Fitts: extra large touch target */
 }
 
 .btn-sm {
@@ -432,10 +443,12 @@ button:disabled {
 
 /* Fitts: Full-width buttons on mobile for easier targeting */
 @media (max-width: 480px) {
+
   .btn-primary,
   .btn-lg {
     width: 100%;
-    min-height: 52px; /* Fitts: larger mobile touch target */
+    min-height: 52px;
+    /* Fitts: larger mobile touch target */
     padding: 16px 24px;
   }
 
@@ -804,10 +817,13 @@ input::placeholder {
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.5;
     transform: scale(1.2);
@@ -819,8 +835,16 @@ input::placeholder {
 }
 
 @keyframes fadeInOut {
-  0%, 100% { opacity: 0.7; }
-  10%, 90% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+
+  10%,
+  90% {
+    opacity: 1;
+  }
 }
 
 .social-proof-monthly {
@@ -1019,8 +1043,15 @@ input::placeholder {
 }
 
 @keyframes txPendingPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .tx-status-success .tx-status-icon {
@@ -1061,20 +1092,23 @@ input::placeholder {
 
 /* Skeleton loading (Jakob's Law: familiar loading pattern) */
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--gray-100) 0%,
-    var(--gray-200) 50%,
-    var(--gray-100) 100%
-  );
+  background: linear-gradient(90deg,
+      var(--gray-100) 0%,
+      var(--gray-200) 50%,
+      var(--gray-100) 100%);
   background-size: 200% 100%;
   animation: skeletonShimmer 1.5s ease-in-out infinite;
   border-radius: var(--radius-sm);
 }
 
 @keyframes skeletonShimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .skeleton-text {
@@ -1181,8 +1215,17 @@ input::placeholder {
 }
 
 @keyframes glowPulse {
-  0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
-  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
 }
 
 .achievement-content {
@@ -1204,9 +1247,19 @@ input::placeholder {
 }
 
 @keyframes iconAppear {
-  0% { transform: scale(0); opacity: 0; }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); opacity: 1; }
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .achievement-title {
@@ -1225,8 +1278,15 @@ input::placeholder {
 }
 
 @keyframes fadeInUp {
-  0% { opacity: 0; transform: translateY(10px); }
-  100% { opacity: 1; transform: translateY(0); }
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .result-share-section {
@@ -3977,8 +4037,15 @@ body:has(.chat-layout) .footer {
 }
 
 @keyframes urgencyPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .fee-expiry-urgent {
@@ -3992,8 +4059,15 @@ body:has(.chat-layout) .footer {
 }
 
 @keyframes btnUrgencyPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(154, 103, 0, 0.4); }
-  50% { box-shadow: 0 0 0 8px rgba(154, 103, 0, 0); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(154, 103, 0, 0.4);
+  }
+
+  50% {
+    box-shadow: 0 0 0 8px rgba(154, 103, 0, 0);
+  }
 }
 
 .fee-claim-stats {
@@ -4001,7 +4075,7 @@ body:has(.chat-layout) .footer {
   gap: var(--space-6);
 }
 
-.fee-claim-stat + .fee-claim-stat {
+.fee-claim-stat+.fee-claim-stat {
   padding-left: var(--space-6);
   border-left: 1px solid var(--border);
 }
@@ -4275,4 +4349,26 @@ body:has(.chat-layout) .footer {
   .profile-summary {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+/* ─── Privy Auth Modal Overrides ─── */
+/* Ensure Privy's modal always renders above app content */
+#privy-modal-root,
+#privy-dialog,
+[data-privy-dialog],
+[data-privy-modal] {
+  z-index: 2147483647 !important;
+  position: fixed !important;
+}
+
+/* Privy backdrop overlay */
+[data-privy-dialog-overlay],
+[data-privy-modal-overlay] {
+  z-index: 2147483646 !important;
+  position: fixed !important;
+}
+
+/* Catch-all for any Privy iframe overlays */
+iframe[src*="privy"] {
+  z-index: 2147483645 !important;
 }
