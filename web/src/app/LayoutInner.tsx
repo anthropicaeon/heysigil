@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import PrivyAuthProvider from "../providers/PrivyAuthProvider";
@@ -12,13 +11,7 @@ import { EnvironmentReadinessBanner } from "@/components/common/EnvironmentReadi
 function NavLoginButton() {
     const isPrivyConfigured = useIsPrivyConfigured();
     const privy = useOptionalPrivy();
-    const [timedOut, setTimedOut] = useState(false);
-
-    // If Privy doesn't become ready within 3s, stop showing "Loading..."
-    useEffect(() => {
-        const timer = setTimeout(() => setTimedOut(true), 3000);
-        return () => clearTimeout(timer);
-    }, []);
+    const isDev = process.env.NODE_ENV !== "production";
 
     // Privy not configured — show explicit local-dev hint
     if (!isPrivyConfigured) {
@@ -34,14 +27,6 @@ function NavLoginButton() {
     const userDisplay = userInfo
         ? (userInfo.provider === "Email" ? userInfo.name.split("@")[0] : userInfo.name)
         : "";
-
-    if (!privy.ready && !timedOut) {
-        return (
-            <span className="nav-link" style={{ opacity: 0.4 }}>
-                Loading...
-            </span>
-        );
-    }
 
     if (privy.authenticated) {
         return (
@@ -69,7 +54,17 @@ function NavLoginButton() {
     }
 
     return (
-        <button className="nav-cta" onClick={() => privy.login()}>
+        <button
+            className="nav-cta"
+            onClick={() => privy.login()}
+            disabled={!privy.ready}
+            title={
+                !privy.ready && isDev
+                    ? "Sign-in is waiting for Privy initialization in this dev environment."
+                    : undefined
+            }
+            style={!privy.ready ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+        >
             Sign In
         </button>
     );
