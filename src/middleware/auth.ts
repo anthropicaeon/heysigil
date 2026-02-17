@@ -11,6 +11,7 @@ import { PrivyClient } from "@privy-io/server-auth";
 import type { Context, Next } from "hono";
 import { getEnv } from "../config/env.js";
 import { unauthorized, serviceUnavailable } from "../api/helpers/responses.js";
+import { loggers } from "../utils/logger.js";
 
 let _client: PrivyClient | null = null;
 
@@ -64,7 +65,7 @@ export function privyAuth() {
         // SECURITY: Fail closed when Privy isn't configured
         // Never pass through - this could expose protected endpoints in production
         if (!client) {
-            console.error("[AUTH] privyAuth() called but Privy not configured");
+            loggers.auth.error("privyAuth() called but Privy not configured");
             return serviceUnavailable(c, "Authentication service unavailable");
         }
 
