@@ -6,8 +6,10 @@ import Image from "next/image";
 import PrivyAuthProvider from "../providers/PrivyAuthProvider";
 import ErrorBoundary from "../components/ErrorBoundary";
 import { useOptionalPrivy, getUserDisplay } from "@/hooks/useOptionalPrivy";
+import { useIsPrivyConfigured } from "@/providers/PrivyAuthProvider";
 
 function NavLoginButton() {
+    const isPrivyConfigured = useIsPrivyConfigured();
     const privy = useOptionalPrivy();
     const [timedOut, setTimedOut] = useState(false);
 
@@ -17,8 +19,14 @@ function NavLoginButton() {
         return () => clearTimeout(timer);
     }, []);
 
-    // Privy not configured — show nothing
-    if (!privy) return null;
+    // Privy not configured — show explicit local-dev hint
+    if (!isPrivyConfigured) {
+        return (
+            <span className="nav-link" style={{ opacity: 0.6 }} title="Set NEXT_PUBLIC_PRIVY_APP_ID">
+                Sign-in disabled (dev)
+            </span>
+        );
+    }
 
     const userInfo = getUserDisplay(privy);
     // For email, show only the local part
