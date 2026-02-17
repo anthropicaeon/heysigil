@@ -70,6 +70,23 @@ export function runStartupChecks(): void {
         });
     }
 
+    // ─── Critical: Database (production) ────────────────
+    if (!env.DATABASE_URL) {
+        results.push({
+            name: "DATABASE_URL",
+            status: prod ? "error" : "warning",
+            message: prod
+                ? "DATABASE_URL required in production — in-memory storage is not persistent"
+                : "DATABASE_URL not set — using in-memory storage (data lost on restart)",
+        });
+    } else {
+        results.push({
+            name: "DATABASE_URL",
+            status: "ok",
+            message: "Database connection configured",
+        });
+    }
+
     // ─── Important: LLM API Key ──────────────────────────
     if (!env.ANTHROPIC_API_KEY) {
         results.push({
