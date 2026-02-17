@@ -4,46 +4,21 @@ import Link from "next/link";
 import Image from "next/image";
 import PrivyAuthProvider from "../providers/PrivyAuthProvider";
 import ErrorBoundary from "../components/ErrorBoundary";
+import { useOptionalPrivy, getUserDisplay } from "@/hooks/useOptionalPrivy";
 
 function NavLoginButton() {
-    let privyReady = false;
-    let authenticated = false;
-    let login: (() => void) | undefined;
-    let logout: (() => void) | undefined;
-    let userDisplay = "";
+    const privy = useOptionalPrivy();
 
-    try {
-        // usePrivy only works inside PrivyProvider — if Privy isn't configured,
-        // the provider renders children directly, so this will throw.
-        // eslint-disable-next-line @typescript-eslint/no-require-imports, react-hooks/rules-of-hooks
-        const { usePrivy } = require("@privy-io/react-auth");
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        const privy = usePrivy();
-        privyReady = privy.ready;
-        authenticated = privy.authenticated;
-        login = privy.login;
-        logout = privy.logout;
+    // Privy not configured — show nothing
+    if (!privy) return null;
 
-        if (privy.user) {
-            const u = privy.user;
-            if (u.github?.username) {
-                userDisplay = u.github.username;
-            } else if (u.telegram?.username) {
-                userDisplay = u.telegram.username;
-            } else if (u.email?.address) {
-                userDisplay = u.email.address.split("@")[0];
-            } else if (u.farcaster?.username) {
-                userDisplay = u.farcaster.username;
-            } else {
-                userDisplay = "User";
-            }
-        }
-    } catch {
-        // Privy not configured — show nothing
-        return null;
-    }
+    const userInfo = getUserDisplay(privy);
+    // For email, show only the local part
+    const userDisplay = userInfo
+        ? (userInfo.provider === "Email" ? userInfo.name.split("@")[0] : userInfo.name)
+        : "";
 
-    if (!privyReady) {
+    if (!privy.ready) {
         return (
             <span className="nav-link" style={{ opacity: 0.4 }}>
                 Loading...
@@ -51,7 +26,7 @@ function NavLoginButton() {
         );
     }
 
-    if (authenticated) {
+    if (privy.authenticated) {
         return (
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
                 <div className="nav-user-badge">
@@ -62,7 +37,7 @@ function NavLoginButton() {
                 </div>
                 <button
                     className="btn-sm"
-                    onClick={() => logout?.()}
+                    onClick={() => privy.logout?.()}
                     style={{
                         background: "transparent",
                         color: "var(--text-secondary)",
@@ -77,7 +52,7 @@ function NavLoginButton() {
     }
 
     return (
-        <button className="nav-cta" onClick={() => login?.()}>
+        <button className="nav-cta" onClick={() => privy.login?.()}>
             Sign In
         </button>
     );
