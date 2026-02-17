@@ -2,12 +2,13 @@
  * Action Router
  *
  * Thin orchestration layer that routes parsed actions to domain-specific handlers.
- * Handles Sentinel security screening before execution.
+ * Uses composable security pipeline before execution.
  */
 
 import type { ParsedAction, ActionResult } from "./types.js";
-import { screenAction, screenPrompt, formatScreenMessage } from "../services/sentinel.js";
+import { formatScreenMessage } from "../services/sentinel.js";
 import { createWallet, hasWallet } from "../services/wallet.js";
+import { getDefaultPipeline } from "./security/index.js";
 
 // Import domain-specific handlers
 import {
@@ -64,68 +65,47 @@ const handlers: Record<string, ActionHandler> = {
 
 /**
  * Route a parsed action to the appropriate handler and execute it.
- * All actions pass through Sentinel security screening first.
+ * All actions pass through the security pipeline first.
  */
 export async function executeAction(
     action: ParsedAction,
     userMessage?: string,
     sessionId?: string,
 ): Promise<ActionResult> {
-    // ── Sentinel: Screen before execution ──────────────────
+    // ── Security Pipeline ─────────────────────────────────
+    const pipeline = getDefaultPipeline();
+    const securityResult = await pipeline.run(action, {
+        userMessage,
+        sessionId,
+    });
 
-    // 1. Prompt injection check (if we have the original message)
-    if (userMessage) {
-        const promptCheck = screenPrompt(userMessage);
-        if (!promptCheck.allowed) {
-            return {
-                success: false,
-                message: formatScreenMessage(promptCheck),
-                data: { blocked: true, reason: "prompt_injection", details: promptCheck.reasons },
-            };
-        }
+    if (!securityResult.pass) {
+        const screenResult = {
+            allowed: false,
+            risk: "blocked" as const,
+            reasons: securityResult.details,
+        };
+        return {
+            success: false,
+            message: formatScreenMessage(screenResult),
+            data: {
+                blocked: true,
+                reason: securityResult.failedCheck,
+                details: securityResult.details,
+            },
+        };
     }
 
-    // 2. Full action screening (addresses + tokens)
-    const addresses: string[] = [];
-    const params = action.params;
-
-    // Collect any addresses from params
-    for (const [key, val] of Object.entries(params)) {
-        if (
-            typeof val === "string" &&
-            /^0x[0-9a-fA-F]{40}$/.test(val) &&
-            ["to", "from", "address", "wallet", "devAddress", "recipient", "tokenAddress"].includes(
-                key,
-            )
-        ) {
-            addresses.push(val);
-        }
-    }
-
-    if (addresses.length > 0 || (params.tokenAddress && typeof params.tokenAddress === "string")) {
-        const screenResult = await screenAction({
-            userMessage: userMessage || "",
-            intent: action.intent,
-            addresses,
-            tokenAddress: params.tokenAddress as string | undefined,
-            chain: (params.chain as string) || "base",
-        });
-
-        if (!screenResult.allowed) {
-            return {
-                success: false,
-                message: formatScreenMessage(screenResult),
-                data: { blocked: true, reason: "sentinel_screen", details: screenResult.reasons },
-            };
-        }
-
-        // Attach warning to result if there are warnings
-        if (screenResult.risk === "warning") {
-            const handler = handlers[action.intent] || handlers.unknown;
-            const result = await handler(action.params, sessionId);
-            result.message = formatScreenMessage(screenResult) + "\n\n" + result.message;
-            return result;
-        }
+    // Handle warnings by prepending to result message
+    const hasWarnings = securityResult.warnings.length > 0;
+    let warningMessage = "";
+    if (hasWarnings) {
+        const screenResult = {
+            allowed: true,
+            risk: "warning" as const,
+            reasons: securityResult.warnings,
+        };
+        warningMessage = formatScreenMessage(screenResult);
     }
 
     // ── Auto-create wallet for session if needed ───────────
@@ -135,5 +115,12 @@ export async function executeAction(
 
     // ── Execute the action ─────────────────────────────────
     const handler = handlers[action.intent] || handlers.unknown;
-    return handler(action.params, sessionId);
+    const result = await handler(action.params, sessionId);
+
+    // Prepend warning to result message
+    if (warningMessage) {
+        result.message = warningMessage + "\n\n" + result.message;
+    }
+
+    return result;
 }
