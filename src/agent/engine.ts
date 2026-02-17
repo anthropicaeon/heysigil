@@ -9,6 +9,7 @@ import { randomBytes } from "node:crypto";
 import { createDayTTLMap } from "../utils/ttl-map.js";
 import { buildOptimizedContext } from "./context-manager.js";
 import { TOOLS, TOOL_TO_INTENT, mapToolParams } from "./tools/index.js";
+import { loggers } from "../utils/logger.js";
 
 let _client: Anthropic | null = null;
 let _offlineMode = false;
@@ -17,8 +18,8 @@ function getClient(): Anthropic | null {
     const env = getEnv();
     if (!env.ANTHROPIC_API_KEY) {
         if (!_offlineMode) {
-            console.log(
-                "⚡ Chat running in offline mode (no ANTHROPIC_API_KEY) — using local parser",
+            loggers.agent.info(
+                "Chat running in offline mode (no ANTHROPIC_API_KEY) — using local parser",
             );
             _offlineMode = true;
         }
