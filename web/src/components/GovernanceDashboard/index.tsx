@@ -6,7 +6,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import Image from "next/image";
 
 import type { Proposal, TabFilter } from "./types";
@@ -22,16 +22,20 @@ export default function GovernanceDashboard() {
     const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
     const [showCreate, setShowCreate] = useState(false);
 
-    const filteredProposals = proposals.filter((p) => {
-        if (activeTab === "all") return true;
-        if (activeTab === "active")
-            return ["Voting", "Approved", "ProofSubmitted"].includes(p.status);
-        if (activeTab === "completed")
-            return ["Completed", "Overridden"].includes(p.status);
-        if (activeTab === "rejected")
-            return ["Rejected", "Expired", "Disputed"].includes(p.status);
-        return true;
-    });
+    const filteredProposals = useMemo(
+        () =>
+            proposals.filter((p) => {
+                if (activeTab === "all") return true;
+                if (activeTab === "active")
+                    return ["Voting", "Approved", "ProofSubmitted"].includes(p.status);
+                if (activeTab === "completed")
+                    return ["Completed", "Overridden"].includes(p.status);
+                if (activeTab === "rejected")
+                    return ["Rejected", "Expired", "Disputed"].includes(p.status);
+                return true;
+            }),
+        [proposals, activeTab]
+    );
 
     const handleCreate = useCallback(
         (partial: Partial<Proposal>) => {
