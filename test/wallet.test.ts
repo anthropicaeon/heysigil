@@ -12,95 +12,95 @@ import { resolveToken } from "../src/services/trading";
 // ─── Wallet Creation ────────────────────────────────────
 
 describe("Wallet: Creation", () => {
-    test("creates a wallet for a new session", () => {
+    test("creates a wallet for a new session", async () => {
         const sessionId = `test-create-${Date.now()}`;
-        const wallet = createWallet(sessionId);
+        const wallet = await createWallet(sessionId);
 
         expect(wallet.address).toMatch(/^0x[0-9a-fA-F]{40}$/);
         expect(wallet.sessionId).toBe(sessionId);
         expect(wallet.createdAt).toBeInstanceOf(Date);
     });
 
-    test("returns same wallet on second call for same session", () => {
+    test("returns same wallet on second call for same session", async () => {
         const sessionId = `test-idempotent-${Date.now()}`;
-        const w1 = createWallet(sessionId);
-        const w2 = createWallet(sessionId);
+        const w1 = await createWallet(sessionId);
+        const w2 = await createWallet(sessionId);
 
         expect(w1.address).toBe(w2.address);
     });
 
-    test("creates different wallets for different sessions", () => {
-        const w1 = createWallet(`test-diff-1-${Date.now()}`);
-        const w2 = createWallet(`test-diff-2-${Date.now()}`);
+    test("creates different wallets for different sessions", async () => {
+        const w1 = await createWallet(`test-diff-1-${Date.now()}`);
+        const w2 = await createWallet(`test-diff-2-${Date.now()}`);
 
         expect(w1.address).not.toBe(w2.address);
     });
 
-    test("hasWallet returns true after creation", () => {
+    test("hasWallet returns true after creation", async () => {
         const sessionId = `test-has-${Date.now()}`;
-        expect(hasWallet(sessionId)).toBe(false);
-        createWallet(sessionId);
-        expect(hasWallet(sessionId)).toBe(true);
+        expect(await hasWallet(sessionId)).toBe(false);
+        await createWallet(sessionId);
+        expect(await hasWallet(sessionId)).toBe(true);
     });
 
-    test("getAddress returns correct address", () => {
+    test("getAddress returns correct address", async () => {
         const sessionId = `test-addr-${Date.now()}`;
-        const wallet = createWallet(sessionId);
-        expect(getAddress(sessionId)).toBe(wallet.address);
+        const wallet = await createWallet(sessionId);
+        expect(await getAddress(sessionId)).toBe(wallet.address);
     });
 });
 
 // ─── Private Key Export ─────────────────────────────────
 
 describe("Wallet: Key Export", () => {
-    test("requestExport returns pending state with warning", () => {
+    test("requestExport returns pending state with warning", async () => {
         const sessionId = `test-export-${Date.now()}`;
-        createWallet(sessionId);
-        const result = requestExport(sessionId);
+        await createWallet(sessionId);
+        const result = await requestExport(sessionId);
 
         expect(result.pending).toBe(true);
         expect(result.message).toContain("Warning");
         expect(result.message).toContain("yes, export my key");
     });
 
-    test("hasPendingExport returns true after request", () => {
+    test("hasPendingExport returns true after request", async () => {
         const sessionId = `test-pending-${Date.now()}`;
-        createWallet(sessionId);
-        requestExport(sessionId);
+        await createWallet(sessionId);
+        await requestExport(sessionId);
 
         expect(hasPendingExport(sessionId)).toBe(true);
     });
 
-    test("confirmExport returns private key", () => {
+    test("confirmExport returns private key", async () => {
         const sessionId = `test-confirm-${Date.now()}`;
-        createWallet(sessionId);
-        requestExport(sessionId);
+        await createWallet(sessionId);
+        await requestExport(sessionId);
 
-        const result = confirmExport(sessionId);
+        const result = await confirmExport(sessionId);
         expect(result.success).toBe(true);
         expect(result.privateKey).toMatch(/^0x[0-9a-fA-F]{64}$/);
         expect(result.message).toContain("Private Key");
     });
 
-    test("confirmExport fails without prior request", () => {
+    test("confirmExport fails without prior request", async () => {
         const sessionId = `test-no-req-${Date.now()}`;
-        createWallet(sessionId);
+        await createWallet(sessionId);
 
-        const result = confirmExport(sessionId);
+        const result = await confirmExport(sessionId);
         expect(result.success).toBe(false);
     });
 
-    test("confirmExport clears pending state", () => {
+    test("confirmExport clears pending state", async () => {
         const sessionId = `test-clear-${Date.now()}`;
-        createWallet(sessionId);
-        requestExport(sessionId);
-        confirmExport(sessionId);
+        await createWallet(sessionId);
+        await requestExport(sessionId);
+        await confirmExport(sessionId);
 
         expect(hasPendingExport(sessionId)).toBe(false);
     });
 
-    test("requestExport fails for non-existent session", () => {
-        const result = requestExport("non-existent-session");
+    test("requestExport fails for non-existent session", async () => {
+        const result = await requestExport("non-existent-session");
         expect(result.pending).toBe(false);
     });
 });

@@ -35,7 +35,9 @@ export interface TokenExchangeConfig {
  */
 export abstract class OAuthVerifier {
     protected readonly config: OAuthConfig;
-    protected readonly env = getEnv();
+    protected get env() {
+        return getEnv();
+    }
 
     constructor(config: OAuthConfig) {
         this.config = config;

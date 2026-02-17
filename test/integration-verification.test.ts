@@ -35,7 +35,7 @@ describe("Verification Flow: GitHub File", () => {
     const verificationCode = "test-code-123";
 
     // Step 1: Create phantom user for third-party launch
-    const phantom = createPhantomUser("github", repoId);
+    const phantom = await createPhantomUser("github", repoId);
     expect(phantom.isNew).toBe(true);
     expect(phantom.user.status).toBe("phantom");
     expect(phantom.walletAddress).toMatch(/^0x[0-9a-fA-F]{40}$/);
@@ -68,7 +68,7 @@ describe("Verification Flow: GitHub File", () => {
 
     // Step 4: Claim identity
     const privyUserId = `privy-user-${Date.now()}`;
-    const claim = claimIdentity("github", repoId, privyUserId);
+    const claim = await claimIdentity("github", repoId, privyUserId);
     expect(claim.success).toBe(true);
     expect(claim.user?.status).toBe("claimed");
     expect(claim.user?.privyUserId).toBe(privyUserId);
@@ -81,7 +81,7 @@ describe("Verification Flow: GitHub File", () => {
     const wrongCode = "wrong-code";
 
     // Create phantom user
-    const phantom = createPhantomUser("github", repoId);
+    const phantom = await createPhantomUser("github", repoId);
 
     // Mock GitHub API with wrong code
     const fileContent = `verification-code=${wrongCode}\nwallet-address=${phantom.walletAddress}`;
@@ -109,7 +109,7 @@ describe("Verification Flow: GitHub File", () => {
     expect(result.error).toContain("Verification code does not match");
 
     // Identity should still be phantom
-    const user = findUserByPlatform("github", repoId);
+    const user = await findUserByPlatform("github", repoId);
     expect(user?.status).toBe("phantom");
   });
 
@@ -117,7 +117,7 @@ describe("Verification Flow: GitHub File", () => {
     const repoId = `testorg/testrepo-wrong-${Date.now()}`;
 
     // Create phantom user
-    const phantom = createPhantomUser("github", repoId);
+    const phantom = await createPhantomUser("github", repoId);
 
     // Mock GitHub API - file not found
     globalThis.fetch = mock(() =>
@@ -135,7 +135,7 @@ describe("Verification Flow: GitHub File", () => {
     // Can still claim (claim is separate from verification),
     // but in a real flow, the backend would check verification first
     const privyUserId = `privy-user-${Date.now()}`;
-    const claim = claimIdentity("github", repoId, privyUserId);
+    const claim = await claimIdentity("github", repoId, privyUserId);
     expect(claim.success).toBe(true); // Claim succeeds regardless of verification
   });
 });
@@ -145,7 +145,7 @@ describe("Verification Flow: GitHub OAuth", () => {
     const repoId = "testowner/testrepo";
 
     // Create phantom user
-    const phantom = createPhantomUser("github", repoId);
+    const phantom = await createPhantomUser("github", repoId);
 
     // Mock GitHub OAuth flow
     let callCount = 0;
@@ -196,7 +196,7 @@ describe("Verification Flow: GitHub OAuth", () => {
 
     // Claim identity
     const privyUserId = `privy-user-${Date.now()}`;
-    const claim = claimIdentity("github", repoId, privyUserId);
+    const claim = await claimIdentity("github", repoId, privyUserId);
     expect(claim.success).toBe(true);
     expect(claim.user?.privyUserId).toBe(privyUserId);
   });
@@ -205,7 +205,7 @@ describe("Verification Flow: GitHub OAuth", () => {
     const repoId = "testowner/testrepo-contributor";
 
     // Create phantom user
-    createPhantomUser("github", repoId);
+    await createPhantomUser("github", repoId);
 
     // Mock GitHub OAuth flow with write permission (not admin)
     let callCount = 0;
@@ -257,7 +257,7 @@ describe("Verification Flow: Domain File", () => {
     const verificationCode = "domain-code-123";
 
     // Create phantom user for domain
-    const phantom = createPhantomUser("domain", domain);
+    const phantom = await createPhantomUser("domain", domain);
     expect(phantom.isNew).toBe(true);
     expect(phantom.user.status).toBe("phantom");
 
@@ -282,7 +282,7 @@ describe("Verification Flow: Domain File", () => {
 
     // Claim identity
     const privyUserId = `privy-user-${Date.now()}`;
-    const claim = claimIdentity("domain", domain, privyUserId);
+    const claim = await claimIdentity("domain", domain, privyUserId);
     expect(claim.success).toBe(true);
     expect(claim.user?.status).toBe("claimed");
   });
@@ -291,7 +291,7 @@ describe("Verification Flow: Domain File", () => {
     const domain = `missing-${Date.now()}.com`;
 
     // Create phantom user
-    const phantom = createPhantomUser("domain", domain);
+    const phantom = await createPhantomUser("domain", domain);
 
     // Mock 404 response
     globalThis.fetch = mock(() =>
@@ -315,7 +315,7 @@ describe("Verification Flow: Domain Meta Tag", () => {
     const verificationCode = "meta-code-123";
 
     // Create phantom user
-    const phantom = createPhantomUser("domain", domain);
+    const phantom = await createPhantomUser("domain", domain);
 
     // Mock HTML with meta tag
     const html = `
@@ -343,7 +343,7 @@ describe("Verification Flow: Domain Meta Tag", () => {
 
     // Claim identity
     const privyUserId = `privy-user-${Date.now()}`;
-    const claim = claimIdentity("domain", domain, privyUserId);
+    const claim = await claimIdentity("domain", domain, privyUserId);
     expect(claim.success).toBe(true);
   });
 
@@ -351,7 +351,7 @@ describe("Verification Flow: Domain Meta Tag", () => {
     const domain = `no-meta-${Date.now()}.com`;
 
     // Create phantom user
-    const phantom = createPhantomUser("domain", domain);
+    const phantom = await createPhantomUser("domain", domain);
 
     // Mock HTML without meta tag
     const html = `
@@ -386,32 +386,32 @@ describe("Verification Flow: Multi-Identity User", () => {
     const privyUserId = `privy-user-multi-${Date.now()}`;
 
     // Create two phantom users (third-party launches)
-    const phantom1 = createPhantomUser("github", repo1);
-    const phantom2 = createPhantomUser("github", repo2);
+    const phantom1 = await createPhantomUser("github", repo1);
+    const phantom2 = await createPhantomUser("github", repo2);
 
     expect(phantom1.walletAddress).not.toBe(phantom2.walletAddress);
 
     // Dev verifies and claims first identity
-    const claim1 = claimIdentity("github", repo1, privyUserId);
+    const claim1 = await claimIdentity("github", repo1, privyUserId);
     expect(claim1.success).toBe(true);
     expect(claim1.merged).toBe(false);
     const primaryWallet = claim1.walletAddress!;
 
     // Dev verifies and claims second identity (same Privy user)
-    const claim2 = claimIdentity("github", repo2, privyUserId);
+    const claim2 = await claimIdentity("github", repo2, privyUserId);
     expect(claim2.success).toBe(true);
     expect(claim2.merged).toBe(true);
     expect(claim2.walletAddress).toBe(primaryWallet);
 
     // Both identities should now point to the same user
-    const user1 = findUserByPlatform("github", repo1);
-    const user2 = findUserByPlatform("github", repo2);
+    const user1 = await findUserByPlatform("github", repo1);
+    const user2 = await findUserByPlatform("github", repo2);
     expect(user1?.id).toBe(user2?.id);
     expect(user1?.walletAddress).toBe(primaryWallet);
     expect(user2?.walletAddress).toBe(primaryWallet);
 
     // User should have both identities
-    const identities = getUserIdentities(user1!.id);
+    const identities = await getUserIdentities(user1!.id);
     expect(identities.length).toBe(2);
     expect(identities.some((i) => i.platformId === repo1)).toBe(true);
     expect(identities.some((i) => i.platformId === repo2)).toBe(true);
@@ -424,14 +424,14 @@ describe("Verification Flow: Multi-Identity User", () => {
     const privyUserId = `privy-user-3way-${Date.now()}`;
 
     // Create three phantom users
-    createPhantomUser("github", repo1);
-    createPhantomUser("github", repo2);
-    createPhantomUser("github", repo3);
+    await createPhantomUser("github", repo1);
+    await createPhantomUser("github", repo2);
+    await createPhantomUser("github", repo3);
 
     // Claim all three with same Privy user
-    const claim1 = claimIdentity("github", repo1, privyUserId);
-    const claim2 = claimIdentity("github", repo2, privyUserId);
-    const claim3 = claimIdentity("github", repo3, privyUserId);
+    const claim1 = await claimIdentity("github", repo1, privyUserId);
+    const claim2 = await claimIdentity("github", repo2, privyUserId);
+    const claim3 = await claimIdentity("github", repo3, privyUserId);
 
     expect(claim1.success).toBe(true);
     expect(claim1.merged).toBe(false);
@@ -446,8 +446,8 @@ describe("Verification Flow: Multi-Identity User", () => {
     expect(claim3.walletAddress).toBe(primaryWallet);
 
     // Verify all identities belong to same user
-    const user = findUserByPlatform("github", repo1);
-    const identities = getUserIdentities(user!.id);
+    const user = await findUserByPlatform("github", repo1);
+    const identities = await getUserIdentities(user!.id);
     expect(identities.length).toBe(3);
   });
 
@@ -458,12 +458,12 @@ describe("Verification Flow: Multi-Identity User", () => {
     const privyUser2 = `privy-user-2-${Date.now()}`;
 
     // Create two phantom users
-    const phantom1 = createPhantomUser("github", repo1);
-    const phantom2 = createPhantomUser("github", repo2);
+    const phantom1 = await createPhantomUser("github", repo1);
+    const phantom2 = await createPhantomUser("github", repo2);
 
     // Different devs claim different identities
-    const claim1 = claimIdentity("github", repo1, privyUser1);
-    const claim2 = claimIdentity("github", repo2, privyUser2);
+    const claim1 = await claimIdentity("github", repo1, privyUser1);
+    const claim2 = await claimIdentity("github", repo2, privyUser2);
 
     expect(claim1.success).toBe(true);
     expect(claim2.success).toBe(true);
@@ -474,8 +474,8 @@ describe("Verification Flow: Multi-Identity User", () => {
     expect(claim1.walletAddress).not.toBe(claim2.walletAddress);
 
     // Should be different users
-    const user1 = findUserByPlatform("github", repo1);
-    const user2 = findUserByPlatform("github", repo2);
+    const user1 = await findUserByPlatform("github", repo1);
+    const user2 = await findUserByPlatform("github", repo2);
     expect(user1?.id).not.toBe(user2?.id);
   });
 });
@@ -489,17 +489,17 @@ describe("Verification Flow: Cross-Platform", () => {
     const privyUserId = `privy-user-cross-${Date.now()}`;
 
     // Create phantom users for both platforms
-    const phantomGitHub = createPhantomUser("github", repo);
-    const phantomDomain = createPhantomUser("domain", domain);
+    const phantomGitHub = await createPhantomUser("github", repo);
+    const phantomDomain = await createPhantomUser("domain", domain);
 
     expect(phantomGitHub.walletAddress).not.toBe(phantomDomain.walletAddress);
 
     // Claim GitHub identity first
-    const claimGitHub = claimIdentity("github", repo, privyUserId);
+    const claimGitHub = await claimIdentity("github", repo, privyUserId);
     expect(claimGitHub.success).toBe(true);
 
     // Claim domain identity with same Privy user
-    const claimDomain = claimIdentity("domain", domain, privyUserId);
+    const claimDomain = await claimIdentity("domain", domain, privyUserId);
     expect(claimDomain.success).toBe(true);
     expect(claimDomain.merged).toBe(true);
 
@@ -507,11 +507,11 @@ describe("Verification Flow: Cross-Platform", () => {
     expect(claimDomain.walletAddress).toBe(claimGitHub.walletAddress);
 
     // Verify cross-platform identity consolidation
-    const userByGitHub = findUserByPlatform("github", repo);
-    const userByDomain = findUserByPlatform("domain", domain);
+    const userByGitHub = await findUserByPlatform("github", repo);
+    const userByDomain = await findUserByPlatform("domain", domain);
     expect(userByGitHub?.id).toBe(userByDomain?.id);
 
-    const identities = getUserIdentities(userByGitHub!.id);
+    const identities = await getUserIdentities(userByGitHub!.id);
     expect(identities.length).toBe(2);
     expect(identities.some((i) => i.platform === "github")).toBe(true);
     expect(identities.some((i) => i.platform === "domain")).toBe(true);
@@ -521,11 +521,11 @@ describe("Verification Flow: Cross-Platform", () => {
 // ─── Idempotency and Edge Cases ─────────────────────────
 
 describe("Verification Flow: Idempotency", () => {
-  test("creating phantom user twice returns same user", () => {
+  test("creating phantom user twice returns same user", async () => {
     const repo = `testorg/repo-idem-${Date.now()}`;
 
-    const phantom1 = createPhantomUser("github", repo);
-    const phantom2 = createPhantomUser("github", repo);
+    const phantom1 = await createPhantomUser("github", repo);
+    const phantom2 = await createPhantomUser("github", repo);
 
     expect(phantom1.isNew).toBe(true);
     expect(phantom2.isNew).toBe(false);
@@ -533,16 +533,16 @@ describe("Verification Flow: Idempotency", () => {
     expect(phantom1.user.id).toBe(phantom2.user.id);
   });
 
-  test("claiming same identity twice returns same result", () => {
+  test("claiming same identity twice returns same result", async () => {
     const repo = `testorg/repo-claim-idem-${Date.now()}`;
     const privyUserId = `privy-user-idem-${Date.now()}`;
 
     // Create phantom user
-    createPhantomUser("github", repo);
+    await createPhantomUser("github", repo);
 
     // Claim twice
-    const claim1 = claimIdentity("github", repo, privyUserId);
-    const claim2 = claimIdentity("github", repo, privyUserId);
+    const claim1 = await claimIdentity("github", repo, privyUserId);
+    const claim2 = await claimIdentity("github", repo, privyUserId);
 
     expect(claim1.success).toBe(true);
     expect(claim2.success).toBe(true);
@@ -550,11 +550,11 @@ describe("Verification Flow: Idempotency", () => {
     expect(claim2.message).toContain("already belongs");
   });
 
-  test("attempting to claim non-existent identity fails", () => {
+  test("attempting to claim non-existent identity fails", async () => {
     const repo = `testorg/nonexistent-${Date.now()}`;
     const privyUserId = `privy-user-${Date.now()}`;
 
-    const claim = claimIdentity("github", repo, privyUserId);
+    const claim = await claimIdentity("github", repo, privyUserId);
     expect(claim.success).toBe(false);
     expect(claim.message).toContain("No phantom identity found");
   });
@@ -567,7 +567,7 @@ describe("Verification Flow: Error Recovery", () => {
     const repo = `testorg/repo-error-${Date.now()}`;
 
     // Create phantom user
-    const phantom = createPhantomUser("github", repo);
+    const phantom = await createPhantomUser("github", repo);
     const originalStatus = phantom.user.status;
 
     // Mock network error during verification
@@ -583,7 +583,7 @@ describe("Verification Flow: Error Recovery", () => {
     expect(result.error).toContain("Network error");
 
     // Identity should remain unchanged
-    const user = findUserByPlatform("github", repo);
+    const user = await findUserByPlatform("github", repo);
     expect(user?.status).toBe(originalStatus);
     expect(user?.id).toBe(phantom.user.id);
   });
@@ -592,7 +592,7 @@ describe("Verification Flow: Error Recovery", () => {
     const repo = `testorg/repo-partial-${Date.now()}`;
 
     // Create phantom user
-    const phantom = createPhantomUser("github", repo);
+    const phantom = await createPhantomUser("github", repo);
 
     // Mock partial file content (missing wallet address)
     const fileContent = `verification-code=test-code`;

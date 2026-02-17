@@ -38,7 +38,7 @@ describe("getFacebookAuthUrl", () => {
     expect(url).toContain("https://www.facebook.com/v21.0/dialog/oauth");
     expect(url).toContain(`client_id=${mockEnv.FACEBOOK_APP_ID}`);
     expect(url).toContain(`state=${state}`);
-    expect(url).toContain("scope=pages_show_list%2Cpages_read_engagement");
+    expect(url).toContain("scope=pages_show_list+pages_read_engagement");
     expect(url).toContain(
       `redirect_uri=${encodeURIComponent(`${mockEnv.BASE_URL}/api/verify/facebook/callback`)}`,
     );
@@ -63,7 +63,7 @@ describe("getFacebookAuthUrl", () => {
     const urlObj = new URL(url);
     const scope = urlObj.searchParams.get("scope");
 
-    expect(scope).toBe("pages_show_list,pages_read_engagement");
+    expect(scope).toBe("pages_show_list pages_read_engagement");
   });
 
   test("uses Facebook Graph API v21.0", () => {
