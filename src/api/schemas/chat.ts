@@ -22,7 +22,7 @@ export const ChatMessageRequestSchema = z
                 example: "How do I verify my GitHub repository?",
                 description: "Message to send to the AI agent (max 10,000 characters)",
             }),
-        sessionId: SessionIdSchema.optional().openapi({
+        sessionId: SessionIdSchema.optional().nullable().openapi({
             description: "Existing session ID to continue conversation",
         }),
         walletAddress: WalletAddressSchema.optional().openapi({
