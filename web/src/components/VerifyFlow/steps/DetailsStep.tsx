@@ -7,6 +7,7 @@
 import type { Method } from "../types";
 import type { PrivyContext } from "@/hooks/useOptionalPrivy";
 import { ErrorAlert } from "@/components/common/ErrorAlert";
+import { LoadingButton } from "@/components/common/LoadingButton";
 
 interface DetailsStepProps {
     method: Method;
@@ -105,15 +106,15 @@ export function DetailsStep({
                 <button type="button" className="btn-secondary" onClick={onBack}>
                     Back
                 </button>
-                <button
-                    type="button"
-                    className="btn-primary"
-                    disabled={!projectId || !walletAddress || loading}
+                <LoadingButton
+                    loading={loading}
+                    disabled={!projectId || !walletAddress}
                     onClick={onSubmit}
+                    loadingText="Creating..."
                     style={{ flex: 1 }}
                 >
-                    {loading ? "Creating..." : method.requiresOAuth ? "Authorize" : "Get Instructions"}
-                </button>
+                    {method.requiresOAuth ? "Authorize" : "Get Instructions"}
+                </LoadingButton>
             </div>
         </div>
     );

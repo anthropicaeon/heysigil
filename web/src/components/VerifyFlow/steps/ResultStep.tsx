@@ -5,6 +5,7 @@
  */
 
 import type { ChallengeResponse, CheckResult } from "../types";
+import { LoadingButton } from "@/components/common/LoadingButton";
 
 interface ResultStepProps {
     challenge: ChallengeResponse;
@@ -34,15 +35,14 @@ export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultS
                     USDC fee earnings from LP activity. Native tokens remain locked until
                     community milestone votes.
                 </p>
-                <button
-                    type="button"
-                    className="btn-primary"
-                    disabled={loading}
+                <LoadingButton
+                    loading={loading}
                     onClick={onClaim}
+                    loadingText="Stamping..."
                     style={{ width: "100%" }}
                 >
-                    {loading ? "Stamping..." : "Stamp Sigil"}
-                </button>
+                    Stamp Sigil
+                </LoadingButton>
             </div>
             {checkResult.attestationUid && (
                 <div className="result-box result-success" style={{ marginTop: "var(--space-4)" }}>

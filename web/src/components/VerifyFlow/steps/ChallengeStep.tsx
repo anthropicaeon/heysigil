@@ -6,6 +6,7 @@
 
 import type { ChallengeResponse } from "../types";
 import { ErrorAlert } from "@/components/common/ErrorAlert";
+import { LoadingButton } from "@/components/common/LoadingButton";
 
 interface ChallengeStepProps {
     challenge: ChallengeResponse;
@@ -33,15 +34,14 @@ export function ChallengeStep({ challenge, loading, error, onBack, onCheck }: Ch
                 <button type="button" className="btn-secondary" onClick={onBack}>
                     Back
                 </button>
-                <button
-                    type="button"
-                    className="btn-primary"
-                    disabled={loading}
+                <LoadingButton
+                    loading={loading}
                     onClick={onCheck}
+                    loadingText="Checking..."
                     style={{ flex: 1 }}
                 >
-                    {loading ? "Checking..." : "Check Verification"}
-                </button>
+                    Check Verification
+                </LoadingButton>
             </div>
         </div>
     );
