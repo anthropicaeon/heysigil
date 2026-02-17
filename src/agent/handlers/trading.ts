@@ -5,6 +5,7 @@
 import type { ActionHandler } from "./types.js";
 import { executeSwap, resolveToken } from "../../services/trading.js";
 import { requireWallet } from "../helpers/wallet-check.js";
+import { getCoinGeckoId } from "../../config/price-lookup.js";
 
 export const swapHandler: ActionHandler = async (params, sessionId) => {
     const { fromToken, toToken, amount } = params;
@@ -78,31 +79,8 @@ export const bridgeHandler: ActionHandler = async (params) => {
 
 export const priceHandler: ActionHandler = async (params) => {
     const { token } = params;
-    const tokenMap: Record<string, string> = {
-        eth: "ethereum",
-        ethereum: "ethereum",
-        weth: "ethereum",
-        btc: "bitcoin",
-        bitcoin: "bitcoin",
-        usdc: "usd-coin",
-        usdt: "tether",
-        sol: "solana",
-        solana: "solana",
-        base: "ethereum",
-        matic: "matic-network",
-        polygon: "matic-network",
-        arb: "arbitrum",
-        arbitrum: "arbitrum",
-        op: "optimism",
-        optimism: "optimism",
-        avax: "avalanche-2",
-        link: "chainlink",
-        uni: "uniswap",
-        aave: "aave",
-    };
-
     const tokenStr = String(token || "eth").toLowerCase();
-    const coinId = tokenMap[tokenStr] || tokenStr;
+    const coinId = getCoinGeckoId(tokenStr);
 
     try {
         const res = await fetch(
