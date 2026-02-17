@@ -1,5 +1,6 @@
 import type { VerificationResult } from "./types.js";
 import { OAuthVerifier, fetchWithAuth } from "./oauth-base.js";
+import { getEnv } from "../config/env.js";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -18,6 +19,8 @@ interface GitHubPermission {
     permission: "admin" | "maintain" | "write" | "triage" | "read";
     role_name: string;
 }
+
+const GITHUB_API_HEADERS = { Accept: "application/vnd.github+json" };
 
 // ─── GitHub OAuth Verifier ──────────────────────────────
 
@@ -76,17 +79,8 @@ class GitHubOAuthVerifier extends OAuthVerifier {
         }
         const [owner, repo] = parts;
 
-        const user = await fetchWithAuth<GitHubUser>(
-            "https://api.github.com/user",
-            accessToken,
-            { Accept: "application/vnd.github+json" },
-        );
-
-        const permission = await fetchWithAuth<GitHubPermission>(
-            `https://api.github.com/repos/${owner}/${repo}/collaborators/${user.login}/permission`,
-            accessToken,
-            { Accept: "application/vnd.github+json" },
-        );
+        const user = await getGitHubUser(accessToken);
+        const permission = await checkRepoPermission(accessToken, owner, repo, user.login);
 
         const isAdmin = permission.permission === "admin";
 
@@ -120,7 +114,77 @@ export async function verifyGitHubOwnership(
     code: string,
     projectId: string,
 ): Promise<VerificationResult> {
+    const parts = projectId.split("/");
+    if (parts.length !== 2) {
+        return {
+            success: false,
+            method: "github_oauth",
+            projectId,
+            error: "Invalid project ID — expected 'owner/repo' format",
+        };
+    }
     return githubVerifier.verify(code, projectId);
+}
+
+// ─── Backward-compatible helper exports ─────────────────
+
+export async function exchangeGitHubCode(code: string): Promise<string> {
+    const env = getEnv();
+    const response = await fetch("https://github.com/login/oauth/access_token", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+        },
+        body: JSON.stringify({
+            client_id: env.GITHUB_CLIENT_ID,
+            client_secret: env.GITHUB_CLIENT_SECRET,
+            code,
+            redirect_uri: `${env.BASE_URL}/api/verify/github/callback`,
+        }),
+    });
+    const data = (await response.json()) as GitHubTokenResponse;
+    if (!data.access_token) {
+        throw new Error("Failed to exchange GitHub OAuth code");
+    }
+    return data.access_token;
+}
+
+export async function getGitHubUser(accessToken: string): Promise<GitHubUser> {
+    try {
+        return await fetchWithAuth<GitHubUser>(
+            "https://api.github.com/user",
+            accessToken,
+            GITHUB_API_HEADERS,
+        );
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        if (msg.startsWith("API error: ")) {
+            throw new Error(`GitHub ${msg}`);
+        }
+        throw error;
+    }
+}
+
+export async function checkRepoPermission(
+    accessToken: string,
+    owner: string,
+    repo: string,
+    username: string,
+): Promise<GitHubPermission> {
+    try {
+        return await fetchWithAuth<GitHubPermission>(
+            `https://api.github.com/repos/${owner}/${repo}/collaborators/${username}/permission`,
+            accessToken,
+            GITHUB_API_HEADERS,
+        );
+    } catch (error) {
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        if (msg.startsWith("API error: ")) {
+            throw new Error(`GitHub ${msg}`);
+        }
+        throw error;
+    }
 }
 
 // ─── File-based verification (non-OAuth) ────────────────

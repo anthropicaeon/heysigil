@@ -157,7 +157,7 @@ describe("Trading: Swap Validation", () => {
 
     test("returns error for unknown fromToken", async () => {
         const sessionId = `test-unknown-from-${Date.now()}`;
-        createWallet(sessionId);
+        await createWallet(sessionId);
         const result = await executeSwap(sessionId, "FAKECOIN", "USDC", "1");
 
         expect(result.success).toBe(false);
@@ -168,7 +168,7 @@ describe("Trading: Swap Validation", () => {
 
     test("returns error for unknown toToken", async () => {
         const sessionId = `test-unknown-to-${Date.now()}`;
-        createWallet(sessionId);
+        await createWallet(sessionId);
         const result = await executeSwap(sessionId, "ETH", "FAKECOIN", "1");
 
         expect(result.success).toBe(false);
@@ -179,7 +179,7 @@ describe("Trading: Swap Validation", () => {
 
     test("returns error for invalid amount", async () => {
         const sessionId = `test-invalid-amt-${Date.now()}`;
-        createWallet(sessionId);
+        await createWallet(sessionId);
         const result = await executeSwap(sessionId, "ETH", "USDC", "invalid");
 
         expect(result.success).toBe(false);
@@ -189,7 +189,7 @@ describe("Trading: Swap Validation", () => {
 
     test("handles valid decimal amounts", async () => {
         const sessionId = `test-decimal-${Date.now()}`;
-        createWallet(sessionId);
+        await createWallet(sessionId);
         const result = await executeSwap(sessionId, "ETH", "USDC", "0.001");
 
         // Will fail with API error or insufficient funds, not validation error
@@ -200,7 +200,7 @@ describe("Trading: Swap Validation", () => {
 
     test("returns error for empty amount", async () => {
         const sessionId = `test-empty-amt-${Date.now()}`;
-        createWallet(sessionId);
+        await createWallet(sessionId);
         const result = await executeSwap(sessionId, "ETH", "USDC", "");
 
         expect(result.success).toBe(false);
