@@ -11,6 +11,13 @@ export type VerificationMethod =
 
 export type VerificationStatus = "pending" | "verified" | "failed" | "expired";
 
+/**
+ * Platform identifiers for identity verification.
+ * Derived from const array for runtime + type safety.
+ */
+export const PLATFORMS = ["github", "twitter", "instagram", "facebook", "domain"] as const;
+export type Platform = (typeof PLATFORMS)[number];
+
 export interface VerificationRequest {
     /** Unique verification attempt ID */
     id: string;
@@ -72,7 +79,7 @@ export interface VerificationChallenge {
 /**
  * Maps verification method to canonical platform name.
  */
-export const METHOD_TO_PLATFORM: Record<VerificationMethod, string> = {
+export const METHOD_TO_PLATFORM: Record<VerificationMethod, Platform> = {
     github_oauth: "github",
     github_oidc: "github",
     github_file: "github",
@@ -87,6 +94,6 @@ export const METHOD_TO_PLATFORM: Record<VerificationMethod, string> = {
 /**
  * Get platform name from verification method.
  */
-export function getPlatformFromMethod(method: VerificationMethod): string {
+export function getPlatformFromMethod(method: VerificationMethod): Platform {
     return METHOD_TO_PLATFORM[method];
 }

@@ -31,6 +31,7 @@ import { encryptKey, decryptKey } from "../utils/crypto.js";
 import * as identityRepo from "../db/repositories/identity.repository.js";
 import * as walletRepo from "../db/repositories/wallet.repository.js";
 import { loggers } from "../utils/logger.js";
+import type { Platform } from "../verification/types.js";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -93,7 +94,7 @@ async function resolveUser(userId: string): Promise<User> {
  * Idempotent: if an identity for this platform/platformId already exists, returns the existing user.
  */
 export async function createPhantomUser(
-    platform: string,
+    platform: Platform,
     platformId: string,
     createdBy?: string,
 ): Promise<CreatePhantomResult> {
@@ -159,7 +160,7 @@ export async function createPhantomUser(
  * this merges the two users into one (consolidating wallets).
  */
 export async function claimIdentity(
-    platform: string,
+    platform: Platform,
     platformId: string,
     privyUserId: string,
 ): Promise<ClaimResult> {
@@ -289,7 +290,10 @@ async function mergeUsers(
 /**
  * Find an identity by platform + platformId.
  */
-export async function findIdentity(platform: string, platformId: string): Promise<Identity | null> {
+export async function findIdentity(
+    platform: Platform,
+    platformId: string,
+): Promise<Identity | null> {
     return identityRepo.findIdentityByPlatform(platform, platformId);
 }
 
@@ -297,7 +301,7 @@ export async function findIdentity(platform: string, platformId: string): Promis
  * Find the user that owns a platform identity.
  */
 export async function findUserByPlatform(
-    platform: string,
+    platform: Platform,
     platformId: string,
 ): Promise<User | null> {
     const identity = await findIdentity(platform, platformId);
@@ -326,7 +330,7 @@ export async function findUserByWallet(walletAddress: string): Promise<User | nu
 /**
  * Check if a platform identity already has a user.
  */
-export async function hasIdentity(platform: string, platformId: string): Promise<boolean> {
+export async function hasIdentity(platform: Platform, platformId: string): Promise<boolean> {
     const identity = await identityRepo.findIdentityByPlatform(platform, platformId);
     return identity !== null;
 }
