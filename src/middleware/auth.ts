@@ -10,6 +10,7 @@
 import { PrivyClient } from "@privy-io/server-auth";
 import type { Context, Next } from "hono";
 import { getEnv } from "../config/env.js";
+import { unauthorized, serviceUnavailable } from "../api/helpers/responses.js";
 
 let _client: PrivyClient | null = null;
 
@@ -64,20 +65,17 @@ export function privyAuth() {
         // Never pass through - this could expose protected endpoints in production
         if (!client) {
             console.error("[AUTH] privyAuth() called but Privy not configured");
-            return c.json({
-                error: "Authentication service unavailable",
-                hint: "PRIVY_APP_ID and PRIVY_APP_SECRET must be configured"
-            }, 503);
+            return serviceUnavailable(c, "Authentication service unavailable");
         }
 
         const token = extractToken(c);
         if (!token) {
-            return c.json({ error: "Authentication required" }, 401);
+            return unauthorized(c);
         }
 
         const result = await verifyToken(token);
         if (!result) {
-            return c.json({ error: "Invalid or expired token" }, 401);
+            return unauthorized(c, "Invalid or expired token");
         }
 
         // Attach userId to context for downstream handlers
