@@ -18,6 +18,7 @@
 import type { Context, Next } from "hono";
 import { getRateLimitStore, type RateLimitStore } from "./rate-limit-store.js";
 import { getEnv, isProduction } from "../config/env.js";
+import { loggers } from "../utils/logger.js";
 
 // Track if we've warned about missing TRUST_PROXY config
 let _hasWarnedAboutTrustProxy = false;
@@ -45,7 +46,7 @@ function getClientIp(c: Context): string {
 
     // Warn once in production if TRUST_PROXY is not explicitly configured
     if (isProduction() && !trustProxy && !_hasWarnedAboutTrustProxy) {
-        console.warn(
+        loggers.rateLimit.warn(
             "[rate-limit] WARNING: TRUST_PROXY not set in production. " +
                 "Proxy headers are trusted by default, which allows rate limit bypass. " +
                 'Set TRUST_PROXY="cloudflare", "true", or "false" to suppress this warning.',
