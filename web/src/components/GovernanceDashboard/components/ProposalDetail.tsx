@@ -24,7 +24,6 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
 
     const handleVote = (support: boolean) => {
         // TODO: Call contract voteWithComment or voteCompletionWithComment
-        console.log(`Vote: ${support ? "YES" : "NO"}, comment: ${comment}`);
         setVoted(true);
     };
 
