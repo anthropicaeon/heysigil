@@ -54,6 +54,7 @@ import {
     OAuthCallbackQuerySchema,
 } from "../schemas/verify.js";
 import type { AnyHandler } from "../types.js";
+import { handleOAuthCallback } from "../helpers/oauth-callback.js";
 
 const verify = new OpenAPIHono();
 
@@ -325,50 +326,12 @@ verify.openapi(githubCallbackRoute, (async (c) => {
     const { code, state } = (c.req as any).valid("query") as z.infer<
         typeof OAuthCallbackQuerySchema
     >;
-    const env = getEnv();
-
-    if (!code || !state) {
-        return c.redirect(`${env.FRONTEND_URL}/verify?error=missing_params`);
-    }
-
-    const db = getDb();
-    const [record] = await db
-        .select()
-        .from(schema.verifications)
-        .where(eq(schema.verifications.id, state))
-        .limit(1);
-
-    if (!record || record.status !== "pending") {
-        return c.redirect(`${env.FRONTEND_URL}/verify?error=invalid_state`);
-    }
-
-    const result = await verifyGitHubOwnership(code, record.projectId);
-
-    if (result.success) {
-        await db
-            .update(schema.verifications)
-            .set({
-                status: "verified",
-                platformUsername: result.platformUsername,
-                proof: result.proof,
-                verifiedAt: new Date(),
-            })
-            .where(eq(schema.verifications.id, state));
-
-        // Claim any phantom identity tied to this GitHub repo
-        await tryClaimPhantomIdentity("github_oauth", record.projectId, record.walletAddress);
-
-        return c.redirect(`${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=github`);
-    }
-
-    await db
-        .update(schema.verifications)
-        .set({ status: "failed", proof: { error: result.error } })
-        .where(eq(schema.verifications.id, state));
-
-    return c.redirect(
-        `${env.FRONTEND_URL}/verify?status=failed&error=${encodeURIComponent(result.error || "Unknown")}`,
-    );
+    return handleOAuthCallback(c, code, state, {
+        platform: "github",
+        method: "github_oauth",
+        verifyFn: verifyGitHubOwnership,
+        claimPhantomFn: tryClaimPhantomIdentity,
+    });
 }) as AnyHandler);
 
 /**
@@ -409,52 +372,12 @@ verify.openapi(facebookCallbackRoute, (async (c) => {
     const { code, state } = (c.req as any).valid("query") as z.infer<
         typeof OAuthCallbackQuerySchema
     >;
-    const env = getEnv();
-
-    if (!code || !state) {
-        return c.redirect(`${env.FRONTEND_URL}/verify?error=missing_params`);
-    }
-
-    const db = getDb();
-    const [record] = await db
-        .select()
-        .from(schema.verifications)
-        .where(eq(schema.verifications.id, state))
-        .limit(1);
-
-    if (!record || record.status !== "pending") {
-        return c.redirect(`${env.FRONTEND_URL}/verify?error=invalid_state`);
-    }
-
-    const result = await verifyFacebookOwnership(code, record.projectId);
-
-    if (result.success) {
-        await db
-            .update(schema.verifications)
-            .set({
-                status: "verified",
-                platformUsername: result.platformUsername,
-                proof: result.proof,
-                verifiedAt: new Date(),
-            })
-            .where(eq(schema.verifications.id, state));
-
-        // Claim any phantom identity tied to this Facebook account
-        await tryClaimPhantomIdentity("facebook_oauth", record.projectId, record.walletAddress);
-
-        return c.redirect(
-            `${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=facebook`,
-        );
-    }
-
-    await db
-        .update(schema.verifications)
-        .set({ status: "failed", proof: { error: result.error } })
-        .where(eq(schema.verifications.id, state));
-
-    return c.redirect(
-        `${env.FRONTEND_URL}/verify?status=failed&error=${encodeURIComponent(result.error || "Unknown")}`,
-    );
+    return handleOAuthCallback(c, code, state, {
+        platform: "facebook",
+        method: "facebook_oauth",
+        verifyFn: verifyFacebookOwnership,
+        claimPhantomFn: tryClaimPhantomIdentity,
+    });
 }) as AnyHandler);
 
 /**
@@ -495,52 +418,12 @@ verify.openapi(instagramCallbackRoute, (async (c) => {
     const { code, state } = (c.req as any).valid("query") as z.infer<
         typeof OAuthCallbackQuerySchema
     >;
-    const env = getEnv();
-
-    if (!code || !state) {
-        return c.redirect(`${env.FRONTEND_URL}/verify?error=missing_params`);
-    }
-
-    const db = getDb();
-    const [record] = await db
-        .select()
-        .from(schema.verifications)
-        .where(eq(schema.verifications.id, state))
-        .limit(1);
-
-    if (!record || record.status !== "pending") {
-        return c.redirect(`${env.FRONTEND_URL}/verify?error=invalid_state`);
-    }
-
-    const result = await verifyInstagramOwnership(code, record.projectId);
-
-    if (result.success) {
-        await db
-            .update(schema.verifications)
-            .set({
-                status: "verified",
-                platformUsername: result.platformUsername,
-                proof: result.proof,
-                verifiedAt: new Date(),
-            })
-            .where(eq(schema.verifications.id, state));
-
-        // Claim any phantom identity tied to this Instagram account
-        await tryClaimPhantomIdentity("instagram_graph", record.projectId, record.walletAddress);
-
-        return c.redirect(
-            `${env.FRONTEND_URL}/verify?status=success&id=${state}&platform=instagram`,
-        );
-    }
-
-    await db
-        .update(schema.verifications)
-        .set({ status: "failed", proof: { error: result.error } })
-        .where(eq(schema.verifications.id, state));
-
-    return c.redirect(
-        `${env.FRONTEND_URL}/verify?status=failed&error=${encodeURIComponent(result.error || "Unknown")}`,
-    );
+    return handleOAuthCallback(c, code, state, {
+        platform: "instagram",
+        method: "instagram_graph",
+        verifyFn: verifyInstagramOwnership,
+        claimPhantomFn: tryClaimPhantomIdentity,
+    });
 }) as AnyHandler);
 
 // ---------- Manual check (file/DNS/meta/tweet) ----------
