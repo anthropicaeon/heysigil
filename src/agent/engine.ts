@@ -6,7 +6,7 @@ import { getErrorMessage } from "../utils/errors.js";
 import { randomBytes } from "node:crypto";
 import { createDayTTLMap } from "../utils/ttl-map.js";
 import { buildOptimizedContext } from "./context-manager.js";
-import { TOOLS, TOOL_TO_INTENT, mapToolParams } from "./tools/index.js";
+import { TOOLS, TOOL_TO_INTENT, mapToolParams, validateToolInput } from "./tools/index.js";
 import { getDefaultProvider, type LLMProvider, type LLMMessage } from "./providers/index.js";
 import { AGENT_SYSTEM_PROMPT } from "./system-prompt.js";
 
@@ -78,7 +78,8 @@ async function executeSingleToolIteration(
         if (block.type !== "tool_use") continue;
 
         const intent = TOOL_TO_INTENT[block.name] || "unknown";
-        const params = mapToolParams(block.name, block.input as Record<string, unknown>);
+        const validatedInput = validateToolInput(block.name, block.input);
+        const params = mapToolParams(block.name, validatedInput);
         const action: ParsedAction = { intent, params, confidence: 1.0, rawText: userMessage };
 
         let result: ActionResult;
