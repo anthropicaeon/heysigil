@@ -12,6 +12,9 @@
 
 import { EAS, SchemaRegistry } from "@ethereum-attestation-service/eas-sdk";
 import { ethers } from "ethers";
+import { createLogger } from "../utils/logger.js";
+
+const log = createLogger("register-schema");
 
 // ─── Constants ──────────────────────────────────────────
 
@@ -49,13 +52,10 @@ function getConfig() {
 
     const signerKey = process.env.ATTESTATION_SIGNER_KEY;
     if (!signerKey) {
-        console.error("Error: ATTESTATION_SIGNER_KEY environment variable is required.");
-        console.error("This is the private key of the wallet that will register the schema.");
-        console.error("");
-        console.error("Usage:");
-        console.error(
-            "  ATTESTATION_SIGNER_KEY=0x... bun run src/scripts/register-schema.ts",
-        );
+        log.error("ATTESTATION_SIGNER_KEY environment variable is required.");
+        log.error("This is the private key of the wallet that will register the schema.");
+        log.error("Usage:");
+        log.error("  ATTESTATION_SIGNER_KEY=0x... bun run src/scripts/register-schema.ts");
         process.exit(1);
     }
 
@@ -67,31 +67,30 @@ function getConfig() {
 async function main() {
     const { rpcUrl, chainLabel, signerKey } = getConfig();
 
-    console.log(`\n🔷 Sigil EAS Schema Registration`);
-    console.log(`   Chain:    ${chainLabel}`);
-    console.log(`   RPC:      ${rpcUrl}`);
-    console.log(`   Registry: ${SCHEMA_REGISTRY_ADDRESS}`);
-    console.log(`   Schema:   "${SCHEMA_STRING}"`);
-    console.log();
+    log.info("Sigil EAS Schema Registration");
+    log.info({ chain: chainLabel, rpc: rpcUrl, registry: SCHEMA_REGISTRY_ADDRESS }, "Config");
+    log.info({ schema: SCHEMA_STRING }, "Schema");
 
     // Connect
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     const signer = new ethers.Wallet(signerKey, provider);
     const signerAddress = await signer.getAddress();
 
-    console.log(`   Signer:   ${signerAddress}`);
+    log.info({ signer: signerAddress }, "Signer");
 
     const balance = await provider.getBalance(signerAddress);
-    console.log(`   Balance:  ${ethers.formatEther(balance)} ETH`);
+    log.info({ balanceEth: ethers.formatEther(balance) }, "Signer balance");
 
     if (balance === 0n) {
-        console.error("\n❌ Signer has zero balance. Fund it with testnet ETH first.");
-        console.error("   Base Sepolia faucet: https://www.coinbase.com/faucets/base-ethereum-goerli-faucet");
+        log.error("Signer has zero balance. Fund it with testnet ETH first.");
+        log.error(
+            "Base Sepolia faucet: https://www.coinbase.com/faucets/base-ethereum-goerli-faucet",
+        );
         process.exit(1);
     }
 
     // Check if schema already registered by trying to look it up
-    console.log(`\n⏳ Registering schema...`);
+    log.info("Registering schema...");
 
     const schemaRegistry = new SchemaRegistry(SCHEMA_REGISTRY_ADDRESS);
     schemaRegistry.connect(signer);
@@ -105,37 +104,27 @@ async function main() {
 
         const schemaUid = await tx.wait();
 
-        console.log(`\n✅ Schema registered successfully!`);
-        console.log(`\n   Schema UID: ${schemaUid}`);
-        console.log();
-        console.log(`   Add this to your .env file:`);
-        console.log(`   EAS_SCHEMA_UID=${schemaUid}`);
-        console.log();
+        log.info({ schemaUid }, "Schema registered successfully");
+        log.info("Add this to your .env file:");
+        log.info(`EAS_SCHEMA_UID=${schemaUid}`);
 
         // Verify we can read it back
         const eas = new EAS(EAS_CONTRACT_ADDRESS);
         eas.connect(provider);
-        console.log(`   Verified on EAS ✓`);
-        console.log(
-            `   View on explorer: https://base-sepolia.easscan.org/schema/view/${schemaUid}`,
-        );
+        log.info("Verified on EAS");
+        log.info(`   View on explorer: https://base-sepolia.easscan.org/schema/view/${schemaUid}`);
     } catch (err) {
-        if (
-            err instanceof Error &&
-            err.message.includes("already")
-        ) {
-            console.log(`\n⚠️  Schema may already be registered.`);
-            console.log(
-                `   Check: https://base-sepolia.easscan.org/schemas`,
-            );
+        if (err instanceof Error && err.message.includes("already")) {
+            log.warn("Schema may already be registered.");
+            log.warn(`   Check: https://base-sepolia.easscan.org/schemas`);
         } else {
-            console.error(`\n❌ Registration failed:`, err);
+            log.error({ err }, "Registration failed");
             process.exit(1);
         }
     }
 }
 
 main().catch((err) => {
-    console.error("Fatal error:", err);
+    log.error({ err }, "Fatal error");
     process.exit(1);
 });
