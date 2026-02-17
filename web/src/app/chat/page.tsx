@@ -100,9 +100,14 @@ export default function ChatPage() {
         setSessionId(data.sessionId);
       }
 
+      // Ensure content is always a string — backend may return error objects
+      const rawContent = data.response || data.error || "No response";
+      const content =
+        typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
+
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.response || data.error || "No response" },
+        { role: "assistant", content },
       ]);
     } catch {
       setMessages((prev) => [
