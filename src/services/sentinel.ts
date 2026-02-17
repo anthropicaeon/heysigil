@@ -113,9 +113,8 @@ export async function screenToken(
         const buyTax = parseFloat(tokenData.buy_tax || "0") * 100;
         const sellTax = parseFloat(tokenData.sell_tax || "0") * 100;
         const holderCount = parseInt(tokenData.holder_count || "0", 10);
-        const lpLocked = tokenData.lp_holders?.some(
-            (lp: { is_locked: number }) => lp.is_locked === 1,
-        ) ?? false;
+        const lpLocked =
+            tokenData.lp_holders?.some((lp: { is_locked: number }) => lp.is_locked === 1) ?? false;
 
         // Build reasons
         const reasons: string[] = [];
@@ -135,9 +134,7 @@ export async function screenToken(
         let riskLevel: "safe" | "warning" | "danger" = "safe";
         if (isHoneypot || isMalicious || canTakeOwnership) {
             riskLevel = "danger";
-        } else if (
-            hiddenOwner || selfDestruct || buyTax > 10 || sellTax > 10 || holderCount < 10
-        ) {
+        } else if (hiddenOwner || selfDestruct || buyTax > 10 || sellTax > 10 || holderCount < 10) {
             riskLevel = "warning";
         }
 
@@ -172,7 +169,9 @@ export async function screenToken(
             holderCount: 0,
             lpLocked: false,
             riskLevel: "warning",
-            reasons: [`GoPlus check failed: ${err instanceof Error ? err.message : "unknown error"}`],
+            reasons: [
+                `GoPlus check failed: ${err instanceof Error ? err.message : "unknown error"}`,
+            ],
         };
     }
 }
@@ -185,8 +184,14 @@ export async function screenToken(
  */
 const INJECTION_PATTERNS: { pattern: RegExp; label: string }[] = [
     // Direct instruction override
-    { pattern: /ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|rules?|prompts?)/i, label: "instruction override" },
-    { pattern: /forget\s+(everything|all|your)\s+(you|instructions?|rules?)/i, label: "memory wipe" },
+    {
+        pattern: /ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|rules?|prompts?)/i,
+        label: "instruction override",
+    },
+    {
+        pattern: /forget\s+(everything|all|your)\s+(you|instructions?|rules?)/i,
+        label: "memory wipe",
+    },
     { pattern: /you\s+are\s+now\s+/i, label: "persona hijack" },
     { pattern: /act\s+as\s+(if|though)\s+you\s+(are|were)\s+/i, label: "persona override" },
     { pattern: /pretend\s+(you('re|\s+are)\s+|to\s+be\s+)/i, label: "persona pretend" },
@@ -194,13 +199,26 @@ const INJECTION_PATTERNS: { pattern: RegExp; label: string }[] = [
     { pattern: /\bsystem\s*:\s*/i, label: "system role injection" },
 
     // Extraction attempts
-    { pattern: /what\s+(are|is)\s+your\s+(system|initial|original)\s+(prompt|instructions?|rules?)/i, label: "prompt extraction" },
-    { pattern: /reveal\s+your\s+(prompt|instructions?|rules?|system)/i, label: "prompt extraction" },
+    {
+        pattern:
+            /what\s+(are|is)\s+your\s+(system|initial|original)\s+(prompt|instructions?|rules?)/i,
+        label: "prompt extraction",
+    },
+    {
+        pattern: /reveal\s+your\s+(prompt|instructions?|rules?|system)/i,
+        label: "prompt extraction",
+    },
     { pattern: /show\s+me\s+your\s+(prompt|instructions?|config)/i, label: "prompt extraction" },
-    { pattern: /repeat\s+(the|your)\s+(system|above|initial)\s+(prompt|message|instructions?)/i, label: "prompt extraction" },
+    {
+        pattern: /repeat\s+(the|your)\s+(system|above|initial)\s+(prompt|message|instructions?)/i,
+        label: "prompt extraction",
+    },
 
     // Fund diversion
-    { pattern: /send\s+(all|everything|my\s+entire)\s+(balance|funds|tokens?|eth|crypto)/i, label: "fund drain attempt" },
+    {
+        pattern: /send\s+(all|everything|my\s+entire)\s+(balance|funds|tokens?|eth|crypto)/i,
+        label: "fund drain attempt",
+    },
     { pattern: /transfer\s+(all|everything)\s+to\s+/i, label: "fund drain attempt" },
     { pattern: /send\s+all\s+my\s+/i, label: "fund drain attempt" },
     { pattern: /drain/i, label: "drain keyword" },
@@ -229,7 +247,16 @@ export function screenPrompt(userMessage: string): ScreenResult {
 
     // Single match on something minor = warning, multiple or critical = blocked
     const isCritical = reasons.some((r) =>
-        ["instruction override", "memory wipe", "persona hijack", "system prompt injection", "system role injection", "fund drain attempt", "code injection", "XSS attempt"].includes(r),
+        [
+            "instruction override",
+            "memory wipe",
+            "persona hijack",
+            "system prompt injection",
+            "system role injection",
+            "fund drain attempt",
+            "code injection",
+            "XSS attempt",
+        ].includes(r),
     );
 
     return {
@@ -260,7 +287,7 @@ const BLOCKED_ADDRESSES = new Set([
  */
 const SUSPICIOUS_ADDRESS_PATTERNS = [
     /^0x0{30,}/i, // Too many leading zeros (vanity scam)
-    /^0xdead/i,   // Dead address prefix
+    /^0xdead/i, // Dead address prefix
 ];
 
 /**
@@ -299,20 +326,13 @@ export function screenAddress(address: string): ScreenResult {
     };
 }
 
-/**
- * Add an address to the blocklist at runtime.
- */
-export function blockAddress(address: string): void {
-    BLOCKED_ADDRESSES.add(address.toLowerCase().trim());
-}
-
 // ─── Composite Screening ────────────────────────────────
 
 export interface ActionScreenParams {
     userMessage: string;
     intent: string;
-    addresses?: string[];     // Any addresses involved (to, from, token contracts)
-    tokenAddress?: string;    // Token contract to screen
+    addresses?: string[]; // Any addresses involved (to, from, token contracts)
+    tokenAddress?: string; // Token contract to screen
     chain?: string;
 }
 
