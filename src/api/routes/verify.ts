@@ -849,10 +849,6 @@ verify.openapi(listRoute, (async (c) => {
     // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
     const query = (c.req as any).valid("query") as z.infer<typeof VerificationListQuerySchema>;
 
-    // Parse pagination params with sane defaults
-    const limit = Math.min(Math.max(1, query.limit || 20), 100);
-    const offset = Math.max(0, query.offset || 0);
-
     const db = getDb();
 
     // Build conditional where clauses
@@ -887,16 +883,16 @@ verify.openapi(listRoute, (async (c) => {
         .from(schema.verifications)
         .where(and(...conditions))
         .orderBy(desc(schema.verifications.createdAt))
-        .limit(limit)
-        .offset(offset);
+        .limit(query.limit)
+        .offset(query.offset);
 
     return c.json({
         verifications: records,
         pagination: {
-            limit,
-            offset,
+            limit: query.limit,
+            offset: query.offset,
             count: records.length,
-            hasMore: records.length === limit,
+            hasMore: records.length === query.limit,
         },
     });
 }) as AnyHandler);

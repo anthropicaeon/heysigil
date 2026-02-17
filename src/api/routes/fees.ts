@@ -143,9 +143,6 @@ fees.openapi(distributionsRoute, (async (c) => {
         );
     }
 
-    const limit = Math.min(Math.max(1, query.limit || 20), 100);
-    const offset = Math.max(0, query.offset || 0);
-
     const result = await findDistributions(
         {
             eventType: query.type as FeeEventType | undefined,
@@ -153,7 +150,7 @@ fees.openapi(distributionsRoute, (async (c) => {
             devAddress: query.dev || undefined,
             tokenAddress: query.token || undefined,
         },
-        { limit, offset },
+        { limit: query.limit, offset: query.offset },
     );
 
     return c.json({
@@ -205,11 +202,11 @@ fees.openapi(projectRoute, (async (c) => {
     // URL decode the projectId (handles "org/repo" format)
     const decodedProjectId = decodeURIComponent(projectId);
 
-    const limit = Math.min(Math.max(1, query.limit || 20), 100);
-    const offset = Math.max(0, query.offset || 0);
-
     // Search by projectId field in fee distributions
-    const result = await findDistributions({ poolId: undefined }, { limit, offset });
+    const result = await findDistributions(
+        { poolId: undefined },
+        { limit: query.limit, offset: query.offset },
+    );
 
     // Filter results by projectId client-side (until we add projectId index)
     const filtered = result.data.filter((d) => d.projectId === decodedProjectId);
@@ -218,8 +215,8 @@ fees.openapi(projectRoute, (async (c) => {
         projectId: decodedProjectId,
         distributions: filtered.map(formatDistribution),
         pagination: {
-            limit,
-            offset,
+            limit: query.limit,
+            offset: query.offset,
             count: filtered.length,
             hasMore: result.pagination.hasMore,
         },
@@ -266,10 +263,7 @@ fees.openapi(poolRoute, (async (c) => {
     // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
     const query = (c.req as any).valid("query") as z.infer<typeof PaginationQuerySchema>;
 
-    const limit = Math.min(Math.max(1, query.limit || 20), 100);
-    const offset = Math.max(0, query.offset || 0);
-
-    const result = await findByPoolId(poolId, { limit, offset });
+    const result = await findByPoolId(poolId, { limit: query.limit, offset: query.offset });
 
     return c.json({
         poolId,
@@ -326,10 +320,7 @@ fees.openapi(devRoute, (async (c) => {
     // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
     const query = (c.req as any).valid("query") as z.infer<typeof PaginationQuerySchema>;
 
-    const limit = Math.min(Math.max(1, query.limit || 20), 100);
-    const offset = Math.max(0, query.offset || 0);
-
-    const result = await findByDevAddress(address, { limit, offset });
+    const result = await findByDevAddress(address, { limit: query.limit, offset: query.offset });
 
     // Calculate earnings summary
     let totalEarned = 0n;
