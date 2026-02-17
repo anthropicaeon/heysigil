@@ -95,6 +95,7 @@ export default function LayoutInner({
                         <div className="footer-links">
                             <Link href="/chat">Chat</Link>
                             <Link href="/verify">Verify</Link>
+                            <Link href="/audit">Audited by Claude Opus 4.6 [1m]</Link>
                         </div>
                     </div>
                 </footer>
