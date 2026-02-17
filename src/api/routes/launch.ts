@@ -7,6 +7,7 @@
  */
 
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { z } from "zod";
 import { getBody, getParams } from "../helpers/request.js";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
