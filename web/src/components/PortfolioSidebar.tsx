@@ -117,6 +117,13 @@ export default function PortfolioSidebar({
                 </div>
             )}
 
+            {/* Privy not configured — local-dev notice */}
+            {!privy && (
+                <p style={{ fontSize: "var(--text-xs)", color: "var(--warning)", margin: "0 0 var(--space-2)" }}>
+                    Sign-in disabled (set NEXT_PUBLIC_PRIVY_APP_ID).
+                </p>
+            )}
+
             {/* Not signed in — prompt to login */}
             {!isAuthenticated && privy && (
                 <EmptyState

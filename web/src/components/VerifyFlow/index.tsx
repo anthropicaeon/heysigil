@@ -41,6 +41,8 @@ function mapVerifyError(err: unknown, fallback: string): string {
 
 export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}) {
     const privy = useOptionalPrivy();
+    const isPrivyConfigured = privy !== null;
+    const isApiConfigured = !!process.env.NEXT_PUBLIC_API_URL;
     const address = privy?.user?.wallet?.address ?? null;
 
     const { createChallenge: apiCreateChallenge, checkVerification: apiCheckVerification, createAttestation: apiCreateAttestation } =
@@ -126,6 +128,18 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
 
     return (
         <div className="verify-flow">
+            {/* Local-dev fallback notices */}
+            {!isPrivyConfigured && (
+                <p style={{ fontSize: "var(--text-sm)", color: "var(--warning)", marginBottom: "var(--space-4)" }}>
+                    Sign-in not configured (set NEXT_PUBLIC_PRIVY_APP_ID). Wallet address auto-fill is disabled — enter it manually.
+                </p>
+            )}
+            {!isApiConfigured && (
+                <p style={{ fontSize: "var(--text-sm)", color: "var(--warning)", marginBottom: "var(--space-4)" }}>
+                    Backend not configured (set NEXT_PUBLIC_API_URL). Using http://localhost:3001 — start the backend locally.
+                </p>
+            )}
+
             {/* Zeigarnik Effect: Visual progress bar */}
             <div className="progress-container">
                 <div className="progress-header">

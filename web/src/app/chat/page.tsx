@@ -52,6 +52,11 @@ export default function ChatPage() {
             <div className="chat-container">
                 {/* Messages */}
                 <div className="chat-messages">
+                    {!process.env.NEXT_PUBLIC_API_URL && (
+                        <p style={{ fontSize: "var(--text-xs)", color: "var(--warning)", margin: "0 0 var(--space-2)", textAlign: "center" }}>
+                            Backend not configured (set NEXT_PUBLIC_API_URL). Using http://localhost:3001 — start the backend locally.
+                        </p>
+                    )}
                     {messages.map((msg, i) => (
                         <div
                             key={`${msg.role}-${i}`}
