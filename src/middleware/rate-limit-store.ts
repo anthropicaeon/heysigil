@@ -7,6 +7,7 @@
  */
 
 import { getEnv } from "../config/env.js";
+import { loggers } from "../utils/logger.js";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -174,7 +175,7 @@ class RedisStore implements RateLimitStore {
         });
 
         this.client = client;
-        console.warn("[RateLimit] Redis connected");
+        loggers.rateLimit.info("Redis connected");
     }
 
     async increment(key: string, windowMs: number): Promise<RateLimitEntry> {
@@ -313,10 +314,10 @@ export function getRateLimitStore(): RateLimitStore {
     const env = getEnv();
 
     if (env.REDIS_URL) {
-        console.warn("[RateLimit] Using Redis store for distributed rate limiting");
+        loggers.rateLimit.info("Using Redis store for distributed rate limiting");
         _store = new RedisStore(env.REDIS_URL);
     } else {
-        console.warn("[RateLimit] Using in-memory store (single instance only)");
+        loggers.rateLimit.info("Using in-memory store (single instance only)");
         _store = new InMemoryStore();
     }
 
