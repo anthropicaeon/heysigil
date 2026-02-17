@@ -33,6 +33,7 @@ export function mapToolParams(
                 description: input.description,
                 devLinks: input.devLinks,
                 isSelfLaunch: input.isSelfLaunch,
+                confirmed: input.confirmed,
             };
         case "send_tokens":
             return {
