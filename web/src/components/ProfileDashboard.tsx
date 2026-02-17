@@ -4,21 +4,8 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useFeeVault } from "@/hooks/useFeeVault";
-
-// ─── Types ───────────────────────────────────────────
-
-interface TokenInfo {
-    address: string;
-    name: string;
-    ticker: string;
-    color: string;
-    role: "dev" | "holder";
-    balance: string;
-    escrowBalance: string;
-    activeProposals: number;
-    totalProposals: number;
-    projectId: string;
-}
+import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
+import type { TokenInfo } from "@/types";
 
 // ─── Mock Data (token holdings — live fee data comes from hook) ─
 
@@ -97,18 +84,6 @@ function formatNum(val: string): string {
     if (num >= 1e6) return `${(num / 1e6).toFixed(0)}M`;
     if (num >= 1e3) return `${(num / 1e3).toFixed(0)}K`;
     return val;
-}
-
-// Try to get Privy auth — returns null if Privy not configured
-function useOptionalPrivy() {
-    try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { usePrivy } = require("@privy-io/react-auth");
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        return usePrivy();
-    } catch {
-        return null;
-    }
 }
 
 // ─── Fee Claim Card ──────────────────────────────────
