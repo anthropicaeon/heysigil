@@ -2,6 +2,7 @@ import type { VerificationResult } from "./types.js";
 import { OAuthVerifier, fetchWithAuth } from "./oauth-base.js";
 import { getEnv } from "../config/env.js";
 import { getErrorMessage } from "../utils/errors.js";
+import { parseConfigFile } from "../utils/config-parser.js";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -234,12 +235,9 @@ export async function verifyGitHubFile(
         // Expected format:
         // verification-code=<code>
         // wallet-address=<address>
-        const lines = content.split("\n").map((l) => l.trim());
-        const codeMatch = lines.find((l) => l.startsWith("verification-code="));
-        const walletMatch = lines.find((l) => l.startsWith("wallet-address="));
-
-        const fileCode = codeMatch?.split("=")[1]?.trim();
-        const fileWallet = walletMatch?.split("=")[1]?.trim();
+        const parsed = parseConfigFile(content, ["verification-code", "wallet-address"]);
+        const fileCode = parsed["verification-code"];
+        const fileWallet = parsed["wallet-address"];
 
         if (fileCode !== expectedCode) {
             return {
