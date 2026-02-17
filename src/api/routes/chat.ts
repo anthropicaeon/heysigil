@@ -4,7 +4,7 @@
  * AI agent chat session endpoints.
  */
 
-import { createRoute, OpenAPIHono, type z, type RouteHandler } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, type z } from "@hono/zod-openapi";
 import { createSession, getSession, processMessage } from "../../agent/engine.js";
 import { chatRateLimit, sessionEnumerationRateLimit } from "../../middleware/rate-limit.js";
 import {
@@ -18,12 +18,10 @@ import {
     SessionIdParamSchema,
     ChatSessionResponseSchema,
 } from "../schemas/chat.js";
+import type { AnyHandler } from "../types.js";
+import { getErrorMessage } from "../../utils/errors.js";
 
 const chat = new OpenAPIHono();
-
-// Type helper to relax strict type checking for handlers
-// biome-ignore lint/suspicious/noExplicitAny: OpenAPI handler type relaxation
-type AnyHandler = RouteHandler<any, any>;
 
 // Rate limit chat messages (20 per minute per IP - LLM calls are expensive)
 chat.use("/", chatRateLimit());
@@ -111,7 +109,7 @@ chat.openapi(postMessageRoute, (async (c) => {
             response,
         });
     } catch (err) {
-        return c.json({ error: err instanceof Error ? err.message : "Agent error" }, 500);
+        return c.json({ error: getErrorMessage(err, "Agent error") }, 500);
     }
 }) as AnyHandler);
 

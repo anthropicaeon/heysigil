@@ -5,7 +5,7 @@
  * All endpoints are read-only and publicly accessible.
  */
 
-import { createRoute, OpenAPIHono, type z, type RouteHandler } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, type z } from "@hono/zod-openapi";
 import {
     findDistributions,
     findByPoolId,
@@ -36,12 +36,9 @@ import {
     TxVerifyResponseSchema,
     IndexerHealthResponseSchema,
 } from "../schemas/fees.js";
+import type { AnyHandler } from "../types.js";
 
 const fees = new OpenAPIHono();
-
-// Type helper to relax strict type checking for handlers
-// biome-ignore lint/suspicious/noExplicitAny: OpenAPI handler type relaxation
-type AnyHandler = RouteHandler<any, any>;
 
 // Rate limit: 60 requests per minute per IP (public endpoints)
 fees.use(
