@@ -7,6 +7,7 @@
 
 import { getEnv, isProduction } from "./env.js";
 import { validateEncryptionConfig } from "../utils/crypto.js";
+import { loggers } from "../utils/logger.js";
 
 interface CheckResult {
     name: string;
@@ -23,7 +24,7 @@ export function runStartupChecks(): void {
     const env = getEnv();
     const prod = isProduction();
 
-    console.log(`\n[Startup] Running security checks (NODE_ENV=${env.NODE_ENV})...\n`);
+    loggers.startup.info({ nodeEnv: env.NODE_ENV }, "Running security checks");
 
     // ─── Critical: Encryption Key ────────────────────────
     const encryptionCheck = validateEncryptionConfig();
@@ -107,29 +108,31 @@ export function runStartupChecks(): void {
     let hasWarnings = false;
 
     for (const result of results) {
-        const icon = result.status === "ok" ? "✅" : result.status === "warning" ? "⚠️" : "❌";
-        const level =
-            result.status === "error" ? "error" : result.status === "warning" ? "warn" : "log";
-
-        console[level](`${icon} ${result.name}: ${result.message}`);
+        if (result.status === "error") {
+            loggers.startup.error({ check: result.name }, result.message);
+        } else if (result.status === "warning") {
+            loggers.startup.warn({ check: result.name }, result.message);
+        } else {
+            loggers.startup.info({ check: result.name }, result.message);
+        }
 
         if (result.status === "error") hasErrors = true;
         if (result.status === "warning") hasWarnings = true;
     }
 
-    console.log("");
-
     // ─── Fail in production if errors ────────────────────
     if (hasErrors && prod) {
-        console.error("[FATAL] Security check failed. Fix configuration before deploying.");
+        loggers.startup.error(
+            "Security check failed in production. Fix configuration before deploying.",
+        );
         process.exit(1);
     }
 
     if (hasWarnings && prod) {
-        console.warn("[WARNING] Some security checks have warnings. Review before going live.");
+        loggers.startup.warn("Some security checks have warnings. Review before going live.");
     }
 
     if (!hasErrors && !hasWarnings) {
-        console.log("[Startup] All security checks passed.\n");
+        loggers.startup.info("All security checks passed.");
     }
 }
