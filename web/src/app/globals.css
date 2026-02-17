@@ -962,6 +962,8 @@ input::placeholder {
   font-size: var(--text-sm);
   line-height: 1.6;
   white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .chat-bubble-user {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import Image from "next/image";
 import PortfolioSidebar from "../../components/PortfolioSidebar";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -33,7 +32,12 @@ function useOptionalPrivy() {
 }
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: "assistant",
+      content: "Hey. I'm Sigil — here to help you stamp projects, launch tokens, and trade crypto.\n\nNeed something?",
+    },
+  ]);
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -126,39 +130,7 @@ export default function ChatPage() {
       <div className="chat-container">
         {/* Messages */}
         <div className="chat-messages">
-          {messages.length === 0 && (
-            <div className="chat-empty">
-              <Image
-                src="/logo-sage.png"
-                alt="Sigil"
-                width={56}
-                height={56}
-                style={{
-                  borderRadius: "var(--radius-md)",
-                  margin: "0 auto var(--space-4)",
-                  display: "block",
-                }}
-              />
-              <p>What can I help you with?</p>
-              <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", marginTop: "var(--space-1)" }}>
-                Stamp your Sigil, trade tokens, check balances, and more.
-              </p>
-              <div className="chat-suggestions">
-                {SUGGESTIONS.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    className="btn-secondary btn-sm"
-                    onClick={() => {
-                      setInput(suggestion);
-                      inputRef.current?.focus();
-                    }}
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+
 
           {messages.map((msg, i) => (
             <div
