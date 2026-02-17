@@ -1,4 +1,14 @@
-import { Hono } from "hono";
+/**
+ * Verification API Routes
+ *
+ * Developer identity verification endpoints supporting multiple methods:
+ * - OAuth: GitHub, Facebook, Instagram
+ * - File-based: GitHub file, domain file, domain meta tag
+ * - DNS: Domain TXT record
+ * - zkTLS: Tweet verification
+ */
+
+import { createRoute, OpenAPIHono, type z, type RouteHandler } from "@hono/zod-openapi";
 import { randomBytes } from "node:crypto";
 import { eq, and, desc, inArray, type SQL } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
@@ -12,7 +22,6 @@ import { verifyDomainDns, verifyDomainFile, verifyDomainMeta } from "../../verif
 import { createTweetChallenge, verifyTweetProof } from "../../verification/tweet.js";
 import { getFacebookAuthUrl, verifyFacebookOwnership } from "../../verification/facebook.js";
 import { getInstagramAuthUrl, verifyInstagramOwnership } from "../../verification/instagram.js";
-import { createAttestation } from "../../attestation/eas.js";
 import type { VerificationMethod } from "../../verification/types.js";
 import {
     findIdentity,
@@ -25,9 +34,31 @@ import {
     oauthCallbackRateLimit,
     verifyStatusRateLimit,
 } from "../../middleware/rate-limit.js";
-import { privyAuth, privyAuthOptional, getUserId } from "../../middleware/auth.js";
+import { privyAuth, getUserId } from "../../middleware/auth.js";
+import {
+    ErrorResponseSchema,
+    NotFoundResponseSchema,
+    RateLimitResponseSchema,
+} from "../schemas/common.js";
+import { securityRequired } from "../openapi.js";
+import {
+    ChallengeRequestSchema,
+    ChallengeResponseSchema,
+    CheckRequestSchema,
+    CheckResponseSchema,
+    VerificationIdParamSchema,
+    VerificationStatusResponseSchema,
+    VerificationListQuerySchema,
+    VerificationListResponseSchema,
+    VerificationDetailResponseSchema,
+    OAuthCallbackQuerySchema,
+} from "../schemas/verify.js";
 
-const verify = new Hono();
+const verify = new OpenAPIHono();
+
+// Type helper to relax strict type checking for handlers
+// biome-ignore lint/suspicious/noExplicitAny: OpenAPI handler type relaxation
+type AnyHandler = RouteHandler<any, any>;
 
 // Rate limit challenge creation (10 per hour per IP - prevents DB spam)
 verify.use("/challenge", verifyChallengeRateLimit());
@@ -48,17 +79,6 @@ verify.use("/status/:id", verifyStatusRateLimit());
 /**
  * After any verification succeeds, check if a phantom identity exists
  * for the verified platform/project and claim it.
- *
- * Maps verification methods to identity platforms:
- *   github_oauth, github_oidc, github_file → "github"
- *   facebook_oauth                          → "facebook"
- *   instagram_graph                         → "instagram"
- *   tweet_zktls                             → "twitter"
- *   domain_dns, domain_file, domain_meta    → "domain"
- *
- * Uses walletAddress as the user identifier. When the dev later
- * links their Privy account, the merge logic in claimIdentity()
- * will consolidate identities under one user.
  */
 async function tryClaimPhantomIdentity(
     method: VerificationMethod,
@@ -109,17 +129,60 @@ async function tryClaimPhantomIdentity(
 /**
  * POST /api/verify/challenge
  * Create a new verification challenge for any method.
- *
- * Body: { method, projectId, walletAddress }
  */
-verify.post("/challenge", async (c) => {
-    const { method, projectId, walletAddress } = await c.req.json<{
-        method: VerificationMethod;
-        projectId: string;
-        walletAddress: string;
-    }>();
+const challengeRoute = createRoute({
+    method: "post",
+    path: "/challenge",
+    tags: ["Verify"],
+    summary: "Create verification challenge",
+    description: `
+Create a new verification challenge for any supported method.
+Returns instructions and (for OAuth methods) an authorization URL.
+Challenge expires in 24 hours.
+    `.trim(),
+    request: {
+        body: {
+            content: {
+                "application/json": {
+                    schema: ChallengeRequestSchema,
+                },
+            },
+            required: true,
+        },
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: ChallengeResponseSchema,
+                },
+            },
+            description: "Challenge created successfully",
+        },
+        400: {
+            content: {
+                "application/json": {
+                    schema: ErrorResponseSchema,
+                },
+            },
+            description: "Invalid request (missing fields or unsupported method)",
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (10 requests per hour)",
+        },
+    },
+});
 
-    if (!method || !projectId || !walletAddress) {
+verify.openapi(challengeRoute, (async (c) => {
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const body = (c.req as any).valid("json") as z.infer<typeof ChallengeRequestSchema>;
+
+    if (!body.method || !body.projectId || !body.walletAddress) {
         return c.json({ error: "Missing required fields: method, projectId, walletAddress" }, 400);
     }
 
@@ -129,9 +192,9 @@ verify.post("/challenge", async (c) => {
     const [record] = await db
         .insert(schema.verifications)
         .values({
-            method,
-            projectId,
-            walletAddress,
+            method: body.method,
+            projectId: body.projectId,
+            walletAddress: body.walletAddress,
             challengeCode,
             status: "pending",
             expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h expiry
@@ -142,18 +205,18 @@ verify.post("/challenge", async (c) => {
     let instructions = "";
     let authUrl = "";
 
-    switch (method) {
+    switch (body.method) {
         case "github_oauth": {
             authUrl = getGitHubAuthUrl(record.id);
-            instructions = `Click the authorization URL to verify you have admin access to ${projectId}.`;
+            instructions = `Click the authorization URL to verify you have admin access to ${body.projectId}.`;
             break;
         }
         case "github_file": {
             instructions = [
-                `Add a file at .well-known/pool-claim.txt in the ${projectId} repo with this content:`,
+                `Add a file at .well-known/pool-claim.txt in the ${body.projectId} repo with this content:`,
                 ``,
                 `verification-code=${challengeCode}`,
-                `wallet-address=${walletAddress}`,
+                `wallet-address=${body.walletAddress}`,
                 ``,
                 `Then call POST /api/verify/check with your verification ID.`,
             ].join("\n");
@@ -163,7 +226,7 @@ verify.post("/challenge", async (c) => {
             instructions = [
                 `Add this DNS TXT record:`,
                 ``,
-                `  _poolclaim.${projectId} TXT "pool-claim-verify=${walletAddress}:${challengeCode}"`,
+                `  _poolclaim.${body.projectId} TXT "pool-claim-verify=${body.walletAddress}:${challengeCode}"`,
                 ``,
                 `DNS propagation can take 15 minutes to 72 hours.`,
                 `Then call POST /api/verify/check with your verification ID.`,
@@ -172,11 +235,11 @@ verify.post("/challenge", async (c) => {
         }
         case "domain_file": {
             instructions = [
-                `Place a file at: https://${projectId}/.well-known/pool-claim.txt`,
+                `Place a file at: https://${body.projectId}/.well-known/pool-claim.txt`,
                 ``,
                 `Content:`,
                 `verification-token=${challengeCode}`,
-                `wallet-address=${walletAddress}`,
+                `wallet-address=${body.walletAddress}`,
                 ``,
                 `Then call POST /api/verify/check with your verification ID.`,
             ].join("\n");
@@ -184,44 +247,44 @@ verify.post("/challenge", async (c) => {
         }
         case "domain_meta": {
             instructions = [
-                `Add this meta tag to the <head> of https://${projectId}:`,
+                `Add this meta tag to the <head> of https://${body.projectId}:`,
                 ``,
-                `<meta name="pool-claim-verification" content="${walletAddress}:${challengeCode}" />`,
+                `<meta name="pool-claim-verification" content="${body.walletAddress}:${challengeCode}" />`,
                 ``,
                 `Then call POST /api/verify/check with your verification ID.`,
             ].join("\n");
             break;
         }
         case "tweet_zktls": {
-            const tweetChallenge = createTweetChallenge(projectId, walletAddress);
+            const tweetChallenge = createTweetChallenge(body.projectId, body.walletAddress);
             instructions = tweetChallenge.instructions;
             break;
         }
         case "facebook_oauth": {
             authUrl = getFacebookAuthUrl(record.id);
-            instructions = `Click the authorization URL to verify you admin the Facebook page "${projectId}".`;
+            instructions = `Click the authorization URL to verify you admin the Facebook page "${body.projectId}".`;
             break;
         }
         case "instagram_graph": {
             authUrl = getInstagramAuthUrl(record.id);
-            instructions = `Click the authorization URL to verify you own the Instagram account @${projectId}.`;
+            instructions = `Click the authorization URL to verify you own the Instagram account @${body.projectId}.`;
             break;
         }
         default:
-            return c.json({ error: `Unsupported verification method: ${method}` }, 400);
+            return c.json({ error: `Unsupported verification method: ${body.method}` }, 400);
     }
 
     return c.json({
         verificationId: record.id,
         challengeCode,
-        method,
-        projectId,
-        walletAddress,
+        method: body.method,
+        projectId: body.projectId,
+        walletAddress: body.walletAddress,
         instructions,
         authUrl: authUrl || undefined,
-        expiresAt: record.expiresAt,
+        expiresAt: record.expiresAt?.toISOString(),
     });
-});
+}) as AnyHandler);
 
 // ---------- OAuth callbacks ----------
 
@@ -229,9 +292,42 @@ verify.post("/challenge", async (c) => {
  * GET /api/verify/github/callback
  * GitHub OAuth callback — completes GitHub verification.
  */
-verify.get("/github/callback", async (c) => {
-    const code = c.req.query("code");
-    const state = c.req.query("state"); // state = verification ID
+const githubCallbackRoute = createRoute({
+    method: "get",
+    path: "/github/callback",
+    tags: ["Verify"],
+    summary: "GitHub OAuth callback",
+    description:
+        "OAuth callback endpoint for GitHub verification. Redirects to frontend with status.",
+    request: {
+        query: OAuthCallbackQuerySchema,
+    },
+    responses: {
+        302: {
+            description: "Redirect to frontend with verification status",
+            headers: {
+                Location: {
+                    schema: { type: "string" },
+                    description: "Frontend URL with status parameters",
+                },
+            },
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (20 requests per minute)",
+        },
+    },
+});
+
+verify.openapi(githubCallbackRoute, (async (c) => {
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const { code, state } = (c.req as any).valid("query") as z.infer<
+        typeof OAuthCallbackQuerySchema
+    >;
     const env = getEnv();
 
     if (!code || !state) {
@@ -276,14 +372,46 @@ verify.get("/github/callback", async (c) => {
     return c.redirect(
         `${env.FRONTEND_URL}/verify?status=failed&error=${encodeURIComponent(result.error || "Unknown")}`,
     );
-});
+}) as AnyHandler);
 
 /**
  * GET /api/verify/facebook/callback
  */
-verify.get("/facebook/callback", async (c) => {
-    const code = c.req.query("code");
-    const state = c.req.query("state");
+const facebookCallbackRoute = createRoute({
+    method: "get",
+    path: "/facebook/callback",
+    tags: ["Verify"],
+    summary: "Facebook OAuth callback",
+    description:
+        "OAuth callback endpoint for Facebook verification. Redirects to frontend with status.",
+    request: {
+        query: OAuthCallbackQuerySchema,
+    },
+    responses: {
+        302: {
+            description: "Redirect to frontend with verification status",
+            headers: {
+                Location: {
+                    schema: { type: "string" },
+                },
+            },
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (20 requests per minute)",
+        },
+    },
+});
+
+verify.openapi(facebookCallbackRoute, (async (c) => {
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const { code, state } = (c.req as any).valid("query") as z.infer<
+        typeof OAuthCallbackQuerySchema
+    >;
     const env = getEnv();
 
     if (!code || !state) {
@@ -330,14 +458,46 @@ verify.get("/facebook/callback", async (c) => {
     return c.redirect(
         `${env.FRONTEND_URL}/verify?status=failed&error=${encodeURIComponent(result.error || "Unknown")}`,
     );
-});
+}) as AnyHandler);
 
 /**
  * GET /api/verify/instagram/callback
  */
-verify.get("/instagram/callback", async (c) => {
-    const code = c.req.query("code");
-    const state = c.req.query("state");
+const instagramCallbackRoute = createRoute({
+    method: "get",
+    path: "/instagram/callback",
+    tags: ["Verify"],
+    summary: "Instagram OAuth callback",
+    description:
+        "OAuth callback endpoint for Instagram verification. Redirects to frontend with status.",
+    request: {
+        query: OAuthCallbackQuerySchema,
+    },
+    responses: {
+        302: {
+            description: "Redirect to frontend with verification status",
+            headers: {
+                Location: {
+                    schema: { type: "string" },
+                },
+            },
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (20 requests per minute)",
+        },
+    },
+});
+
+verify.openapi(instagramCallbackRoute, (async (c) => {
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const { code, state } = (c.req as any).valid("query") as z.infer<
+        typeof OAuthCallbackQuerySchema
+    >;
     const env = getEnv();
 
     if (!code || !state) {
@@ -384,31 +544,78 @@ verify.get("/instagram/callback", async (c) => {
     return c.redirect(
         `${env.FRONTEND_URL}/verify?status=failed&error=${encodeURIComponent(result.error || "Unknown")}`,
     );
-});
+}) as AnyHandler);
 
 // ---------- Manual check (file/DNS/meta/tweet) ----------
 
 /**
  * POST /api/verify/check
  * Check a pending verification (for non-OAuth methods).
- *
- * Body: { verificationId, tweetProof? }
  */
-verify.post("/check", async (c) => {
-    const { verificationId, tweetProof } = await c.req.json<{
-        verificationId: string;
-        tweetProof?: {
-            proofData: string;
-            provider: "reclaim" | "opacity" | "vlayer";
-            challengeCode: string;
-        };
-    }>();
+const checkRoute = createRoute({
+    method: "post",
+    path: "/check",
+    tags: ["Verify"],
+    summary: "Check verification status",
+    description: `
+Check a pending verification for non-OAuth methods (file, DNS, meta tag, tweet).
+For tweet_zktls, include the tweetProof object with zkTLS proof data.
+    `.trim(),
+    request: {
+        body: {
+            content: {
+                "application/json": {
+                    schema: CheckRequestSchema,
+                },
+            },
+            required: true,
+        },
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: CheckResponseSchema,
+                },
+            },
+            description: "Verification check result",
+        },
+        400: {
+            content: {
+                "application/json": {
+                    schema: ErrorResponseSchema,
+                },
+            },
+            description: "Invalid request or verification expired",
+        },
+        404: {
+            content: {
+                "application/json": {
+                    schema: NotFoundResponseSchema,
+                },
+            },
+            description: "Verification not found",
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (30 requests per minute)",
+        },
+    },
+});
+
+verify.openapi(checkRoute, (async (c) => {
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const body = (c.req as any).valid("json") as z.infer<typeof CheckRequestSchema>;
 
     const db = getDb();
     const [record] = await db
         .select()
         .from(schema.verifications)
-        .where(eq(schema.verifications.id, verificationId))
+        .where(eq(schema.verifications.id, body.verificationId))
         .limit(1);
 
     if (!record) {
@@ -421,7 +628,7 @@ verify.post("/check", async (c) => {
         await db
             .update(schema.verifications)
             .set({ status: "expired" })
-            .where(eq(schema.verifications.id, verificationId));
+            .where(eq(schema.verifications.id, body.verificationId));
         return c.json({ error: "Verification expired" }, 400);
     }
 
@@ -457,10 +664,14 @@ verify.post("/check", async (c) => {
             );
             break;
         case "tweet_zktls":
-            if (!tweetProof) {
+            if (!body.tweetProof) {
                 return c.json({ error: "Missing tweetProof for tweet_zktls verification" }, 400);
             }
-            result = await verifyTweetProof(tweetProof, record.projectId, record.challengeCode);
+            result = await verifyTweetProof(
+                body.tweetProof,
+                record.projectId,
+                record.challengeCode,
+            );
             break;
         default:
             return c.json(
@@ -478,7 +689,7 @@ verify.post("/check", async (c) => {
                 proof: result.proof,
                 verifiedAt: new Date(),
             })
-            .where(eq(schema.verifications.id, verificationId));
+            .where(eq(schema.verifications.id, body.verificationId));
 
         // Claim any phantom identity tied to this verified project
         await tryClaimPhantomIdentity(
@@ -486,31 +697,69 @@ verify.post("/check", async (c) => {
             record.projectId,
             record.walletAddress,
         );
-    } else {
-        // Keep as pending so they can retry (don't mark failed yet)
     }
+    // Keep as pending so they can retry (don't mark failed yet)
 
     return c.json({
-        verificationId,
-        status: result.success ? "verified" : "pending",
+        verificationId: body.verificationId,
+        status: result.success ? ("verified" as const) : ("pending" as const),
         success: result.success,
         error: result.error,
         method: record.method,
         projectId: record.projectId,
     });
-});
+}) as AnyHandler);
 
 // ---------- List & Status ----------
 
 /**
  * GET /api/verify/status/:id
  * Public endpoint returning minimal verification status.
- * Does NOT expose wallet addresses or platform usernames.
- *
- * Use case: Frontend polling verification status after OAuth callback.
  */
-verify.get("/status/:id", async (c) => {
-    const id = c.req.param("id");
+const statusRoute = createRoute({
+    method: "get",
+    path: "/status/{id}",
+    tags: ["Verify"],
+    summary: "Get verification status (public)",
+    description: `
+Public endpoint returning minimal verification status.
+Does NOT expose wallet addresses or platform usernames.
+Use case: Frontend polling verification status after OAuth callback.
+    `.trim(),
+    request: {
+        params: VerificationIdParamSchema,
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: VerificationStatusResponseSchema,
+                },
+            },
+            description: "Verification status",
+        },
+        404: {
+            content: {
+                "application/json": {
+                    schema: NotFoundResponseSchema,
+                },
+            },
+            description: "Verification not found",
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (30 requests per minute)",
+        },
+    },
+});
+
+verify.openapi(statusRoute, (async (c) => {
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const { id } = (c.req as any).valid("param") as z.infer<typeof VerificationIdParamSchema>;
     const db = getDb();
 
     const [record] = await db
@@ -535,24 +784,53 @@ verify.get("/status/:id", async (c) => {
         status: record.status,
         method: record.method,
         projectId: record.projectId,
-        createdAt: record.createdAt,
-        verifiedAt: record.verifiedAt,
+        createdAt: record.createdAt?.toISOString(),
+        verifiedAt: record.verifiedAt?.toISOString() ?? null,
     });
-});
+}) as AnyHandler);
 
 /**
  * GET /api/verify
  * List verifications owned by the authenticated user.
- * Requires authentication - returns only verifications for user's wallet addresses.
- *
- * Query params:
- *   - status: "pending" | "verified" | "failed" | "expired"
- *   - method: verification method (e.g., "github_oauth", "domain_dns")
- *   - projectId: project identifier to filter by
- *   - limit: max results (default 20, max 100)
- *   - offset: pagination offset (default 0)
  */
-verify.get("/", privyAuth(), async (c) => {
+const listRoute = createRoute({
+    method: "get",
+    path: "/",
+    tags: ["Verify"],
+    summary: "List user's verifications",
+    description: `
+List verifications owned by the authenticated user.
+Requires authentication - returns only verifications for user's wallet addresses.
+Supports filtering by status, method, and projectId.
+    `.trim(),
+    security: securityRequired,
+    request: {
+        query: VerificationListQuerySchema,
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: VerificationListResponseSchema,
+                },
+            },
+            description: "List of user's verifications",
+        },
+        401: {
+            content: {
+                "application/json": {
+                    schema: ErrorResponseSchema,
+                },
+            },
+            description: "Authentication required",
+        },
+    },
+});
+
+verify.openapi(listRoute, (async (c) => {
+    // Apply auth inline since openapi() middleware typing is strict
+    const authResult = await privyAuth()(c, async () => {});
+    if (authResult) return authResult;
     const userId = getUserId(c);
     if (!userId) {
         return c.json({ error: "Authentication required" }, 401);
@@ -568,15 +846,12 @@ verify.get("/", privyAuth(), async (c) => {
         });
     }
 
-    const status = c.req.query("status");
-    const method = c.req.query("method");
-    const projectId = c.req.query("projectId");
-    const limitParam = c.req.query("limit");
-    const offsetParam = c.req.query("offset");
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const query = (c.req as any).valid("query") as z.infer<typeof VerificationListQuerySchema>;
 
     // Parse pagination params with sane defaults
-    const limit = Math.min(Math.max(1, Number(limitParam) || 20), 100);
-    const offset = Math.max(0, Number(offsetParam) || 0);
+    const limit = Math.min(Math.max(1, query.limit || 20), 100);
+    const offset = Math.max(0, query.offset || 0);
 
     const db = getDb();
 
@@ -584,17 +859,16 @@ verify.get("/", privyAuth(), async (c) => {
     const conditions: SQL[] = [];
 
     // SECURITY: Always filter to user's wallet addresses
-    // This is the core authorization check
     conditions.push(inArray(schema.verifications.walletAddress, userWallets));
 
-    if (status) {
-        conditions.push(eq(schema.verifications.status, status));
+    if (query.status) {
+        conditions.push(eq(schema.verifications.status, query.status));
     }
-    if (method) {
-        conditions.push(eq(schema.verifications.method, method));
+    if (query.method) {
+        conditions.push(eq(schema.verifications.method, query.method));
     }
-    if (projectId) {
-        conditions.push(eq(schema.verifications.projectId, projectId));
+    if (query.projectId) {
+        conditions.push(eq(schema.verifications.projectId, query.projectId));
     }
 
     // Execute query with ownership filter
@@ -625,21 +899,64 @@ verify.get("/", privyAuth(), async (c) => {
             hasMore: records.length === limit,
         },
     });
-});
+}) as AnyHandler);
 
 /**
  * GET /api/verify/:id
  * Get full verification details. Requires authentication and ownership.
- *
- * SECURITY: Returns 404 (not 403) for unauthorized access to prevent enumeration.
  */
-verify.get("/:id", privyAuth(), async (c) => {
+const detailRoute = createRoute({
+    method: "get",
+    path: "/{id}",
+    tags: ["Verify"],
+    summary: "Get verification details",
+    description: `
+Get full verification details. Requires authentication and ownership.
+Returns 404 (not 403) for unauthorized access to prevent enumeration.
+    `.trim(),
+    security: securityRequired,
+    request: {
+        params: VerificationIdParamSchema,
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: VerificationDetailResponseSchema,
+                },
+            },
+            description: "Verification details",
+        },
+        401: {
+            content: {
+                "application/json": {
+                    schema: ErrorResponseSchema,
+                },
+            },
+            description: "Authentication required",
+        },
+        404: {
+            content: {
+                "application/json": {
+                    schema: NotFoundResponseSchema,
+                },
+            },
+            description: "Verification not found (or not owned by user)",
+        },
+    },
+});
+
+verify.openapi(detailRoute, (async (c) => {
+    // Apply auth inline since openapi() middleware typing is strict
+    const authResult = await privyAuth()(c, async () => {});
+    if (authResult) return authResult;
     const userId = getUserId(c);
     if (!userId) {
         return c.json({ error: "Authentication required" }, 401);
     }
 
-    const id = c.req.param("id");
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const { id } = (c.req as any).valid("param") as z.infer<typeof VerificationIdParamSchema>;
     const db = getDb();
 
     const [record] = await db
@@ -656,7 +973,6 @@ verify.get("/:id", privyAuth(), async (c) => {
     const userWallets = await getWalletAddressesByPrivyId(userId);
     if (!userWallets.includes(record.walletAddress)) {
         // Return 404 instead of 403 to prevent enumeration attacks
-        // Attacker can't distinguish between "doesn't exist" and "exists but not yours"
         return c.json({ error: "Verification not found" }, 404);
     }
 
@@ -668,9 +984,9 @@ verify.get("/:id", privyAuth(), async (c) => {
         status: record.status,
         platformUsername: record.platformUsername,
         attestationUid: record.attestationUid,
-        createdAt: record.createdAt,
-        verifiedAt: record.verifiedAt,
+        createdAt: record.createdAt?.toISOString(),
+        verifiedAt: record.verifiedAt?.toISOString() ?? null,
     });
-});
+}) as AnyHandler);
 
 export { verify };

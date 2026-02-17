@@ -1,7 +1,8 @@
-import { Hono } from "hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
+import { swaggerUI } from "@hono/swagger-ui";
 import { verify } from "./routes/verify.js";
 import { claim } from "./routes/claim.js";
 import { chat } from "./routes/chat.js";
@@ -12,10 +13,42 @@ import { getEnv } from "../config/env.js";
 import { DatabaseUnavailableError } from "../db/client.js";
 import { privyAuthOptional } from "../middleware/auth.js";
 import { globalRateLimit } from "../middleware/rate-limit.js";
+import { openApiInfo } from "./openapi.js";
+import { z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 
 // Allowed localhost ports for development CORS
 // 3000 = default frontend, 5173 = Vite dev server
 const ALLOWED_DEV_PORTS = [3000, 5173];
+
+// ─── Health Check Schema ────────────────────────────────
+
+const HealthResponseSchema = z
+    .object({
+        status: z.literal("ok"),
+        timestamp: z.string().datetime(),
+    })
+    .openapi("HealthResponse");
+
+// ─── Methods Schema ─────────────────────────────────────
+
+const VerificationMethodInfoSchema = z
+    .object({
+        id: z.string().openapi({ example: "github_oauth" }),
+        name: z.string().openapi({ example: "GitHub OAuth" }),
+        description: z.string().openapi({
+            example: "Verify admin access to a GitHub repository",
+        }),
+        projectIdFormat: z.string().openapi({ example: "owner/repo" }),
+        requiresOAuth: z.boolean().openapi({ example: true }),
+    })
+    .openapi("VerificationMethodInfo");
+
+const MethodsResponseSchema = z
+    .object({
+        methods: z.array(VerificationMethodInfoSchema),
+    })
+    .openapi("MethodsResponse");
 
 export function createApp() {
     const env = getEnv();
@@ -27,7 +60,7 @@ export function createApp() {
         );
     }
 
-    const app = new Hono();
+    const app = new OpenAPIHono();
 
     // Global error handler — catches DB unavailable, unknown errors, etc.
     app.onError((err, c) => {
@@ -54,10 +87,26 @@ export function createApp() {
         await next();
     });
 
-    // Security headers (CSP, X-Frame-Options, X-Content-Type-Options, etc.)
-    app.use(
-        "*",
-        secureHeaders({
+    // Security headers with relaxed CSP for /docs (Swagger UI)
+    app.use("*", async (c, next) => {
+        const path = c.req.path;
+
+        // Relaxed CSP for Swagger UI (needs inline scripts/styles)
+        if (path === "/docs" || path.startsWith("/docs/")) {
+            c.header(
+                "Content-Security-Policy",
+                "default-src 'self'; " +
+                    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+                    "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
+                    "img-src 'self' data: https://cdn.jsdelivr.net; " +
+                    "font-src 'self' https://cdn.jsdelivr.net;",
+            );
+            await next();
+            return;
+        }
+
+        // Standard secure headers for all other routes
+        await secureHeaders({
             // Prevent clickjacking
             xFrameOptions: "DENY",
             // Prevent MIME sniffing
@@ -81,8 +130,8 @@ export function createApp() {
                 formAction: ["'self'"],
                 upgradeInsecureRequests: isProduction ? [] : undefined,
             },
-        }),
-    );
+        })(c, next);
+    });
 
     // CORS - restrictive configuration
     app.use(
@@ -114,15 +163,66 @@ export function createApp() {
         }),
     );
 
-    // Health check
-    app.get("/health", (c) => c.json({ status: "ok", timestamp: new Date().toISOString() }));
+    // ─── OpenAPI Documentation ──────────────────────────────
+
+    // Configure servers based on environment
+    const servers = [
+        {
+            url: env.BASE_URL,
+            description: isProduction ? "Production" : "Development",
+        },
+    ];
+
+    if (!isProduction) {
+        servers.push({
+            url: "http://localhost:3000",
+            description: "Local development",
+        });
+    }
+
+    // Generate OpenAPI spec at /openapi.json
+    app.doc("/openapi.json", {
+        ...openApiInfo,
+        servers,
+    });
+
+    // Mount Swagger UI at /docs
+    app.get("/docs", swaggerUI({ url: "/openapi.json" }));
+
+    // ─── Health Check ───────────────────────────────────────
+
+    const healthRoute = createRoute({
+        method: "get",
+        path: "/health",
+        tags: ["Health"],
+        summary: "Health check",
+        description: "Check if the API server is running.",
+        responses: {
+            200: {
+                content: {
+                    "application/json": {
+                        schema: HealthResponseSchema,
+                    },
+                },
+                description: "Server is healthy",
+            },
+        },
+    });
+
+    app.openapi(healthRoute, (c) => {
+        return c.json({
+            status: "ok" as const,
+            timestamp: new Date().toISOString(),
+        });
+    });
 
     // Apply optional auth to routes that benefit from it
     app.use("/api/chat/*", privyAuthOptional());
     app.use("/api/wallet/*", privyAuthOptional());
     app.use("/api/launch/*", privyAuthOptional());
 
-    // API routes
+    // ─── API Routes ─────────────────────────────────────────
+
     app.route("/api/chat", chat);
     app.route("/api/verify", verify);
     app.route("/api/claim", claim);
@@ -130,8 +230,27 @@ export function createApp() {
     app.route("/api/wallet", wallet);
     app.route("/api/fees", fees);
 
-    // List available verification methods
-    app.get("/api/methods", (c) => {
+    // ─── Methods Endpoint ───────────────────────────────────
+
+    const methodsRoute = createRoute({
+        method: "get",
+        path: "/api/methods",
+        tags: ["Methods"],
+        summary: "List verification methods",
+        description: "Get all available verification methods with their configuration.",
+        responses: {
+            200: {
+                content: {
+                    "application/json": {
+                        schema: MethodsResponseSchema,
+                    },
+                },
+                description: "List of available verification methods",
+            },
+        },
+    });
+
+    app.openapi(methodsRoute, (c) => {
         return c.json({
             methods: [
                 {

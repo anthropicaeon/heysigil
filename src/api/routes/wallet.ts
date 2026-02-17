@@ -5,11 +5,21 @@
  * POST /api/wallet/:sessionId/create — Create wallet for session
  */
 
-import { Hono } from "hono";
+import { createRoute, OpenAPIHono, type z, type RouteHandler } from "@hono/zod-openapi";
 import { createWallet, hasWallet, getAddress, getBalance } from "../../services/wallet.js";
 import { walletCreateRateLimit, sessionEnumerationRateLimit } from "../../middleware/rate-limit.js";
+import { RateLimitResponseSchema } from "../schemas/common.js";
+import {
+    WalletSessionIdParamSchema,
+    WalletInfoResponseSchema,
+    WalletCreateResponseSchema,
+} from "../schemas/wallet.js";
 
-export const wallet = new Hono();
+export const wallet = new OpenAPIHono();
+
+// Type helper to relax strict type checking for handlers
+// biome-ignore lint/suspicious/noExplicitAny: OpenAPI handler type relaxation
+type AnyHandler = RouteHandler<any, any>;
 
 // Rate limit wallet lookups to prevent session ID enumeration
 wallet.use("/:sessionId", sessionEnumerationRateLimit());
@@ -21,18 +31,51 @@ wallet.use("/:sessionId/create", walletCreateRateLimit());
  * GET /api/wallet/:sessionId
  * Returns wallet address and balance for a session.
  */
-wallet.get("/:sessionId", async (c) => {
-    const sessionId = c.req.param("sessionId");
+const getWalletRoute = createRoute({
+    method: "get",
+    path: "/{sessionId}",
+    tags: ["Wallet"],
+    summary: "Get wallet info",
+    description:
+        "Get wallet address and balance for a chat session. Returns exists: false if no wallet created.",
+    request: {
+        params: WalletSessionIdParamSchema,
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: WalletInfoResponseSchema,
+                },
+            },
+            description: "Wallet information (exists: true with address/balance, or exists: false)",
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (10 requests per minute)",
+        },
+    },
+});
+
+wallet.openapi(getWalletRoute, (async (c) => {
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const { sessionId } = (c.req as any).valid("param") as z.infer<
+        typeof WalletSessionIdParamSchema
+    >;
 
     if (!(await hasWallet(sessionId))) {
-        return c.json({ exists: false, address: null, balance: null });
+        return c.json({ exists: false as const, address: null, balance: null });
     }
 
     const address = await getAddress(sessionId);
     const balance = await getBalance(sessionId);
 
     return c.json({
-        exists: true,
+        exists: true as const,
         address,
         balance: balance
             ? {
@@ -45,18 +88,51 @@ wallet.get("/:sessionId", async (c) => {
               }
             : null,
     });
-});
+}) as AnyHandler);
 
 /**
  * POST /api/wallet/:sessionId/create
  * Create a wallet for a session (idempotent).
  */
-wallet.post("/:sessionId/create", async (c) => {
-    const sessionId = c.req.param("sessionId");
+const createWalletRoute = createRoute({
+    method: "post",
+    path: "/{sessionId}/create",
+    tags: ["Wallet"],
+    summary: "Create session wallet",
+    description:
+        "Create a custodial wallet for a chat session. Idempotent - returns existing wallet if already created.",
+    request: {
+        params: WalletSessionIdParamSchema,
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: WalletCreateResponseSchema,
+                },
+            },
+            description: "Wallet created or already exists",
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (5 requests per hour)",
+        },
+    },
+});
+
+wallet.openapi(createWalletRoute, (async (c) => {
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const { sessionId } = (c.req as any).valid("param") as z.infer<
+        typeof WalletSessionIdParamSchema
+    >;
     const walletInfo = await createWallet(sessionId);
 
     return c.json({
         address: walletInfo.address,
         createdAt: walletInfo.createdAt,
     });
-});
+}) as AnyHandler);
