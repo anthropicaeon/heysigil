@@ -53,6 +53,11 @@ const envSchema = z.object({
 
     // Environment
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+
+    // Proxy trust configuration for rate limiting
+    // Values: "cloudflare", "true" (trust all), "false" (trust none)
+    // Default: trusts headers in dev/test, warns in production
+    TRUST_PROXY: z.enum(["cloudflare", "true", "false", ""]).default(""),
 });
 
 /**
