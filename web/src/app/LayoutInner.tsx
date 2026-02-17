@@ -45,7 +45,7 @@ function NavLoginButton() {
                 </div>
                 <button
                     className="btn-sm"
-                    onClick={() => privy.logout?.()}
+                    onClick={() => privy.logout()}
                     style={{
                         background: "transparent",
                         color: "var(--text-secondary)",
@@ -60,7 +60,7 @@ function NavLoginButton() {
     }
 
     return (
-        <button className="nav-cta" onClick={() => privy.login?.()}>
+        <button className="nav-cta" onClick={() => privy.login()}>
             Sign In
         </button>
     );
