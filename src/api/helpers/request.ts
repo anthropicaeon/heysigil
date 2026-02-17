@@ -2,7 +2,7 @@
  * Request Validation Helpers
  *
  * Type-safe wrappers for OpenAPI validated request data.
- * Single suppression point for biome lint.
+ * Runtime validation using Zod schemas for defense-in-depth.
  */
 
 import type { Context } from "hono";
@@ -19,21 +19,24 @@ function getValidated(c: Context, target: ValidTarget): unknown {
 
 /**
  * Get validated path parameters from request.
+ * Performs runtime validation via schema.parse() for defense-in-depth.
  */
-export function getParams<T extends ZodSchema>(c: Context, _schema: T): z.infer<T> {
-    return getValidated(c, "param") as z.infer<T>;
+export function getParams<T extends ZodSchema>(c: Context, schema: T): z.infer<T> {
+    return schema.parse(getValidated(c, "param"));
 }
 
 /**
  * Get validated query parameters from request.
+ * Performs runtime validation via schema.parse() for defense-in-depth.
  */
-export function getQuery<T extends ZodSchema>(c: Context, _schema: T): z.infer<T> {
-    return getValidated(c, "query") as z.infer<T>;
+export function getQuery<T extends ZodSchema>(c: Context, schema: T): z.infer<T> {
+    return schema.parse(getValidated(c, "query"));
 }
 
 /**
  * Get validated JSON body from request.
+ * Performs runtime validation via schema.parse() for defense-in-depth.
  */
-export function getBody<T extends ZodSchema>(c: Context, _schema: T): z.infer<T> {
-    return getValidated(c, "json") as z.infer<T>;
+export function getBody<T extends ZodSchema>(c: Context, schema: T): z.infer<T> {
+    return schema.parse(getValidated(c, "json"));
 }
