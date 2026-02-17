@@ -1,10 +1,11 @@
 import { getEnv } from "../config/env.js";
+import type { Platform } from "../verification/types.js";
 
 // ─── Types ───────────────────────────────────────────────
 
 export interface AttestationData {
     /** Platform used for verification (github, facebook, instagram, twitter, domain) */
-    platform: string;
+    platform: Platform;
     /** Project identifier (e.g., "github.com/org/repo") */
     projectId: string;
     /** Wallet address of the verified owner */
