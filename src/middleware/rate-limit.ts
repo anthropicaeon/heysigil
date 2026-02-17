@@ -309,42 +309,6 @@ export async function checkServiceRateLimit(
     };
 }
 
-/**
- * Check rate limit without incrementing (peek at current state).
- * Useful for displaying remaining quota to users.
- */
-export async function peekServiceRateLimit(
-    prefix: string,
-    identifier: string,
-    config: ServiceRateLimitConfig,
-): Promise<RateLimitCheckResult> {
-    const { limit, windowMs } = config;
-    const key = `${prefix}:${identifier}`;
-    const now = Date.now();
-
-    const store = getRateLimitStore();
-    const entry = await store.get(key);
-
-    // No entry or expired = full quota available
-    if (!entry) {
-        return {
-            allowed: true,
-            remaining: limit,
-            resetInMs: 0,
-            resetInMinutes: 0,
-        };
-    }
-
-    const resetInMs = Math.max(0, entry.resetAt - now);
-
-    return {
-        allowed: entry.count < limit,
-        remaining: Math.max(0, limit - entry.count),
-        resetInMs,
-        resetInMinutes: Math.ceil(resetInMs / 60000),
-    };
-}
-
 // ---------- Pre-configured service rate limits ----------
 
 /** Token deployment: 3 per hour per session */
@@ -362,22 +326,4 @@ export async function checkDeployRateLimit(sessionId: string): Promise<void> {
                 `Try again in ${result.resetInMinutes} minutes.`,
         );
     }
-}
-
-// ---------- Monitoring & Testing ----------
-
-/**
- * Get current store size (for monitoring)
- */
-export async function getRateLimitStoreSize(): Promise<number> {
-    const store = getRateLimitStore();
-    return store.size();
-}
-
-/**
- * Clear all rate limit entries (for testing)
- */
-export async function clearRateLimitStore(): Promise<void> {
-    const store = getRateLimitStore();
-    await store.clear();
 }

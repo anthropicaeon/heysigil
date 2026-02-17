@@ -322,18 +322,3 @@ export function getRateLimitStore(): RateLimitStore {
 
     return _store;
 }
-
-/**
- * Check if using distributed (Redis) store.
- */
-export function isDistributedStore(): boolean {
-    const env = getEnv();
-    return Boolean(env.REDIS_URL);
-}
-
-/**
- * Reset store (for testing).
- */
-export function resetRateLimitStore(): void {
-    _store = null;
-}

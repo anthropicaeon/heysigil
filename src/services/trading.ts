@@ -332,20 +332,3 @@ export async function executeSwap(
         };
     }
 }
-
-// ─── Cache Utilities (monitoring/testing) ───────────────
-
-/** Get current cache size */
-export function getQuoteCacheSize(): number {
-    return quoteCache.size;
-}
-
-/** Clear all cached quotes */
-export function clearQuoteCache(): void {
-    quoteCache.clear();
-}
-
-/** Get cache TTL in milliseconds */
-export function getQuoteCacheTTL(): number {
-    return QUOTE_CACHE_TTL_MS;
-}
