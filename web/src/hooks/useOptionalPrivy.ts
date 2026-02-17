@@ -7,6 +7,7 @@
 
 // Type for Privy user object
 interface PrivyUser {
+    id: string;
     github?: { username: string };
     telegram?: { username: string };
     email?: { address: string };
@@ -21,6 +22,7 @@ export interface PrivyContext {
     user: PrivyUser | null;
     login?: () => void;
     logout?: () => void;
+    getAccessToken?: () => Promise<string | null>;
 }
 
 /**
