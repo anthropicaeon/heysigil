@@ -10,6 +10,7 @@ import {
 } from "@/config/contracts";
 import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency } from "@/lib/format";
+import { useOptionalWallets } from "@/hooks/useOptionalPrivy";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -44,18 +45,6 @@ interface UseFeeVaultReturn {
 }
 
 // ─── Helpers ────────────────────────────────────────────
-
-// Try to get Privy wallets — returns null if not configured
-function useOptionalWallets() {
-    try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { useWallets } = require("@privy-io/react-auth");
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        return useWallets();
-    } catch {
-        return null;
-    }
-}
 
 // ─── Hook ───────────────────────────────────────────────
 
