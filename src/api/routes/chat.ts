@@ -168,7 +168,7 @@ chat.openapi(getSessionRoute, (async (c) => {
     return c.json({
         sessionId: session.id,
         platform: session.platform,
-        walletAddress: session.walletAddress ?? null,
+        hasWallet: !!session.walletAddress,
         messages: session.messages.map((m) => ({
             role: m.role,
             content: m.content,
