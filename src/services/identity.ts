@@ -361,44 +361,6 @@ export async function listPhantomUsers(): Promise<User[]> {
     return identityRepo.listPhantomUsers();
 }
 
-// ─── Backward compatibility ─────────────────────────────
-
-/** @deprecated Use createPhantomUser instead */
-export async function createPhantomIdentity(
-    platform: string,
-    platformId: string,
-    createdBy?: string,
-) {
-    const result = await createPhantomUser(platform, platformId, createdBy);
-    return {
-        identity: {
-            ...result.identity,
-            walletAddress: result.walletAddress,
-            status: result.user.status,
-        },
-        walletAddress: result.walletAddress,
-        isNew: result.isNew,
-    };
-}
-
-/** @deprecated Use findIdentity instead */
-export async function findByPlatformId(platform: string, platformId: string) {
-    const identity = await findIdentity(platform, platformId);
-    if (!identity) return null;
-    const user = await resolveUser(identity.userId);
-    return {
-        id: identity.id,
-        platform: identity.platform,
-        platformId: identity.platformId,
-        walletAddress: user.walletAddress,
-        privyUserId: user.privyUserId,
-        status: user.status,
-        createdBy: identity.createdBy,
-        createdAt: identity.createdAt,
-        claimedAt: user.claimedAt,
-    };
-}
-
 /**
  * Get all wallet addresses owned by a Privy user.
  * Includes the primary wallet and any merged phantom wallets.
