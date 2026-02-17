@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useFeeVault } from "@/hooks/useFeeVault";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import { ErrorAlert } from "@/components/common/ErrorAlert";
+import { LoadingButton } from "@/components/common/LoadingButton";
 import type { TokenInfo } from "@/types";
 
 // ─── Mock Data (token holdings — live fee data comes from hook) ─
@@ -144,29 +145,22 @@ function FeeClaimCard({
                 </div>
             </div>
 
-            <button
+            <LoadingButton
                 className="fee-claim-btn"
                 onClick={onClaim}
-                disabled={claiming || isZero || loading}
+                loading={claiming}
+                disabled={isZero || loading}
+                loadingText="Claiming…"
             >
-                {claiming ? (
-                    <>
-                        <span className="spinner" style={{ width: 14, height: 14 }} />
-                        Claiming…
-                    </>
-                ) : (
-                    <>
-                        <Image
-                            src="/icons/coins-hand.svg"
-                            alt=""
-                            width={16}
-                            height={16}
-                            style={{ display: "inline", verticalAlign: "middle", marginRight: 6, opacity: 0.7 }}
-                        />
-                        {isZero ? "No USDC to Claim" : `Claim ${claimableUsdc}`}
-                    </>
-                )}
-            </button>
+                <Image
+                    src="/icons/coins-hand.svg"
+                    alt=""
+                    width={16}
+                    height={16}
+                    style={{ display: "inline", verticalAlign: "middle", marginRight: 6, opacity: 0.7 }}
+                />
+                {isZero ? "No USDC to Claim" : `Claim ${claimableUsdc}`}
+            </LoadingButton>
 
             {/* Success toast */}
             {lastTxHash && !claiming && (
