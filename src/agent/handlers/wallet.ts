@@ -102,8 +102,20 @@ export const exportKeyHandler: ActionHandler = async (params, sessionId) => {
     }
 
     // Check if this is a confirmation of a pending export
-    const rawText = String(params.rawText || "").toLowerCase();
-    const isConfirm = rawText.includes("yes") && rawText.includes("export");
+    // SECURITY: Use exact phrase matching to prevent accidental export
+    const rawText = String(params.rawText || "")
+        .toLowerCase()
+        .trim();
+    const EXPORT_CONFIRM_PHRASES = [
+        "yes, export my key",
+        "yes export my key",
+        "yes, export",
+        "yes export",
+        "confirm export",
+    ];
+    const isConfirm = EXPORT_CONFIRM_PHRASES.some(
+        (phrase) => rawText === phrase || rawText.startsWith(`${phrase} `),
+    );
 
     if (isConfirm && hasPendingExport(sessionId)) {
         const result = await confirmExport(sessionId);
