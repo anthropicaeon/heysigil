@@ -116,6 +116,151 @@ export function getSession(sessionId: string): ChatSession | undefined {
     return sessions.get(sessionId);
 }
 
+// ─── Tool execution helpers ─────────────────────────────────
+
+const MAX_ITERATIONS = 5;
+
+interface ToolIterationResult {
+    assistantMessage: string;
+    done: boolean;
+}
+
+/**
+ * Execute a single tool iteration: call LLM, execute any tools, return results.
+ */
+async function executeSingleToolIteration(
+    client: Anthropic,
+    contextMessages: Anthropic.MessageParam[],
+    userMessage: string,
+    sessionId: string,
+): Promise<ToolIterationResult> {
+    const response = await client.messages.create({
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: 1024,
+        system: AGENT_SYSTEM,
+        tools: TOOLS,
+        messages: contextMessages,
+    });
+
+    const textBlocks = response.content.filter((b) => b.type === "text");
+    const toolBlocks = response.content.filter((b) => b.type === "tool_use");
+
+    // Extract text from response
+    const extractedText = textBlocks
+        .map((b) => (b.type === "text" ? b.text : ""))
+        .join("\n")
+        .trim();
+
+    // No tool calls = final response
+    if (toolBlocks.length === 0) {
+        return { assistantMessage: extractedText, done: true };
+    }
+
+    // Execute each tool call
+    const toolResults: Anthropic.ToolResultBlockParam[] = [];
+    for (const block of toolBlocks) {
+        if (block.type !== "tool_use") continue;
+
+        const intent = TOOL_TO_INTENT[block.name] || "unknown";
+        const params = mapToolParams(block.name, block.input as Record<string, unknown>);
+        const action: ParsedAction = { intent, params, confidence: 1.0, rawText: userMessage };
+
+        let result: ActionResult;
+        try {
+            result = await executeAction(action, userMessage, sessionId);
+        } catch (err) {
+            result = {
+                success: false,
+                message: `Tool error: ${getErrorMessage(err, "unknown error")}`,
+            };
+        }
+
+        toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: JSON.stringify({
+                success: result.success,
+                message: result.message,
+                data: result.data,
+            }),
+        });
+    }
+
+    // Feed results back for next iteration
+    contextMessages.push({ role: "assistant", content: response.content });
+    contextMessages.push({ role: "user", content: toolResults });
+
+    // Check for early termination
+    if (extractedText && response.stop_reason === "end_turn") {
+        return { assistantMessage: extractedText, done: true };
+    }
+
+    return { assistantMessage: "", done: false };
+}
+
+/**
+ * Execute online mode with LLM + tool-use loop.
+ */
+async function executeOnlineMode(
+    client: Anthropic,
+    session: ChatSession,
+    userMessage: string,
+    sessionId: string,
+): Promise<string> {
+    const contextResult = buildOptimizedContext(session.messages, {
+        recentWindowSize: 6,
+        maxContextTokens: 4000,
+        maxToolResultChars: 500,
+        includeSummary: true,
+    });
+
+    const contextMessages: Anthropic.MessageParam[] = contextResult.messages;
+    let assistantMessage = "";
+
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
+        const result = await executeSingleToolIteration(
+            client,
+            contextMessages,
+            userMessage,
+            sessionId,
+        );
+        if (result.done || result.assistantMessage) {
+            assistantMessage = result.assistantMessage;
+            break;
+        }
+    }
+
+    return assistantMessage || "I ran into an issue processing that. Could you try again?";
+}
+
+/**
+ * Execute offline mode with regex parser fallback.
+ */
+async function executeOfflineMode(
+    userMessage: string,
+    sessionId: string,
+): Promise<{ message: string; action: ParsedAction }> {
+    const action = parseLocalMessage(userMessage);
+
+    if (action.intent !== "unknown" && action.confidence >= 0.3) {
+        const result = await executeAction(action, userMessage, sessionId);
+        return { message: result.message, action };
+    }
+
+    const message = [
+        "👋 Hey! I'm Sigil — funding for builders, without the weight of running a community.",
+        "",
+        "Try something like:",
+        '• **"price ETH"** — check token prices',
+        '• **"swap 0.1 ETH to USDC"** — swap tokens',
+        '• **"verify github.com/org/repo"** — prove you own a project',
+        '• **"launch token for github.com/org/repo"** — deploy a token',
+        '• **"help"** — see all commands',
+    ].join("\n");
+
+    return { message, action };
+}
+
 // ─── Main entry point ───────────────────────────────────────
 
 /**
@@ -143,156 +288,21 @@ export async function processMessage(
         session.walletAddress = walletAddress;
     }
 
-    // Add user message to history
-    session.messages.push({
-        role: "user",
-        content: userMessage,
-        timestamp: new Date(),
-    });
+    session.messages.push({ role: "user", content: userMessage, timestamp: new Date() });
 
     const client = getClient();
 
-    // ─── Online mode (tool-use) ─────────────────────────
     if (client) {
-        // Build optimized message history for Claude
-        // Uses smart truncation to reduce token usage while preserving context
-        const contextResult = buildOptimizedContext(session.messages, {
-            recentWindowSize: 6, // Keep last 6 messages full
-            maxContextTokens: 4000, // Target ~4K tokens for context
-            maxToolResultChars: 500, // Compress tool results to essentials
-            includeSummary: true, // Add summary of truncated history
-        });
-
-        const contextMessages: Anthropic.MessageParam[] = contextResult.messages;
-
-        let assistantMessage = "";
-        let iterations = 0;
-        const MAX_ITERATIONS = 5; // Prevent infinite tool loops
-
-        while (iterations < MAX_ITERATIONS) {
-            iterations++;
-
-            const response = await client.messages.create({
-                model: "claude-sonnet-4-5-20250929",
-                max_tokens: 1024,
-                system: AGENT_SYSTEM,
-                tools: TOOLS,
-                messages: contextMessages,
-            });
-
-            // Check what Claude returned
-            const textBlocks = response.content.filter((b) => b.type === "text");
-            const toolBlocks = response.content.filter((b) => b.type === "tool_use");
-
-            // If no tool calls, we have the final response
-            if (toolBlocks.length === 0) {
-                assistantMessage = textBlocks
-                    .map((b) => (b.type === "text" ? b.text : ""))
-                    .join("\n")
-                    .trim();
-                break;
-            }
-
-            // Execute each tool call and collect results
-            const toolResults: Anthropic.ToolResultBlockParam[] = [];
-
-            for (const block of toolBlocks) {
-                if (block.type !== "tool_use") continue;
-
-                const toolName = block.name;
-                const toolInput = block.input as Record<string, unknown>;
-                const intent = TOOL_TO_INTENT[toolName] || "unknown";
-                const params = mapToolParams(toolName, toolInput);
-
-                // Build a ParsedAction to go through executeAction (preserves Sentinel screening)
-                const action: ParsedAction = {
-                    intent,
-                    params,
-                    confidence: 1.0,
-                    rawText: userMessage,
-                };
-
-                let result: ActionResult;
-                try {
-                    result = await executeAction(action, userMessage, sessionId);
-                } catch (err) {
-                    result = {
-                        success: false,
-                        message: `Tool error: ${getErrorMessage(err, "unknown error")}`,
-                    };
-                }
-
-                toolResults.push({
-                    type: "tool_result",
-                    tool_use_id: block.id,
-                    content: JSON.stringify({
-                        success: result.success,
-                        message: result.message,
-                        data: result.data,
-                    }),
-                });
-            }
-
-            // Feed the assistant's response (with tool calls) and tool results back
-            contextMessages.push({
-                role: "assistant",
-                content: response.content,
-            });
-            contextMessages.push({
-                role: "user",
-                content: toolResults,
-            });
-
-            // Also extract any text from this turn (Claude sometimes includes text before tools)
-            const partialText = textBlocks
-                .map((b) => (b.type === "text" ? b.text : ""))
-                .join("\n")
-                .trim();
-            if (partialText && response.stop_reason === "end_turn") {
-                assistantMessage = partialText;
-                break;
-            }
-        }
-
-        if (!assistantMessage) {
-            assistantMessage = "I ran into an issue processing that. Could you try again?";
-        }
-
+        const assistantMessage = await executeOnlineMode(client, session, userMessage, sessionId);
         session.messages.push({
             role: "assistant",
             content: assistantMessage,
             timestamp: new Date(),
         });
-
         return assistantMessage;
     }
 
-    // ─── Offline mode (regex parser + direct responses) ──
-    const action = parseLocalMessage(userMessage);
-
-    let assistantMessage: string;
-    if (action.intent !== "unknown" && action.confidence >= 0.3) {
-        const result = await executeAction(action, userMessage, sessionId);
-        assistantMessage = result.message;
-    } else {
-        assistantMessage = [
-            "👋 Hey! I'm Sigil — funding for builders, without the weight of running a community.",
-            "",
-            "Try something like:",
-            '• **"price ETH"** — check token prices',
-            '• **"swap 0.1 ETH to USDC"** — swap tokens',
-            '• **"verify github.com/org/repo"** — prove you own a project',
-            '• **"launch token for github.com/org/repo"** — deploy a token',
-            '• **"help"** — see all commands',
-        ].join("\n");
-    }
-
-    session.messages.push({
-        role: "assistant",
-        content: assistantMessage,
-        timestamp: new Date(),
-        action,
-    });
-
-    return assistantMessage;
+    const { message, action } = await executeOfflineMode(userMessage, sessionId);
+    session.messages.push({ role: "assistant", content: message, timestamp: new Date(), action });
+    return message;
 }
