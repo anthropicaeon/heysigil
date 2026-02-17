@@ -8,8 +8,8 @@
 
 "use client";
 
-import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { useIsPrivyConfigured } from "@/providers/PrivyAuthProvider";
+import { useContext } from "react";
+import { OptionalPrivyContext, OptionalWalletsContext } from "@/providers/PrivyAuthProvider";
 
 // Type for Privy user object
 interface PrivyUser {
@@ -28,36 +28,27 @@ export interface PrivyContext {
     user: PrivyUser | null;
     login: () => void;
     logout: () => Promise<void>;
+    getAccessToken: () => Promise<string | null>;
 }
 
 /**
  * Access Privy context. Returns null if Privy is not configured.
- * When Privy IS configured, uses the real usePrivy hook.
+ * Reads from OptionalPrivyContext — populated inside PrivyProvider by PrivyBridge.
+ * No conditional hook calls: satisfies the Rules of Hooks.
  */
 export function useOptionalPrivy(): PrivyContext | null {
-    const isConfigured = useIsPrivyConfigured();
-
-    if (!isConfigured) {
-        return null;
-    }
-
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { ready, authenticated, user, login, logout } = usePrivy();
-    return { ready, authenticated, user: user as PrivyUser | null, login, logout };
+    const privyData = useContext(OptionalPrivyContext);
+    if (!privyData) return null;
+    const { ready, authenticated, user, login, logout, getAccessToken } = privyData;
+    return { ready, authenticated, user: user as PrivyUser | null, login, logout, getAccessToken };
 }
 
 /**
  * Access Privy wallets. Returns null if Privy is not configured.
+ * Reads from OptionalWalletsContext — populated inside PrivyProvider by PrivyBridge.
  */
 export function useOptionalWallets() {
-    const isConfigured = useIsPrivyConfigured();
-
-    if (!isConfigured) {
-        return null;
-    }
-
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useWallets();
+    return useContext(OptionalWalletsContext);
 }
 
 /**
