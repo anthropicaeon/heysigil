@@ -60,3 +60,18 @@ export function formatTimeRemaining(ms: number): string {
 export function truncateAddress(address: string): string {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
+
+/**
+ * Parse a comma-formatted number string to number.
+ */
+export function parseNumberString(val: string): number {
+    return parseFloat(val.replace(/,/g, "")) || 0;
+}
+
+/**
+ * Format user input with thousand separators (for controlled inputs).
+ */
+export function formatNumberInput(value: string): string {
+    const cleaned = value.replace(/[^0-9]/g, "");
+    return cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+}

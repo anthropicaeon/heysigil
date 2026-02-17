@@ -3,7 +3,7 @@
  */
 
 import type { ProposalStatus } from "./types";
-import { formatTokens as formatTokensUtil } from "@/lib/format";
+import { formatTokens as formatTokensUtil, parseNumberString } from "@/lib/format";
 
 // ─── Status Group Helpers (DRY) ──────────────────────────────
 
@@ -40,8 +40,8 @@ export function statusLabel(s: ProposalStatus): string {
 }
 
 export function votePercentage(yes: string, no: string): number {
-    const y = parseFloat(yes.replace(/,/g, "")) || 0;
-    const n = parseFloat(no.replace(/,/g, "")) || 0;
+    const y = parseNumberString(yes);
+    const n = parseNumberString(no);
     if (y + n === 0) return 50;
     return (y / (y + n)) * 100;
 }
