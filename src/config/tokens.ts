@@ -97,19 +97,6 @@ export const BASE_TOKEN_LIST: readonly TokenInfo[] = [
 // ─── Derived Exports ─────────────────────────────────────
 
 /**
- * Token registry keyed by symbol (uppercase).
- * Used for quick lookups in trading operations.
- *
- * @example
- * const usdc = BASE_TOKENS["USDC"];
- * // { address: "0x833...", decimals: 6 }
- */
-export const BASE_TOKENS: Record<string, { address: string; decimals: number }> =
-    Object.fromEntries(
-        BASE_TOKEN_LIST.map((t) => [t.symbol, { address: t.address, decimals: t.decimals }]),
-    );
-
-/**
  * Tokens to check in wallet balance queries.
  * Subset of commonly held tokens to minimize RPC calls.
  */
@@ -150,20 +137,6 @@ export function resolveToken(
     // Adding tokens: see BASE_TOKEN_LIST at the top of this file.
     // Users with custom tokens must add them to the registry first.
     return undefined;
-}
-
-/**
- * Check if a token symbol is known.
- */
-export function isKnownToken(symbol: string): boolean {
-    return symbol.toUpperCase() in BASE_TOKENS;
-}
-
-/**
- * Get all known token symbols.
- */
-export function getTokenSymbols(): string[] {
-    return BASE_TOKEN_LIST.map((t) => t.symbol);
 }
 
 // ─── Constants ───────────────────────────────────────────
