@@ -7,6 +7,7 @@ import { useFeeVault } from "@/hooks/useFeeVault";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import { ErrorAlert } from "@/components/common/ErrorAlert";
 import { LoadingButton } from "@/components/common/LoadingButton";
+import { EmptyState } from "@/components/common/EmptyState";
 import { formatNumericString, truncateAddress } from "@/lib/format";
 import type { TokenInfo } from "@/types";
 
@@ -387,17 +388,23 @@ export default function ProfileDashboard() {
 
             {/* Empty states */}
             {activeSection === "dev" && devTokens.length === 0 && (
-                <div className="profile-empty-section">
-                    <Image src="/icons/zap-fast.svg" alt="" width={40} height={40} className="empty-icon" style={{ opacity: 0.3, display: "block", margin: "0 auto var(--space-3)" }} />
-                    <p>You haven&apos;t launched any tokens yet. Verify your project to start earning fees.</p>
-                </div>
+                <EmptyState
+                    className="profile-empty-section"
+                    useRawClasses
+                    icon={<Image src="/icons/zap-fast.svg" alt="" width={40} height={40} style={{ opacity: 0.3 }} />}
+                    title="You haven't launched any tokens yet"
+                    description="Verify your project to start earning fees."
+                />
             )}
 
             {activeSection === "held" && heldTokens.length === 0 && (
-                <div className="profile-empty-section">
-                    <Image src="/icons/coins-stacked-02.svg" alt="" width={40} height={40} className="empty-icon" style={{ opacity: 0.3, display: "block", margin: "0 auto var(--space-3)" }} />
-                    <p>You don&apos;t hold any Sigil-launched tokens yet. Explore projects to get started.</p>
-                </div>
+                <EmptyState
+                    className="profile-empty-section"
+                    useRawClasses
+                    icon={<Image src="/icons/coins-stacked-02.svg" alt="" width={40} height={40} style={{ opacity: 0.3 }} />}
+                    title="You don't hold any Sigil-launched tokens"
+                    description="Explore projects to get started."
+                />
             )}
         </div>
     );
