@@ -96,16 +96,35 @@ export default function VerifyFlow() {
         }
     }
 
+    // Zeigarnik Effect: Calculate progress percentage
+    // Start at 20% (endowed progress) to increase completion motivation
+    const progressPercent = 20 + (stepIndex / (STEP_LABELS.length - 1)) * 80;
+
     return (
-        <div>
-            {/* Progress steps */}
+        <div className="verify-flow">
+            {/* Zeigarnik Effect: Visual progress bar */}
+            <div className="progress-container">
+                <div className="progress-header">
+                    <span className="progress-label">Step {stepIndex + 1} of {STEP_LABELS.length}</span>
+                    <span className="progress-percent">{Math.round(progressPercent)}% complete</span>
+                </div>
+                <div className="progress-bar">
+                    <div
+                        className="progress-fill"
+                        style={{ width: `${progressPercent}%` }}
+                    />
+                </div>
+            </div>
+
+            {/* Step indicators */}
             <div className="steps">
                 {STEP_LABELS.map((label, i) => (
                     <div
                         key={label}
                         className={`step ${i === stepIndex ? "active" : ""} ${i < stepIndex ? "completed" : ""}`}
                     >
-                        {i + 1}. {label}
+                        <span className="step-number">{i < stepIndex ? "✓" : i + 1}</span>
+                        <span className="step-label">{label}</span>
                     </div>
                 ))}
             </div>
