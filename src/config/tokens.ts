@@ -146,15 +146,9 @@ export function resolveToken(
     const byAddress = BASE_TOKEN_LIST.find((t) => t.address.toLowerCase() === lower);
     if (byAddress) return byAddress;
 
-    // If it looks like an address, return as-is with default decimals
-    if (symbolOrAddress.startsWith("0x") && symbolOrAddress.length === 42) {
-        return {
-            symbol: symbolOrAddress.slice(0, 8) + "...",
-            address: symbolOrAddress,
-            decimals: 18, // Default assumption
-        };
-    }
-
+    // Unknown token addresses are rejected to prevent wrong decimal assumptions.
+    // Adding tokens: see BASE_TOKEN_LIST at the top of this file.
+    // Users with custom tokens must add them to the registry first.
     return undefined;
 }
 

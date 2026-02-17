@@ -128,11 +128,11 @@ describe("Trading: Token Resolution", () => {
         expect(token!.address).toBe("0x4200000000000000000000000000000000000006");
     });
 
-    test("resolves contract address", () => {
+    test("rejects unknown contract addresses to prevent decimal assumptions", () => {
         const addr = "0x1234567890abcdef1234567890abcdef12345678";
         const token = resolveToken(addr);
-        expect(token).toBeDefined();
-        expect(token!.address).toBe(addr);
+        // Unknown addresses now return undefined to prevent fund loss from wrong decimal assumptions
+        expect(token).toBeUndefined();
     });
 
     test("returns undefined for unknown symbol", () => {
