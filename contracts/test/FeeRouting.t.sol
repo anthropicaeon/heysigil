@@ -4,7 +4,6 @@ pragma solidity ^0.8.26;
 import "forge-std/Test.sol";
 import {SigilFeeVault} from "../src/SigilFeeVault.sol";
 import {SigilToken} from "../src/SigilToken.sol";
-import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
 
 /// @title FeeRoutingTest
 /// @notice Tests the fee routing logic end-to-end:
@@ -27,9 +26,9 @@ contract FeeRoutingTest is Test {
     address treasury = address(0xD4);
 
     // Pool IDs for different scenarios
-    PoolId selfLaunchPool = PoolId.wrap(bytes32(uint256(100)));
-    PoolId thirdPartyPool = PoolId.wrap(bytes32(uint256(200)));
-    PoolId expiryPool = PoolId.wrap(bytes32(uint256(300)));
+    bytes32 selfLaunchPool = bytes32(uint256(100));
+    bytes32 thirdPartyPool = bytes32(uint256(200));
+    bytes32 expiryPool = bytes32(uint256(300));
 
     function setUp() public {
         vm.startPrank(deployer);
@@ -106,7 +105,7 @@ contract FeeRoutingTest is Test {
         assertEq(feeVault.protocolFees(address(feeToken)), 20 ether, "Protocol ALWAYS gets 20%");
 
         // Escrow should hold the dev share
-        bytes32 poolKey = PoolId.unwrap(thirdPartyPool);
+        bytes32 poolKey = thirdPartyPool;
         assertEq(feeVault.unclaimedFees(poolKey, address(feeToken)), 80 ether, "Escrow should hold 80");
         assertTrue(feeVault.unclaimedDepositedAt(poolKey) > 0, "Deposit timestamp should be set");
     }
@@ -116,7 +115,7 @@ contract FeeRoutingTest is Test {
         feeVault.depositFees(thirdPartyPool, address(0), address(feeToken), 80 ether, 20 ether);
         feeVault.depositFees(thirdPartyPool, address(0), address(feeToken), 40 ether, 10 ether);
 
-        bytes32 poolKey = PoolId.unwrap(thirdPartyPool);
+        bytes32 poolKey = thirdPartyPool;
         assertEq(feeVault.unclaimedFees(poolKey, address(feeToken)), 120 ether, "Escrow accumulates");
         assertEq(feeVault.protocolFees(address(feeToken)), 30 ether, "Protocol always accumulates");
     }
@@ -152,7 +151,7 @@ contract FeeRoutingTest is Test {
         feeVault.depositFees(thirdPartyPool, address(0), address(feeToken), 80 ether, 20 ether);
         feeVault.depositFees(thirdPartyPool, address(0), address(feeToken), 40 ether, 10 ether);
 
-        bytes32 poolKey = PoolId.unwrap(thirdPartyPool);
+        bytes32 poolKey = thirdPartyPool;
         assertEq(feeVault.unclaimedFees(poolKey, address(feeToken)), 120 ether);
 
         // Owner assigns dev after verification
@@ -218,7 +217,7 @@ contract FeeRoutingTest is Test {
     function test_sweepExpiredFees_movesToProtocol() public {
         feeVault.depositFees(expiryPool, address(0), address(feeToken), 80 ether, 20 ether);
 
-        bytes32 poolKey = PoolId.unwrap(expiryPool);
+        bytes32 poolKey = expiryPool;
 
         // Can't sweep before 30 days
         vm.expectRevert(SigilFeeVault.NotExpiredYet.selector);
@@ -246,7 +245,7 @@ contract FeeRoutingTest is Test {
     function test_sweepExpiredFees_resetsTimestamp() public {
         feeVault.depositFees(expiryPool, address(0), address(feeToken), 80 ether, 20 ether);
 
-        bytes32 poolKey = PoolId.unwrap(expiryPool);
+        bytes32 poolKey = expiryPool;
 
         // Warp forward and sweep
         vm.warp(block.timestamp + 30 days + 1);
@@ -343,7 +342,7 @@ contract FeeRoutingTest is Test {
         feeVault.depositFees(thirdPartyPool, address(0), address(feeToken), 16 ether, 4 ether);
 
         // Check escrow: 80 + 40 + 16 = 136
-        bytes32 poolKey = PoolId.unwrap(thirdPartyPool);
+        bytes32 poolKey = thirdPartyPool;
         assertEq(feeVault.unclaimedFees(poolKey, address(feeToken)), 136 ether);
         // Protocol: 20 + 10 + 4 = 34 (always there)
         assertEq(feeVault.protocolFees(address(feeToken)), 34 ether);

@@ -179,7 +179,7 @@ contract SigilHook is BaseHook {
 
         // If the old dev was address(0) (unclaimed), assign escrowed fees
         if (oldDev == address(0)) {
-            feeVault.assignDev(poolId, newDev);
+            feeVault.assignDev(PoolId.unwrap(poolId), newDev);
         }
 
         emit PoolDevUpdated(poolId, oldDev, newDev);
@@ -288,7 +288,7 @@ contract SigilHook is BaseHook {
             address dev = poolDev[poolId];
 
             _approveFeeVault(feeToken, totalFee);
-            feeVault.depositFees(poolId, dev, feeToken, devFee, protocolFee);
+            feeVault.depositFees(PoolId.unwrap(poolId), dev, feeToken, devFee, protocolFee);
 
             emit FeesCollected(poolId, feeToken, totalFee, devFee, protocolFee);
         } else {

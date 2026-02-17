@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
-import {ISigilFeeVault} from "./interfaces/ISigilFeeVault.sol";
+// Note: PoolId is just bytes32 under the hood. We use bytes32 directly
+// to avoid coupling to V4 imports (supports both V3 Locker and V4 Hook).
 
 /// @title SigilFeeVault
 /// @notice Accumulates swap fees and allows devs/protocol to claim.
@@ -24,7 +24,7 @@ import {ISigilFeeVault} from "./interfaces/ISigilFeeVault.sol";
 ///
 ///         The 80/20 split is enforced by the hook before deposit.
 ///         This vault accumulates and allows claims.
-contract SigilFeeVault is ISigilFeeVault {
+contract SigilFeeVault {
     // ─── Constants ──────────────────────────────────────
 
     /// @notice Unclaimed dev fees expire to protocol after 30 days
@@ -32,8 +32,8 @@ contract SigilFeeVault is ISigilFeeVault {
 
     // ─── State ───────────────────────────────────────────
 
-    /// @notice The SigilHook address — only it can deposit fees
-    address public hook;
+    /// @notice The authorized depositor (V3: LPLocker, V4: SigilHook)
+    address public authorizedDepositor;
 
     /// @notice Protocol treasury for the 20% cut
     address public protocolTreasury;
@@ -75,34 +75,34 @@ contract SigilFeeVault is ISigilFeeVault {
     // ─── Events ──────────────────────────────────────────
 
     event FeesDeposited(
-        PoolId indexed poolId,
+        bytes32 indexed poolId,
         address indexed dev,
         address indexed token,
         uint256 devAmount,
         uint256 protocolAmount
     );
     event FeesEscrowed(
-        PoolId indexed poolId,
+        bytes32 indexed poolId,
         address indexed token,
         uint256 amount
     );
     event DevAssigned(
-        PoolId indexed poolId,
+        bytes32 indexed poolId,
         address indexed dev,
         uint256 tokensTransferred
     );
     event FeesExpired(
-        PoolId indexed poolId,
+        bytes32 indexed poolId,
         address indexed token,
         uint256 amount
     );
     event DevFeesClaimed(address indexed dev, address indexed token, uint256 amount);
     event ProtocolFeesClaimed(address indexed token, uint256 amount, address to);
-    event HookUpdated(address oldHook, address newHook);
+    event AuthorizedDepositorUpdated(address oldDepositor, address newDepositor);
 
     // ─── Errors ──────────────────────────────────────────
 
-    error OnlyHook();
+    error OnlyAuthorizedDepositor();
     error OnlyOwner();
     error ZeroAddress();
     error NothingToClaim();
@@ -121,8 +121,8 @@ contract SigilFeeVault is ISigilFeeVault {
 
     // ─── Modifiers ───────────────────────────────────────
 
-    modifier onlyHook() {
-        if (msg.sender != hook) revert OnlyHook();
+    modifier onlyAuthorized() {
+        if (msg.sender != authorizedDepositor) revert OnlyAuthorizedDepositor();
         _;
     }
 
@@ -131,16 +131,16 @@ contract SigilFeeVault is ISigilFeeVault {
         _;
     }
 
-    // ─── Fee Deposits (from Hook) ────────────────────────
+    // ─── Fee Deposits (from Hook or Locker) ──────────────
 
-    /// @inheritdoc ISigilFeeVault
+    /// @notice Deposit fees from the authorized depositor (V3 Locker or V4 Hook).
     function depositFees(
-        PoolId poolId,
+        bytes32 poolId,
         address dev,
         address token,
         uint256 devAmount,
         uint256 protocolAmount
-    ) external onlyHook {
+    ) external onlyAuthorized {
         uint256 totalAmount = devAmount + protocolAmount;
 
         // Pull tokens from the hook
@@ -177,7 +177,7 @@ contract SigilFeeVault is ISigilFeeVault {
             emit FeesDeposited(poolId, dev, token, devAmount, protocolAmount);
         } else {
             // ── Unknown dev: escrow under poolId ──
-            bytes32 poolKey = PoolId.unwrap(poolId);
+            bytes32 poolKey = poolId;
 
             unclaimedFees[poolKey][token] += devAmount;
 
@@ -198,11 +198,11 @@ contract SigilFeeVault is ISigilFeeVault {
 
     // ─── Dev Assignment (after verification) ─────────────
 
-    /// @inheritdoc ISigilFeeVault
-    function assignDev(PoolId poolId, address dev) external onlyOwner {
+    /// @notice Assign a verified dev to an unclaimed pool's escrowed fees.
+    function assignDev(bytes32 poolId, address dev) external onlyOwner {
         if (dev == address(0)) revert ZeroAddress();
 
-        bytes32 poolKey = PoolId.unwrap(poolId);
+        bytes32 poolKey = poolId;
         if (poolAssigned[poolKey]) revert PoolAlreadyAssigned();
 
         address[] storage tokens = unclaimedFeeTokens[poolKey];
@@ -238,8 +238,8 @@ contract SigilFeeVault is ISigilFeeVault {
     /// @notice Sweep expired unclaimed fees to protocol treasury.
     ///         Anyone can call this after the 30-day expiry period.
     /// @param poolId The pool whose unclaimed fees to sweep
-    function sweepExpiredFees(PoolId poolId) external {
-        bytes32 poolKey = PoolId.unwrap(poolId);
+    function sweepExpiredFees(bytes32 poolId) external {
+        bytes32 poolKey = poolId;
 
         uint256 depositedAt = unclaimedDepositedAt[poolKey];
         if (depositedAt == 0) revert NoUnclaimedFees();
@@ -329,14 +329,14 @@ contract SigilFeeVault is ISigilFeeVault {
     }
 
     /// @notice Get unclaimed fee balances for a pool
-    function getUnclaimedFeeBalances(PoolId poolId) external view returns (
+    function getUnclaimedFeeBalances(bytes32 poolId) external view returns (
         address[] memory tokens,
         uint256[] memory balances,
         uint256 depositedAt,
         bool expired,
         bool assigned
     ) {
-        bytes32 poolKey = PoolId.unwrap(poolId);
+        bytes32 poolKey = poolId;
         tokens = unclaimedFeeTokens[poolKey];
         balances = new uint256[](tokens.length);
         for (uint256 i; i < tokens.length; ++i) {
@@ -354,11 +354,18 @@ contract SigilFeeVault is ISigilFeeVault {
 
     // ─── Admin ───────────────────────────────────────────
 
-    /// @notice Set the hook address. Can only be set once (or by owner).
+    /// @notice Set the authorized depositor (V3: LPLocker, V4: Hook).
+    function setAuthorizedDepositor(address _depositor) external onlyOwner {
+        if (_depositor == address(0)) revert ZeroAddress();
+        emit AuthorizedDepositorUpdated(authorizedDepositor, _depositor);
+        authorizedDepositor = _depositor;
+    }
+
+    /// @notice Legacy alias for backwards compatibility
     function setHook(address _hook) external onlyOwner {
         if (_hook == address(0)) revert ZeroAddress();
-        emit HookUpdated(hook, _hook);
-        hook = _hook;
+        emit AuthorizedDepositorUpdated(authorizedDepositor, _hook);
+        authorizedDepositor = _hook;
     }
 
     function setProtocolTreasury(address _treasury) external onlyOwner {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useFeeVault } from "@/hooks/useFeeVault";
 
 // ─── Types ───────────────────────────────────────────
 
@@ -10,22 +11,16 @@ interface TokenInfo {
     address: string;
     name: string;
     ticker: string;
-    color: string; // gradient start color for the icon
+    color: string;
     role: "dev" | "holder";
     balance: string;
     escrowBalance: string;
-    usdcFeesEarned: string;
-    usdcFeesPending: string;
     activeProposals: number;
     totalProposals: number;
     projectId: string;
 }
 
-// ─── Mock Data ───────────────────────────────────────
-
-const MOCK_WALLET = "0x7a3d...8F2e";
-const MOCK_TOTAL_USDC_EARNED = "$4,218.50";
-const MOCK_TOTAL_USDC_CLAIMABLE = "$312.80";
+// ─── Mock Data (token holdings — live fee data comes from hook) ─
 
 const MOCK_DEV_TOKENS: TokenInfo[] = [
     {
@@ -36,8 +31,6 @@ const MOCK_DEV_TOKENS: TokenInfo[] = [
         role: "dev",
         balance: "50,000,000",
         escrowBalance: "7,300,000,000",
-        usdcFeesEarned: "$2,840.00",
-        usdcFeesPending: "$210.40",
         activeProposals: 1,
         totalProposals: 4,
         projectId: "nexusai",
@@ -50,8 +43,6 @@ const MOCK_DEV_TOKENS: TokenInfo[] = [
         role: "dev",
         balance: "50,000,000",
         escrowBalance: "9,100,000,000",
-        usdcFeesEarned: "$1,378.50",
-        usdcFeesPending: "$102.40",
         activeProposals: 0,
         totalProposals: 2,
         projectId: "defi-guardian",
@@ -67,8 +58,6 @@ const MOCK_HELD_TOKENS: TokenInfo[] = [
         role: "holder",
         balance: "125,000,000",
         escrowBalance: "6,800,000,000",
-        usdcFeesEarned: "$0",
-        usdcFeesPending: "$0",
         activeProposals: 2,
         totalProposals: 6,
         projectId: "quantum-chain",
@@ -81,8 +70,6 @@ const MOCK_HELD_TOKENS: TokenInfo[] = [
         role: "holder",
         balance: "89,500,000",
         escrowBalance: "8,200,000,000",
-        usdcFeesEarned: "$0",
-        usdcFeesPending: "$0",
         activeProposals: 1,
         totalProposals: 3,
         projectId: "socialfi-hub",
@@ -95,8 +82,6 @@ const MOCK_HELD_TOKENS: TokenInfo[] = [
         role: "holder",
         balance: "52,000,000",
         escrowBalance: "5,400,000,000",
-        usdcFeesEarned: "$0",
-        usdcFeesPending: "$0",
         activeProposals: 0,
         totalProposals: 1,
         projectId: "datavault",
@@ -114,12 +99,129 @@ function formatNum(val: string): string {
     return val;
 }
 
+// Try to get Privy auth — returns null if Privy not configured
+function useOptionalPrivy() {
+    try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { usePrivy } = require("@privy-io/react-auth");
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        return usePrivy();
+    } catch {
+        return null;
+    }
+}
+
+// ─── Fee Claim Card ──────────────────────────────────
+
+function FeeClaimCard({
+    claimableUsdc,
+    lifetimeUsdc,
+    claiming,
+    error,
+    lastTxHash,
+    loading,
+    onClaim,
+    onRefresh,
+}: {
+    claimableUsdc: string;
+    lifetimeUsdc: string;
+    claiming: boolean;
+    error: string | null;
+    lastTxHash: string | null;
+    loading: boolean;
+    onClaim: () => void;
+    onRefresh: () => void;
+}) {
+    const isZero = claimableUsdc === "$0.00";
+
+    return (
+        <div className="fee-claim-card">
+            <div className="fee-claim-header">
+                <div>
+                    <h3 style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
+                        Claimable USDC
+                    </h3>
+                    <div className="fee-claim-amount">
+                        {loading ? (
+                            <span className="spinner" style={{ width: 20, height: 20 }} />
+                        ) : (
+                            claimableUsdc
+                        )}
+                    </div>
+                </div>
+                <button
+                    className="fee-claim-refresh"
+                    onClick={onRefresh}
+                    disabled={loading}
+                    title="Refresh balances"
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
+                    </svg>
+                </button>
+            </div>
+
+            <div className="fee-claim-stats">
+                <div className="fee-claim-stat">
+                    <span className="fee-label">Lifetime Earned</span>
+                    <span className="fee-value">{lifetimeUsdc}</span>
+                </div>
+            </div>
+
+            <button
+                className="fee-claim-btn"
+                onClick={onClaim}
+                disabled={claiming || isZero || loading}
+            >
+                {claiming ? (
+                    <>
+                        <span className="spinner" style={{ width: 14, height: 14 }} />
+                        Claiming…
+                    </>
+                ) : (
+                    <>
+                        <Image
+                            src="/icons/coins-hand.svg"
+                            alt=""
+                            width={16}
+                            height={16}
+                            style={{ display: "inline", verticalAlign: "middle", marginRight: 6, opacity: 0.7 }}
+                        />
+                        {isZero ? "No USDC to Claim" : `Claim ${claimableUsdc}`}
+                    </>
+                )}
+            </button>
+
+            {/* Success toast */}
+            {lastTxHash && !claiming && (
+                <div className="fee-claim-success">
+                    ✓ Claimed!{" "}
+                    <a
+                        href={`https://basescan.org/tx/${lastTxHash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        View tx ↗
+                    </a>
+                </div>
+            )}
+
+            {/* Error */}
+            {error && (
+                <div className="fee-claim-error">
+                    {error}
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ─── Token Card ──────────────────────────────────────
 
 function TokenCard({ token }: { token: TokenInfo }) {
     const isAboveThreshold =
         token.role === "holder" &&
-        parseFloat(token.balance.replace(/,/g, "")) >= 50_000_000; // 0.05% of 100B
+        parseFloat(token.balance.replace(/,/g, "")) >= 50_000_000;
 
     return (
         <div className="token-card">
@@ -151,22 +253,6 @@ function TokenCard({ token }: { token: TokenInfo }) {
                 </div>
             </div>
 
-            {/* Dev fees */}
-            {token.role === "dev" && (
-                <div style={{ marginBottom: "var(--space-3)" }}>
-                    <div className="fee-row">
-                        <span className="fee-label">USDC Earned</span>
-                        <span className="fee-value">{token.usdcFeesEarned}</span>
-                    </div>
-                    <div className="fee-row">
-                        <span className="fee-label">Claimable</span>
-                        <span className="fee-value" style={{ color: "var(--success)" }}>
-                            {token.usdcFeesPending}
-                        </span>
-                    </div>
-                </div>
-            )}
-
             {/* Governance info */}
             <div className="fee-row" style={{ marginBottom: "var(--space-4)" }}>
                 <span className="fee-label">Active Proposals</span>
@@ -180,11 +266,6 @@ function TokenCard({ token }: { token: TokenInfo }) {
                 <Link href={`/governance?token=${token.address}`} className="action-primary">
                     <Image src="/icons/check-verified-02.svg" alt="" width={14} height={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4, opacity: 0.6 }} /> Governance
                 </Link>
-                {token.role === "dev" && (
-                    <button onClick={() => console.log("Claim fees for", token.ticker)}>
-                        <Image src="/icons/coins-hand.svg" alt="" width={14} height={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4, opacity: 0.6 }} /> Claim USDC
-                    </button>
-                )}
                 {token.role === "holder" && isAboveThreshold && (
                     <Link href={`/governance?token=${token.address}&action=propose`}>
                         <Image src="/icons/check-verified-02.svg" alt="" width={14} height={14} style={{ display: "inline", verticalAlign: "middle", marginRight: 4, opacity: 0.6 }} /> Propose
@@ -213,6 +294,25 @@ function TokenCard({ token }: { token: TokenInfo }) {
 export default function ProfileDashboard() {
     const [activeSection, setActiveSection] = useState<"all" | "dev" | "held">("all");
 
+    // Get wallet address from Privy
+    const privy = useOptionalPrivy();
+    const walletAddress = privy?.user?.wallet?.address as string | undefined;
+    const displayAddress = walletAddress
+        ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`
+        : "Not connected";
+
+    // Fee vault hook — reads on-chain data
+    const {
+        claimableUsdc,
+        lifetimeUsdc,
+        loading,
+        claiming,
+        error,
+        lastTxHash,
+        claimUsdc,
+        refresh,
+    } = useFeeVault(walletAddress);
+
     const devTokens = MOCK_DEV_TOKENS;
     const heldTokens = MOCK_HELD_TOKENS;
     const allTokens = [...devTokens, ...heldTokens];
@@ -227,13 +327,36 @@ export default function ProfileDashboard() {
             {/* Profile Hero */}
             <div className="profile-hero">
                 <div className="profile-avatar">
-                    {MOCK_WALLET.charAt(2).toUpperCase()}
+                    {walletAddress ? walletAddress.charAt(2).toUpperCase() : "?"}
                 </div>
                 <div className="profile-info">
                     <h1>My Dashboard</h1>
-                    <span className="profile-address">{MOCK_WALLET}</span>
+                    <span className="profile-address">{displayAddress}</span>
                 </div>
             </div>
+
+            {/* Fee Claim Card — LIVE on-chain data */}
+            {walletAddress && (
+                <FeeClaimCard
+                    claimableUsdc={claimableUsdc}
+                    lifetimeUsdc={lifetimeUsdc}
+                    claiming={claiming}
+                    error={error}
+                    lastTxHash={lastTxHash}
+                    loading={loading}
+                    onClaim={claimUsdc}
+                    onRefresh={refresh}
+                />
+            )}
+
+            {/* Not connected prompt */}
+            {!walletAddress && (
+                <div className="fee-claim-card" style={{ textAlign: "center", padding: "var(--space-8)" }}>
+                    <p style={{ color: "var(--text-secondary)", margin: 0 }}>
+                        Connect your wallet to view and claim fee earnings.
+                    </p>
+                </div>
+            )}
 
             {/* Portfolio Summary */}
             <div className="profile-summary">
@@ -246,11 +369,11 @@ export default function ProfileDashboard() {
                     <div className="label">As Developer</div>
                 </div>
                 <div className="profile-summary-card">
-                    <div className="value" style={{ color: "var(--success)" }}>{MOCK_TOTAL_USDC_EARNED}</div>
+                    <div className="value" style={{ color: "var(--success)" }}>{lifetimeUsdc}</div>
                     <div className="label">Total USDC Earned</div>
                 </div>
                 <div className="profile-summary-card">
-                    <div className="value" style={{ color: "var(--success)" }}>{MOCK_TOTAL_USDC_CLAIMABLE}</div>
+                    <div className="value" style={{ color: "var(--success)" }}>{claimableUsdc}</div>
                     <div className="label">Claimable USDC</div>
                 </div>
             </div>
@@ -282,7 +405,7 @@ export default function ProfileDashboard() {
                         </div>
                     )}
                     <div className="token-grid">
-                        {(activeSection === "dev" ? devTokens : devTokens).map((t) => (
+                        {devTokens.map((t) => (
                             <TokenCard key={t.address} token={t} />
                         ))}
                     </div>
@@ -299,7 +422,7 @@ export default function ProfileDashboard() {
                         </div>
                     )}
                     <div className="token-grid">
-                        {(activeSection === "held" ? heldTokens : heldTokens).map((t) => (
+                        {heldTokens.map((t) => (
                             <TokenCard key={t.address} token={t} />
                         ))}
                     </div>

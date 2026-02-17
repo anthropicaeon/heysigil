@@ -97,7 +97,7 @@ contract SigilHookTest is Test {
         mockToken.approve(address(feeVault), type(uint256).max);
 
         // Simulate fee deposit (as if we're the hook)
-        PoolId poolId = PoolId.wrap(bytes32(uint256(1)));
+        bytes32 poolId = bytes32(uint256(1));
         feeVault.depositFees(poolId, dev, address(mockToken), 80 ether, 20 ether);
 
         // Check balances
@@ -122,8 +122,8 @@ contract SigilHookTest is Test {
         feeVault.setHook(address(0xBEEF));
         vm.stopPrank();
 
-        PoolId poolId = PoolId.wrap(bytes32(uint256(1)));
-        vm.expectRevert(SigilFeeVault.OnlyHook.selector);
+        bytes32 poolId = bytes32(uint256(1));
+        vm.expectRevert(SigilFeeVault.OnlyAuthorizedDepositor.selector);
         feeVault.depositFees(poolId, dev, address(0x1), 100, 25);
     }
 
@@ -139,7 +139,7 @@ contract SigilHookTest is Test {
         tokenA.approve(address(feeVault), type(uint256).max);
         tokenB.approve(address(feeVault), type(uint256).max);
 
-        PoolId poolId = PoolId.wrap(bytes32(uint256(1)));
+        bytes32 poolId = bytes32(uint256(1));
 
         // Deposit fees in both tokens
         feeVault.depositFees(poolId, dev, address(tokenA), 50 ether, 10 ether);
@@ -162,7 +162,7 @@ contract SigilHookTest is Test {
         SigilToken token = new SigilToken("T", "T", 10_000 ether, address(this));
         token.approve(address(feeVault), type(uint256).max);
 
-        PoolId poolId = PoolId.wrap(bytes32(uint256(1)));
+        bytes32 poolId = bytes32(uint256(1));
 
         // Multiple deposits
         feeVault.depositFees(poolId, dev, address(token), 80 ether, 20 ether);
@@ -233,7 +233,7 @@ contract SigilHookTest is Test {
         feeVault.setHook(address(this));
         vm.stopPrank();
 
-        PoolId poolId = PoolId.wrap(bytes32(uint256(1)));
+        bytes32 poolId = bytes32(uint256(1));
         vm.expectRevert("SIGIL: USE_WETH");
         feeVault.depositFees(poolId, dev, address(0), 80, 20);
     }
@@ -268,7 +268,7 @@ contract SigilHookTest is Test {
         // New owner can
         vm.prank(newOwner);
         feeVault.setHook(address(0x1));
-        assertEq(feeVault.hook(), address(0x1));
+        assertEq(feeVault.authorizedDepositor(), address(0x1));
     }
 
     /// @notice Owner can update protocol treasury
@@ -305,7 +305,7 @@ contract SigilHookTest is Test {
         tokenA.approve(address(feeVault), type(uint256).max);
         tokenB.approve(address(feeVault), type(uint256).max);
 
-        PoolId poolId = PoolId.wrap(bytes32(uint256(1)));
+        bytes32 poolId = bytes32(uint256(1));
 
         // Three deposits across two tokens
         feeVault.depositFees(poolId, dev, address(tokenA), 40 ether, 10 ether);

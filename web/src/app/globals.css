@@ -3120,6 +3120,147 @@ body:has(.chat-layout) .footer {
   font-family: var(--font-mono);
 }
 
+/* ─── Fee Claim Card ─── */
+
+.fee-claim-card {
+  background: linear-gradient(135deg, var(--bg-card), rgba(72, 40, 99, 0.04));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6);
+  margin-bottom: var(--space-8);
+  position: relative;
+  overflow: hidden;
+}
+
+.fee-claim-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--purple), var(--purple-light), var(--success));
+}
+
+.fee-claim-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-4);
+}
+
+.fee-claim-amount {
+  font-size: var(--text-3xl, 1.875rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--success);
+  margin-top: var(--space-1);
+  font-family: var(--font-mono);
+}
+
+.fee-claim-refresh {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition: all var(--duration) var(--ease);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fee-claim-refresh:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.fee-claim-refresh:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.fee-claim-stats {
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.fee-claim-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.fee-claim-stat .fee-label {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.fee-claim-stat .fee-value {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.fee-claim-btn {
+  width: 100%;
+  padding: var(--space-4) var(--space-6);
+  font-size: var(--text-base);
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  border: none;
+  background: linear-gradient(135deg, var(--purple), var(--purple-light));
+  color: white;
+  cursor: pointer;
+  transition: all var(--duration) var(--ease);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.fee-claim-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(72, 40, 99, 0.3);
+}
+
+.fee-claim-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.fee-claim-success {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--success-bg);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--success);
+  text-align: center;
+}
+
+.fee-claim-success a {
+  color: var(--success);
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.fee-claim-error {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--error-bg);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  color: var(--error);
+  text-align: center;
+}
+
 .profile-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));

@@ -14,11 +14,11 @@ import { checkDeployRateLimit } from "../middleware/rate-limit.js";
 import { linkPoolToProject } from "../db/repositories/index.js";
 
 // ─── ABI ────────────────────────────────────────────────
-// Minimal ABI for SigilFactory.launch()
+// Minimal ABI for SigilFactoryV3.launch()
 const FACTORY_ABI = [
     "function launch(string name, string symbol, string projectId, address dev) external returns (address token, bytes32 poolId)",
     "function getLaunchCount() external view returns (uint256)",
-    "function getLaunchInfo(address token) external view returns (tuple(address token, address dev, string projectId, bytes32 poolId, tuple(address,address,uint24,int24,address) poolKey, uint256 launchedAt, address launchedBy))",
+    "function getLaunchInfo(address token) external view returns (tuple(address token, address dev, string projectId, bytes32 poolId, address pool, uint256 lpTokenId, uint256 launchedAt, address launchedBy))",
     "event TokenLaunched(address indexed token, address indexed dev, string projectId, bytes32 poolId, address launchedBy, uint256 supply)",
 ];
 
