@@ -10,6 +10,7 @@ import { useState, useMemo } from "react";
 import Image from "next/image";
 import { useFeeVault } from "@/hooks/useFeeVault";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
+import { useIsPrivyConfigured } from "@/providers/PrivyAuthProvider";
 import { EmptyState } from "@/components/common/EmptyState";
 import { truncateAddress } from "@/lib/format";
 import { MOCK_DEV_TOKENS, MOCK_HELD_TOKENS } from "@/fixtures";
@@ -18,6 +19,7 @@ import { TokenSection } from "./TokenSection";
 
 export default function ProfileDashboard() {
     const [activeSection, setActiveSection] = useState<"all" | "dev" | "held">("all");
+    const isPrivyConfigured = useIsPrivyConfigured();
 
     // Get wallet address from Privy
     const privy = useOptionalPrivy();
@@ -91,7 +93,9 @@ export default function ProfileDashboard() {
                         style={{ textAlign: "center", padding: "var(--space-8)" }}
                     >
                         <p style={{ color: "var(--text-secondary)", margin: 0 }}>
-                            Connect your wallet to view and claim fee earnings.
+                            {isPrivyConfigured
+                                ? "Connect your wallet to view and claim fee earnings."
+                                : "Sign in is not configured in this environment. Add NEXT_PUBLIC_PRIVY_APP_ID to enable wallet connection."}
                         </p>
                     </div>
                 )}
