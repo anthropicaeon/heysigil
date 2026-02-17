@@ -7,10 +7,20 @@
  * Backend selection:
  * - Set REDIS_URL env var for distributed rate limiting
  * - Falls back to in-memory when Redis is not configured
+ *
+ * Proxy trust configuration (TRUST_PROXY env var):
+ * - "cloudflare": Only trust cf-connecting-ip header
+ * - "true": Trust x-forwarded-for, x-real-ip, cf-connecting-ip (legacy default)
+ * - "false": Never trust headers, use fallback IP only
+ * - "" (not set): Trust headers but warn in production about security risk
  */
 
 import type { Context, Next } from "hono";
 import { getRateLimitStore, type RateLimitStore } from "./rate-limit-store.js";
+import { getEnv, isProduction } from "../config/env.js";
+
+// Track if we've warned about missing TRUST_PROXY config
+let _hasWarnedAboutTrustProxy = false;
 
 interface RateLimitConfig {
     /** Maximum requests allowed in the window */
@@ -27,10 +37,35 @@ interface RateLimitConfig {
 
 /**
  * Extract client IP from request headers (handles proxies).
- * Falls back to a default if no IP can be determined.
+ * Respects TRUST_PROXY env configuration to prevent header spoofing.
  */
 function getClientIp(c: Context): string {
-    // Check common proxy headers
+    const env = getEnv();
+    const trustProxy = env.TRUST_PROXY;
+
+    // Warn once in production if TRUST_PROXY is not explicitly configured
+    if (isProduction() && !trustProxy && !_hasWarnedAboutTrustProxy) {
+        console.warn(
+            "[rate-limit] WARNING: TRUST_PROXY not set in production. " +
+                "Proxy headers are trusted by default, which allows rate limit bypass. " +
+                'Set TRUST_PROXY="cloudflare", "true", or "false" to suppress this warning.',
+        );
+        _hasWarnedAboutTrustProxy = true;
+    }
+
+    // If trust is explicitly disabled, return fallback immediately
+    if (trustProxy === "false") {
+        return "unknown";
+    }
+
+    // Cloudflare-only mode: only trust cf-connecting-ip
+    if (trustProxy === "cloudflare") {
+        const cfIp = c.req.header("cf-connecting-ip");
+        return cfIp || "unknown";
+    }
+
+    // Trust all headers (legacy behavior, or explicit "true")
+    // Order: x-forwarded-for, x-real-ip, cf-connecting-ip
     const forwarded = c.req.header("x-forwarded-for");
     if (forwarded) {
         // x-forwarded-for can contain multiple IPs, take the first (client)
@@ -47,7 +82,6 @@ function getClientIp(c: Context): string {
         return cfIp;
     }
 
-    // Fallback - this shouldn't happen in production with proper proxy setup
     return "unknown";
 }
 
