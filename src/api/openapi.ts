@@ -77,3 +77,30 @@ All endpoints are rate-limited. Rate limit headers are included in responses:
  * Security requirement for authenticated endpoints
  */
 export const securityRequired = [{ bearerAuth: [] }];
+
+// ─── Response Builders ─────────────────────────────────
+
+import type { ZodSchema } from "zod";
+import { ErrorResponseSchema, RateLimitResponseSchema } from "./schemas/common.js";
+
+/**
+ * Build a JSON response definition for OpenAPI route.
+ */
+export function jsonResponse<T extends ZodSchema>(schema: T, description: string) {
+    return {
+        content: { "application/json": { schema } },
+        description,
+    };
+}
+
+/**
+ * Standard error response (400).
+ */
+export const errorResponse = (description = "Bad request") =>
+    jsonResponse(ErrorResponseSchema, description);
+
+/**
+ * Standard rate limit response (429).
+ */
+export const rateLimitResponse = (description = "Rate limit exceeded") =>
+    jsonResponse(RateLimitResponseSchema, description);

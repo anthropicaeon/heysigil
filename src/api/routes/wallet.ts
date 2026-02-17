@@ -9,13 +9,13 @@ import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { getParams } from "../helpers/request.js";
 import { createWallet, hasWallet, getAddress, getBalance } from "../../services/wallet.js";
 import { walletCreateRateLimit, sessionEnumerationRateLimit } from "../../middleware/rate-limit.js";
-import { RateLimitResponseSchema } from "../schemas/common.js";
 import {
     WalletSessionIdParamSchema,
     WalletInfoResponseSchema,
     WalletCreateResponseSchema,
 } from "../schemas/wallet.js";
 import { handler } from "../helpers/route.js";
+import { jsonResponse, rateLimitResponse } from "../openapi.js";
 
 export const wallet = new OpenAPIHono();
 
@@ -40,22 +40,11 @@ const getWalletRoute = createRoute({
         params: WalletSessionIdParamSchema,
     },
     responses: {
-        200: {
-            content: {
-                "application/json": {
-                    schema: WalletInfoResponseSchema,
-                },
-            },
-            description: "Wallet information (exists: true with address/balance, or exists: false)",
-        },
-        429: {
-            content: {
-                "application/json": {
-                    schema: RateLimitResponseSchema,
-                },
-            },
-            description: "Rate limit exceeded (10 requests per minute)",
-        },
+        200: jsonResponse(
+            WalletInfoResponseSchema,
+            "Wallet information (exists: true with address/balance, or exists: false)",
+        ),
+        429: rateLimitResponse("Rate limit exceeded (10 requests per minute)"),
     },
 });
 
@@ -103,22 +92,8 @@ const createWalletRoute = createRoute({
         params: WalletSessionIdParamSchema,
     },
     responses: {
-        200: {
-            content: {
-                "application/json": {
-                    schema: WalletCreateResponseSchema,
-                },
-            },
-            description: "Wallet created or already exists",
-        },
-        429: {
-            content: {
-                "application/json": {
-                    schema: RateLimitResponseSchema,
-                },
-            },
-            description: "Rate limit exceeded (5 requests per hour)",
-        },
+        200: jsonResponse(WalletCreateResponseSchema, "Wallet created or already exists"),
+        429: rateLimitResponse("Rate limit exceeded (5 requests per hour)"),
     },
 });
 
