@@ -7,6 +7,7 @@
  */
 
 import type { VerificationMethod, VerificationResult } from "./types.js";
+import { buildSuccess, buildFailure } from "./result-builder.js";
 import { getEnv } from "../config/env.js";
 import { getErrorMessage } from "../utils/errors.js";
 
@@ -78,12 +79,7 @@ export abstract class OAuthVerifier {
      * Build a consistent error result.
      */
     protected buildErrorResult(projectId: string, err: unknown): VerificationResult {
-        return {
-            success: false,
-            method: this.config.method,
-            projectId,
-            error: getErrorMessage(err),
-        };
+        return buildFailure(this.config.method, projectId, getErrorMessage(err));
     }
 
     /**
@@ -94,13 +90,7 @@ export abstract class OAuthVerifier {
         platformUsername: string | undefined,
         proof: Record<string, unknown>,
     ): VerificationResult {
-        return {
-            success: true,
-            method: this.config.method,
-            projectId,
-            platformUsername,
-            proof,
-        };
+        return buildSuccess(this.config.method, projectId, platformUsername, proof);
     }
 
     /**
@@ -111,13 +101,7 @@ export abstract class OAuthVerifier {
         errorMessage: string,
         platformUsername?: string,
     ): VerificationResult {
-        return {
-            success: false,
-            method: this.config.method,
-            projectId,
-            platformUsername,
-            error: errorMessage,
-        };
+        return buildFailure(this.config.method, projectId, errorMessage, { platformUsername });
     }
 
     // ─── Abstract methods for subclasses ────────────────────

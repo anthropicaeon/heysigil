@@ -12,14 +12,14 @@ import type { VerificationResult, VerificationMethod } from "./types.js";
 export function buildSuccess(
     method: VerificationMethod,
     projectId: string,
-    username?: string,
+    platformUsername?: string,
     proof?: Record<string, unknown>,
 ): VerificationResult {
     return {
         success: true,
         method,
         projectId,
-        ...(username && { username }),
+        ...(platformUsername && { platformUsername }),
         ...(proof && { proof }),
     };
 }
@@ -31,13 +31,14 @@ export function buildFailure(
     method: VerificationMethod,
     projectId: string,
     error: string,
-    proof?: Record<string, unknown>,
+    options?: { platformUsername?: string; proof?: Record<string, unknown> },
 ): VerificationResult {
     return {
         success: false,
         method,
         projectId,
         error,
-        ...(proof && { proof }),
+        ...(options?.platformUsername && { platformUsername: options.platformUsername }),
+        ...(options?.proof && { proof: options.proof }),
     };
 }
