@@ -6,21 +6,17 @@
  * GET  /api/launch/:projectId   — Get project details
  */
 
+import { z } from "zod";
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
-import { getBody, getParams } from "../helpers/request.js";
 import { eq } from "drizzle-orm";
+import { getBody, getParams } from "../helpers/request.js";
 import { getDb, schema } from "../../db/client.js";
-import { parseLink } from "../../utils/link-parser.js";
-import type { ParsedLink } from "../../utils/link-parser.js";
-import {
-    deployToken,
-    isDeployerConfigured,
-    generateName,
-    generateSymbol,
-    getDeployerBalance,
-} from "../../services/deployer.js";
 import { rateLimit } from "../../middleware/rate-limit.js";
 import { getUserId } from "../../middleware/auth.js";
+import { handler } from "../helpers/route.js";
+import { getErrorMessage } from "../../utils/errors.js";
+import { parseDevLinks, launchToken, isDeployerConfigured } from "../../services/launch.js";
+import { getDeployerBalance } from "../../services/deployer.js";
 import {
     ErrorResponseSchema,
     NotFoundResponseSchema,
@@ -36,8 +32,6 @@ import {
     LaunchProjectIdParamSchema,
     ProjectDetailsResponseSchema,
 } from "../schemas/launch.js";
-import { handler } from "../helpers/route.js";
-import { getErrorMessage } from "../../utils/errors.js";
 
 const launch = new OpenAPIHono();
 
@@ -118,164 +112,47 @@ launch.openapi(
     launchTokenRoute,
     handler(async (c) => {
         const body = getBody(c, LaunchRequestSchema);
-        const badRequest = (payload: Record<string, unknown>) => c.json(payload, 400);
 
-        if (!body.devLinks || body.devLinks.length === 0) {
-            return badRequest({
-                error: "At least one developer link is required",
-                hint: "Provide GitHub repos, Instagram handles, Twitter handles, or website URLs",
-                examples: [
-                    "https://github.com/org/repo",
-                    "https://instagram.com/handle",
-                    "https://x.com/handle",
-                    "https://mysite.dev",
-                ],
-            });
-        }
-
-        // Parse all provided links
-        const parsedLinks: ParsedLink[] = [];
-        const errors: string[] = [];
-
-        for (const raw of body.devLinks) {
-            const parsed = parseLink(raw);
-            if (parsed) {
-                parsedLinks.push(parsed);
-            } else {
-                errors.push(`Could not parse: "${raw}"`);
-            }
-        }
-
-        if (parsedLinks.length === 0) {
-            return badRequest({
-                error: "None of the provided links could be recognized",
-                invalidLinks: errors,
-                hint: "Try full URLs like https://github.com/org/repo",
-            });
-        }
-
-        // Use the primary link's projectId as the canonical project ID
-        const primaryLink = parsedLinks[0];
-        const projectId = `${primaryLink.platform}:${primaryLink.projectId}`;
-
-        // Auto-generate name/symbol if not provided
-        const tokenName = body.name || generateName(primaryLink.projectId);
-        const tokenSymbol = body.symbol || generateSymbol(primaryLink.projectId);
-
-        const db = getDb();
-        const devLinksData = parsedLinks.map((l) => ({
-            platform: l.platform,
-            url: l.displayUrl,
-            projectId: l.projectId,
-        }));
-
-        // Check if deployer is configured for on-chain deployment
-        if (!isDeployerConfigured()) {
-            // Fallback: store project without deploying on-chain
-            try {
-                const [project] = await db
-                    .insert(schema.projects)
-                    .values({
-                        projectId,
-                        name: tokenName,
-                        description: body.description || `${tokenName} ($${tokenSymbol})`,
-                        devLinks: devLinksData,
-                        deployedBy: "api",
-                    })
-                    .onConflictDoUpdate({
-                        target: schema.projects.projectId,
-                        set: {
-                            name: tokenName,
-                            description: body.description || `${tokenName} ($${tokenSymbol})`,
-                            devLinks: devLinksData,
-                        },
-                    })
-                    .returning();
-
-                return c.json({
-                    success: true as const,
-                    deployed: false as const,
-                    message:
-                        "Project registered but on-chain deployment not configured. Set DEPLOYER_PRIVATE_KEY and SIGIL_FACTORY_ADDRESS.",
-                    project: {
-                        id: project.id,
-                        projectId: project.projectId,
-                        name: project.name,
-                    },
-                });
-            } catch (err) {
-                return c.json({ error: getErrorMessage(err, "Failed to register project") }, 500);
-            }
-        }
-
-        // Deploy on-chain!
-        try {
-            // Rate limiting: authenticated users get user-based limits (prevents bypass via multiple sessions)
-            const privyUserId = getUserId(c);
-            const deployResult = await deployToken(
+        // Parse and validate links
+        const parseResult = parseDevLinks(body);
+        if (!parseResult.success) {
+            return c.json(
                 {
-                    name: tokenName,
-                    symbol: tokenSymbol,
-                    projectId,
+                    error: parseResult.error,
+                    invalidLinks: parseResult.invalidLinks,
+                    hint: parseResult.hint,
+                    examples: parseResult.examples,
                 },
-                {
-                    privyUserId: privyUserId,
-                    sessionId: body.sessionId,
-                },
+                400,
             );
+        }
 
-            // Store in DB
-            const [project] = await db
-                .insert(schema.projects)
-                .values({
-                    projectId,
-                    name: tokenName,
-                    description: body.description || `${tokenName} ($${tokenSymbol})`,
-                    devLinks: devLinksData,
-                    poolTokenAddress: deployResult.tokenAddress,
-                    poolId: deployResult.poolId,
-                    deployTxHash: deployResult.txHash,
-                    deployedBy: "api",
-                })
-                .onConflictDoUpdate({
-                    target: schema.projects.projectId,
-                    set: {
-                        name: tokenName,
-                        description: body.description || `${tokenName} ($${tokenSymbol})`,
-                        devLinks: devLinksData,
-                        poolTokenAddress: deployResult.tokenAddress,
-                        poolId: deployResult.poolId,
-                        deployTxHash: deployResult.txHash,
-                    },
-                })
-                .returning();
+        // Launch token (register + optionally deploy)
+        const privyUserId = getUserId(c);
+        const result = await launchToken(body, { privyUserId });
 
+        // Handle errors
+        if ("error" in result) {
+            return c.json({ error: result.error }, 500);
+        }
+
+        // Return appropriate response based on result type
+        if (result.type === "registered") {
             return c.json({
                 success: true as const,
-                deployed: true as const,
-                project: {
-                    id: project.id,
-                    projectId: project.projectId,
-                    name: tokenName,
-                    symbol: tokenSymbol,
-                },
-                token: {
-                    address: deployResult.tokenAddress,
-                    poolId: deployResult.poolId,
-                    txHash: deployResult.txHash,
-                    explorerUrl: deployResult.explorerUrl,
-                    dexUrl: deployResult.dexUrl,
-                },
-                claimInstructions: parsedLinks.map((l) => ({
-                    platform: l.platform,
-                    projectId: l.projectId,
-                    displayUrl: l.displayUrl,
-                    verifyMethods: l.verifyMethods,
-                })),
+                deployed: false as const,
+                message: result.message,
+                project: result.project,
             });
-        } catch (err) {
-            return c.json({ error: getErrorMessage(err, "Failed to deploy token") }, 500);
         }
+
+        return c.json({
+            success: true as const,
+            deployed: true as const,
+            project: result.project,
+            token: result.token,
+            claimInstructions: result.claimInstructions,
+        });
     }),
 );
 
