@@ -32,3 +32,12 @@ export type {
     WalletInfo,
     FeeInfo,
 } from "./wallet";
+
+// Chat
+export type {
+    ChatRequest,
+    ChatApiResponse,
+    ChatSuccess,
+    ChatError,
+} from "./chat";
+export { isChatSuccess, isChatError } from "./chat";
