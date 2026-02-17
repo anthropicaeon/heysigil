@@ -18,8 +18,8 @@ export default function PrivyAuthProvider({
         <PrivyProvider
             appId={appId}
             config={{
-                // Login methods: Email, Wallet Connect, GitHub, Telegram
-                loginMethods: ["email", "wallet", "github", "telegram"],
+                // Login methods — only include methods configured in Privy dashboard
+                loginMethods: ["email", "wallet", "github"],
 
                 // Branding
                 appearance: {
@@ -30,17 +30,10 @@ export default function PrivyAuthProvider({
                     loginMessage: "Fund builders. Trade tokens. No wallet needed.",
                 },
 
-                // Create embedded EVM wallet on login for users without one
-                embeddedWallets: {
-                    ethereum: {
-                        createOnLogin: "users-without-wallets",
-                    },
-                },
-
                 // Legal
                 legal: {
-                    termsAndConditionsUrl: "https://sigil.sh/terms",
-                    privacyPolicyUrl: "https://sigil.sh/privacy",
+                    termsAndConditionsUrl: "https://heysigil.fund/terms",
+                    privacyPolicyUrl: "https://heysigil.fund/privacy",
                 },
             }}
         >
