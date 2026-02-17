@@ -72,13 +72,11 @@ describe("Trading: Token Resolution", () => {
         expect(token!.symbol).toBe("TOSHI");
     });
 
-    test("resolves contract address", () => {
+    test("rejects unknown contract addresses to prevent decimal assumptions", () => {
         const addr = "0x1234567890abcdef1234567890abcdef12345678";
         const token = resolveToken(addr);
-        expect(token).toBeDefined();
-        expect(token!.address).toBe(addr);
-        expect(token!.decimals).toBe(18);
-        expect(token!.symbol).toContain("0x123456");
+        // Unknown addresses now return undefined to prevent fund loss from wrong decimal assumptions
+        expect(token).toBeUndefined();
     });
 
     test("handles lowercase symbols", () => {
