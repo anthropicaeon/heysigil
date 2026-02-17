@@ -1,35 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-// Try to get Privy auth — returns null if Privy not configured
-function useOptionalPrivy() {
-    try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { usePrivy } = require("@privy-io/react-auth");
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        return usePrivy();
-    } catch {
-        return null;
-    }
-}
-
-interface TokenBalance {
-    symbol: string;
-    balance: string;
-    address: string;
-}
-
-interface WalletData {
-    exists: boolean;
-    address: string | null;
-    balance: {
-        eth: string;
-        tokens: TokenBalance[];
-    } | null;
-}
+import { useOptionalPrivy, getUserDisplay } from "@/hooks/useOptionalPrivy";
+import { apiClient, type WalletInfo } from "@/lib/api-client";
 
 // Token colors for visual differentiation
 const TOKEN_COLORS: Record<string, string> = {
@@ -48,16 +21,6 @@ function getTokenColor(symbol: string): string {
     return TOKEN_COLORS[symbol] || "#86868b";
 }
 
-function getUserDisplay(privy: ReturnType<typeof useOptionalPrivy>): { name: string; provider: string } | null {
-    if (!privy?.user) return null;
-    const u = privy.user;
-    if (u.github?.username) return { name: u.github.username, provider: "GitHub" };
-    if (u.telegram?.username) return { name: u.telegram.username, provider: "Telegram" };
-    if (u.email?.address) return { name: u.email.address, provider: "Email" };
-    if (u.farcaster?.username) return { name: u.farcaster.username, provider: "Farcaster" };
-    return { name: "User", provider: "" };
-}
-
 export default function PortfolioSidebar({
     sessionId,
     collapsed,
@@ -67,7 +30,7 @@ export default function PortfolioSidebar({
     collapsed: boolean;
     onToggle: () => void;
 }) {
-    const [wallet, setWallet] = useState<WalletData | null>(null);
+    const [wallet, setWallet] = useState<WalletInfo | null>(null);
     const [loading, setLoading] = useState(false);
     const [copied, setCopied] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
@@ -80,8 +43,7 @@ export default function PortfolioSidebar({
         if (!sessionId) return;
 
         try {
-            const res = await fetch(`${API_BASE}/api/wallet/${sessionId}`);
-            const data = await res.json();
+            const data = await apiClient.wallet.getInfo(sessionId);
             setWallet(data);
         } catch {
             // Silent fail — sidebar is non-critical
@@ -93,9 +55,7 @@ export default function PortfolioSidebar({
         setLoading(true);
 
         try {
-            await fetch(`${API_BASE}/api/wallet/${sessionId}/create`, {
-                method: "POST",
-            });
+            await apiClient.wallet.create(sessionId);
             await fetchWallet();
         } catch {
             // Silent fail
