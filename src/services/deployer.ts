@@ -144,6 +144,24 @@ export async function deployToken(params: DeployParams, sessionId?: string): Pro
     console.log(`[deployer]   dev: ${devAddress}`);
     console.log(`[deployer]   from: ${wallet.address}`);
 
+    // Approve USDC for seed swap (factory pulls up to 1 USDC to activate pool liquidity)
+    const env = getEnv();
+    const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+    const usdcContract = new ethers.Contract(
+        USDC_ADDRESS,
+        ["function approve(address,uint256) external returns (bool)", "function balanceOf(address) view returns (uint256)"],
+        wallet,
+    );
+    const usdcBalance = await usdcContract.balanceOf(wallet.address);
+    if (usdcBalance > 0n) {
+        const seedAmount = usdcBalance > 1_000_000n ? 1_000_000n : usdcBalance;
+        const approveTx = await usdcContract.approve(env.SIGIL_FACTORY_ADDRESS, seedAmount);
+        await approveTx.wait(1);
+        console.log(`[deployer] Approved ${seedAmount} USDC for seed swap`);
+    } else {
+        console.log(`[deployer] No USDC — pool will launch without seed swap (may need manual activation)`);
+    }
+
     // Call factory.launch()
     const tx = await factory.launch(params.name, params.symbol, params.projectId, devAddress);
 

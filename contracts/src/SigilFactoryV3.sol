@@ -12,6 +12,13 @@ interface IUniswapV3Factory {
 
 interface IUniswapV3Pool {
     function initialize(uint160 sqrtPriceX96) external;
+    function swap(
+        address recipient,
+        bool zeroForOne,
+        int256 amountSpecified,
+        uint160 sqrtPriceLimitX96,
+        bytes calldata data
+    ) external returns (int256 amount0, int256 amount1);
 }
 
 interface INonfungiblePositionManager {
@@ -60,12 +67,24 @@ contract SigilFactoryV3 {
     /// @notice V3 fee tier: 1% (10000)
     uint24 public constant POOL_FEE = 10000;
 
+    /// @notice Default seed amount: 1 USDC (6 decimals) to activate pool
+    uint256 public constant DEFAULT_SEED = 1_000_000;
+
+    /// @notice Min/Max sqrtPriceX96 limits for swaps
+    uint160 internal constant MIN_SQRT_RATIO = 4295128739;
+    uint160 internal constant MAX_SQRT_RATIO = 1461446703485210103287273052203988822378723970342;
+
     /// @notice Tick spacing for 1% fee tier
     int24 public constant TICK_SPACING = 200;
 
     /// @notice Full-range tick bounds (aligned to tick spacing)
     int24 public constant MIN_TICK = -887200; // Aligned to 200
     int24 public constant MAX_TICK = 887200;  // Aligned to 200
+
+    /// @notice Tick bounds for 15k mcap starting price
+    ///         price = $0.00000015/token → tick ≈ -433600 (token0) / +433400 (token1)
+    int24 public constant MCAP_TICK_TOKEN0 = -433600;  // tickLower when token is token0
+    int24 public constant MCAP_TICK_TOKEN1 = 433400;   // tickUpper when token is token1
 
     // ─── State ───────────────────────────────────────────
 
@@ -154,19 +173,21 @@ contract SigilFactoryV3 {
         // 5. Approve the position manager to spend tokens
         IERC20(token).approve(address(positionManager), DEFAULT_SUPPLY);
 
-        // 6. Mint single-sided liquidity (full range = single-sided token side)
+        // 6. Mint single-sided liquidity (bounded range starting at 15k mcap price)
         //    We provide all tokens and 0 USDC — the token is on one side of current price
         (uint256 amount0Desired, uint256 amount1Desired) = tokenIsToken0
             ? (DEFAULT_SUPPLY, uint256(0))
             : (uint256(0), DEFAULT_SUPPLY);
+
+        (int24 tickLower, int24 tickUpper) = _getTickRange(tokenIsToken0);
 
         (uint256 tokenId, , , ) = positionManager.mint(
             INonfungiblePositionManager.MintParams({
                 token0: token0,
                 token1: token1,
                 fee: POOL_FEE,
-                tickLower: MIN_TICK,
-                tickUpper: MAX_TICK,
+                tickLower: tickLower,
+                tickUpper: tickUpper,
                 amount0Desired: amount0Desired,
                 amount1Desired: amount1Desired,
                 amount0Min: 0,
@@ -187,7 +208,34 @@ contract SigilFactoryV3 {
         );
         lpLocker.lockPosition(tokenId, poolId, dev);
 
-        // 9. Store launch info
+        // 9. Seed swap — pull USDC from deployer and swap to activate liquidity
+        //    This pushes the price from out-of-range into the LP tick range,
+        //    giving the pool active liquidity so DEX routers can find it.
+        //    Defensive: checks both balance AND allowance to avoid reverts.
+        uint256 seedBal = IERC20(usdc).balanceOf(msg.sender);
+        uint256 seedAllow = IERC20(usdc).allowance(msg.sender, address(this));
+        uint256 seedAmount = seedBal < seedAllow ? seedBal : seedAllow;
+        if (seedAmount > DEFAULT_SEED) seedAmount = DEFAULT_SEED;
+        if (seedAmount > 0) {
+            IERC20(usdc).transferFrom(msg.sender, address(this), seedAmount);
+
+            // Swap USDC → token through the pool
+            // zeroForOne = true means selling token0 to buy token1
+            bool zeroForOne = !tokenIsToken0; // We're selling USDC
+            uint160 sqrtPriceLimit = zeroForOne
+                ? MIN_SQRT_RATIO + 1
+                : MAX_SQRT_RATIO - 1;
+
+            IUniswapV3Pool(pool).swap(
+                dev != address(0) ? dev : msg.sender, // seed tokens go to dev
+                zeroForOne,
+                int256(seedAmount),
+                sqrtPriceLimit,
+                abi.encode(usdc) // callback data
+            );
+        }
+
+        // 10. Store launch info
         launches[token] = LaunchInfo({
             token: token,
             dev: dev,
@@ -223,34 +271,59 @@ contract SigilFactoryV3 {
 
     /// @dev Calculate starting sqrtPriceX96 for the pool.
     ///
+    ///      Target: 15k market cap at 100B supply → $0.00000015/token
+    ///      USDC (6 decimals) / Token (18 decimals) raw ratio = 1.5e-19
+    ///
     ///      For single-sided LP mint (only Sigil token, 0 USDC), the current
-    ///      tick must be OUTSIDE the position's tick range:
+    ///      tick must be OUTSIDE the position's tick range. V3 mint() reverts
+    ///      if currentTick is in-range with only one token provided.
     ///
-    ///      - If token is token0: tick must be < tickLower (-887200)
-    ///        → Use MIN_SQRT_RATIO + 1, which gives tick ≈ -887272
-    ///        → Position provides only token0 (the Sigil token)
+    ///      - If token is token0: init tick = MCAP_TICK_TOKEN0 - TICK_SPACING = -433800
+    ///        → sqrtPriceX96 = 30,164,993,233,297,854,464
     ///
-    ///      - If token is token1: tick must be > tickUpper (+887200)
-    ///        → Use MAX_SQRT_RATIO - 1, which gives tick ≈ +887272
-    ///        → Position provides only token1 (the Sigil token)
+    ///      - If token is token1: init tick = MCAP_TICK_TOKEN1 + TICK_SPACING = +433600
+    ///        → sqrtPriceX96 = 206,021,814,379,242,830,973,241,408,007,755,005,952
     ///
-    ///      The first swap into the pool sets the real market price.
-    ///      Starting at the extreme means the token is essentially "free" until
-    ///      someone provides USDC, which is the intended bonding curve effect.
+    ///      First buy pushes tick into the range — bonding curve from 15k mcap.
     function _getStartPrice(bool tokenIsToken0) internal pure returns (uint160) {
         if (tokenIsToken0) {
-            // token0 = Sigil token → tick must be below tickLower
-            // MIN_SQRT_RATIO + 1 = 4295128740 → tick ≈ -887272
-            return 4295128740;
+            // token0 = Sigil → tick at -433800 (1 spacing below range)
+            return 30164993233297854464;
         } else {
-            // token0 = USDC, token1 = Sigil token → tick must be above tickUpper
-            // MAX_SQRT_RATIO - 1 → tick ≈ +887272
-            return uint160(1461446703485210103287273052203988822378723970341);
+            // token1 = Sigil → tick at +433600 (1 spacing above range)
+            return uint160(206021814379242830973241408007755005952);
         }
     }
 
-    // ─── Transfer helper for NFT ─────────────────────────
-    // Factory needs to be able to transfer NFTs
+    /// @dev Get tick range for LP position based on token sort order.
+    ///      Uses bounded range starting at 15k mcap price.
+    function _getTickRange(bool tokenIsToken0) internal pure returns (int24 tickLower, int24 tickUpper) {
+        if (tokenIsToken0) {
+            // token0 = Sigil → range from mcap price to max
+            tickLower = MCAP_TICK_TOKEN0;  // -433600
+            tickUpper = MAX_TICK;           // +887200
+        } else {
+            // token1 = Sigil → range from min to mcap price
+            tickLower = MIN_TICK;            // -887200
+            tickUpper = MCAP_TICK_TOKEN1;   // +433400
+        }
+    }
+
+    // ─── Callbacks ────────────────────────────────────────
+
+    /// @dev Uniswap V3 swap callback — pays the pool for the seed swap.
+    function uniswapV3SwapCallback(
+        int256 amount0Delta,
+        int256 amount1Delta,
+        bytes calldata data
+    ) external {
+        // Pay whichever token the pool requests
+        address tokenToPay = abi.decode(data, (address));
+        uint256 amountToPay = amount0Delta > 0 ? uint256(amount0Delta) : uint256(amount1Delta);
+        IERC20(tokenToPay).transfer(msg.sender, amountToPay);
+    }
+
+    // Factory needs to be able to receive NFTs
     function onERC721Received(address, address, uint256, bytes calldata) external pure returns (bytes4) {
         return this.onERC721Received.selector;
     }
