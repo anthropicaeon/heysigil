@@ -8,6 +8,12 @@ export interface Method {
     description: string;
     projectIdFormat: string;
     requiresOAuth: boolean;
+    /** Whether this method is recommended (shown prominently) */
+    recommended?: boolean;
+    /** Badge text like "Fastest", "Most Secure" */
+    badge?: string;
+    /** Usage percentage for social proof */
+    popularity?: number;
 }
 
 export type Step = "method" | "details" | "challenge" | "result";
