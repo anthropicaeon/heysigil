@@ -79,11 +79,11 @@ export const WeiAmountSchema = z.string().regex(/^\d+$/, "Must be a numeric stri
 });
 
 /**
- * Session ID (UUID format)
+ * Session ID (hex string from randomBytes)
  */
-export const SessionIdSchema = z.string().uuid().openapi({
-    example: "550e8400-e29b-41d4-a716-446655440000",
-    description: "Chat session UUID",
+export const SessionIdSchema = z.string().min(16).max(64).openapi({
+    example: "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+    description: "Chat session identifier",
 });
 
 // ─── Pagination Schemas ──────────────────────────────────
