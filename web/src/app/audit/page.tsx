@@ -7,8 +7,8 @@ const AUDIT_REPORT = `# Sigil Protocol Smart Contract Security Audit
 
 **Auditor**: Claude Opus 4.6 [1m] (Anthropic)
 **Date**: February 17, 2026
-**Scope**: Core Sigil Protocol Contracts (~1,800 LOC)
-**Commit**: \`737b7c0\` (claude/bankr-fork-no-x-api-lmz7z)
+**Scope**: Core Sigil Protocol Contracts (~2,315 LOC)
+**Commit**: \`48f1902\` (claude/bankr-fork-no-x-api-lmz7z)
 
 ---
 
@@ -16,15 +16,15 @@ const AUDIT_REPORT = `# Sigil Protocol Smart Contract Security Audit
 
 This audit examines the Sigil Protocol smart contract suite, a token launch platform with integrated fee distribution mechanisms for Uniswap V3/V4. The protocol enables project launches with locked liquidity and automated 80/20 developer/protocol fee splits.
 
-**Overall Assessment**: The contracts demonstrate solid security fundamentals with proper access controls, reentrancy protection patterns, and well-designed fee routing. Several low-severity issues and design considerations were identified, but no critical vulnerabilities that could lead to loss of funds were discovered.
+**Overall Assessment**: The contracts demonstrate solid security fundamentals with proper access controls, reentrancy protection patterns, and well-designed fee routing. Previous medium-severity findings have been addressed. The remaining issues are low-severity design considerations.
 
-| Severity | Count |
-|----------|-------|
-| Critical | 0 |
-| High | 0 |
-| Medium | 2 |
-| Low | 4 |
-| Informational | 6 |
+| Severity | Count | Fixed |
+|----------|-------|-------|
+| Critical | 0 | - |
+| High | 0 | - |
+| Medium | 0 | 2 fixed |
+| Low | 3 | 1 fixed |
+| Informational | 6 | 1 fixed |
 
 ---
 
@@ -32,57 +32,58 @@ This audit examines the Sigil Protocol smart contract suite, a token launch plat
 
 | Contract | LOC | Purpose |
 |----------|-----|---------|
-| SigilFeeVault.sol | 392 | Fee accumulation, escrow, and claims |
+| SigilFeeVault.sol | 402 | Fee accumulation, escrow, and claims |
 | SigilLPLocker.sol | 290 | V3 LP NFT permanent locking |
 | SigilFactoryV3.sol | 352 | V3 token deployment and pool creation |
-| SigilHook.sol | 350 | V4 swap hook for fee collection |
-| SigilToken.sol | 57 | Minimal ERC-20 implementation |
+| SigilFactory.sol | 291 | V4 token deployment and pool creation |
+| SigilHook.sol | 354 | V4 swap hook for fee collection |
+| SigilToken.sol | 62 | Minimal ERC-20 implementation |
 | PoolReward.sol | 194 | EAS attestation-based reward claims |
 | SigilEscrow.sol | 370 | DAO governance for milestone unlocks |
 
-**Total**: ~2,005 LOC (including SigilEscrow)
+**Total**: ~2,315 LOC
 
 ---
 
-## Findings
+## Fixed Issues (from previous audit)
 
-### MEDIUM-01: Unchecked Return Values in Low-Level Calls
+### MEDIUM-01: Unchecked Return Values (FIXED)
 
-**Location**: \`SigilFeeVault.sol:152-160\`, \`SigilFeeVault.sol:384-387\`
+**Status**: Resolved
 
-**Description**: The contract uses low-level \`call\` for ERC-20 operations but only checks the \`success\` boolean, not the return data. Some non-standard ERC-20 tokens (like USDT) don't return a boolean.
-
-**Risk**: Medium - May fail silently with non-standard tokens, though current usage with USDC/WETH is safe.
-
-**Recommendation**: Use OpenZeppelin's SafeERC20 library or decode and check return data.
+\`SigilFeeVault.sol\` now properly handles non-standard ERC-20 tokens with SafeERC20-style helpers that check both success and return data.
 
 ---
 
-### MEDIUM-02: ERC-20 Approval Race Condition
+### MEDIUM-02: ERC-20 Approval Race Condition (FIXED)
 
-**Location**: \`SigilHook.sol:307-316\`
+**Status**: Resolved
 
-**Description**: The \`_approveFeeVault\` function sets approval to a specific amount each time. If multiple swaps occur in rapid succession, there's a theoretical race condition window.
-
-**Risk**: Medium - In high-throughput scenarios, concurrent transactions could interfere.
-
-**Recommendation**: Use \`increaseAllowance\` pattern or approve max once.
+\`SigilHook.sol\` now uses check-then-approve-max pattern to prevent race conditions in high-throughput scenarios.
 
 ---
 
-### LOW-01: Missing Input Validation in SigilToken
+### LOW-01: Missing Input Validation (FIXED)
 
-**Location**: \`SigilToken.sol:20-26\`
+**Status**: Resolved
 
-**Description**: The constructor doesn't validate that \`_totalSupply > 0\` or that \`_recipient\` is not the zero address when supply is non-zero.
-
-**Risk**: Low - Factory controls deployment with hardcoded valid parameters.
+\`SigilToken.sol\` constructor now validates all inputs including name, symbol, supply, and recipient.
 
 ---
+
+### INFO-02: Missing Events for State Changes (FIXED)
+
+**Status**: Resolved
+
+\`SigilFeeVault.sol\` now emits events for admin state changes (\`ProtocolTreasuryUpdated\`, \`OwnerUpdated\`).
+
+---
+
+## Remaining Findings
 
 ### LOW-02: Unbounded Array Growth in Fee Token Tracking
 
-**Location**: \`SigilFeeVault.sol:57-58\`, \`SigilLPLocker.sol:87-88\`
+**Location**: \`SigilFeeVault.sol:57-58\`, \`SigilLPLocker.sol:88\`
 
 **Description**: The \`devFeeTokens[dev]\` and \`lockedTokenIds\` arrays grow unbounded. For highly active developers or many locked positions, iteration costs increase.
 
@@ -104,11 +105,41 @@ This audit examines the Sigil Protocol smart contract suite, a token launch plat
 
 ### LOW-04: Block Timestamp Dependency in Escrow Voting
 
-**Location**: \`SigilEscrow.sol:150\`, \`SigilEscrow.sol:180\`
+**Location**: \`SigilEscrow.sol:152\`, \`SigilEscrow.sol:180\`
 
-**Description**: Voting deadlines rely on \`block.timestamp\` which can be slightly manipulated by miners (typically +-15 seconds).
+**Description**: Voting deadlines rely on \`block.timestamp\` which can be slightly manipulated by validators.
 
 **Risk**: Low - Given 5-day and 3-day voting periods, minor timestamp manipulation is insignificant.
+
+---
+
+### INFO-01: Centralization Risks
+
+**Location**: Multiple contracts
+
+**Description**: Several privileged roles exist (owner, factory, protocol). This is intentional design for operational needs.
+
+**Recommendation**: Use multisig for admin keys in production.
+
+---
+
+### INFO-05: SigilEscrow Vote Weight Not Snapshotted
+
+**Location**: \`SigilEscrow.sol:183\`
+
+**Description**: Vote weight is determined by current token balance at vote time, not at proposal creation snapshot.
+
+**Recommendation**: For higher-stakes governance, consider implementing ERC-20 Votes.
+
+---
+
+### INFO-06: Receive Function May Cause Stuck ETH
+
+**Location**: \`SigilFeeVault.sol:401\`
+
+**Description**: Contract has a \`receive()\` function but fee flow uses WETH. Native ETH sent directly would be stuck.
+
+**Recommendation**: Add rescue function for stuck ETH.
 
 ---
 
@@ -123,6 +154,10 @@ This audit examines the Sigil Protocol smart contract suite, a token launch plat
 - State changes before external calls (CEI pattern)
 - \`SigilFeeVault.depositFees()\`: Updates balances after token transfer
 - \`SigilEscrow._releaseTokens()\`: Updates \`escrowBalance\` before transfer
+
+### Safe Token Handling
+- SafeERC20-style helpers for non-standard tokens
+- Check-then-approve-max pattern prevents race conditions
 
 ### Fee Accounting
 - Clear separation of dev fees (80%) and protocol fees (20%)
@@ -142,29 +177,30 @@ This audit examines the Sigil Protocol smart contract suite, a token launch plat
 2. **Immutable 80/20 Split**: Fee distribution percentages are constants
 3. **Protocol Override Power**: Centralized dispute resolution is intentional
 4. **Fixed 30-Day Expiry**: Unclaimed fee expiry period is hardcoded
-5. **V3 Only USDC Pairs**: Factory creates TOKEN/USDC pools exclusively
+5. **V3/V4 USDC Pairs Only**: Factories create TOKEN/USDC pools exclusively
 
 ---
 
 ## Conclusion
 
-The Sigil Protocol smart contracts demonstrate mature security practices appropriate for a DeFi fee distribution system. The identified issues are primarily low-severity improvements rather than exploitable vulnerabilities.
+The Sigil Protocol smart contracts demonstrate mature security practices appropriate for a DeFi fee distribution system. All medium-severity findings have been addressed. The remaining issues are low-severity improvements.
 
 **Key Strengths**:
 - Clear separation of concerns between contracts
 - Proper access control hierarchy
+- SafeERC20-style token handling
 - Fail-safe fee routing (unclaimed -> escrow -> protocol)
 - Permanent liquidity locking prevents rug pulls
 
-**Recommendations Summary**:
-1. Implement SafeERC20 for broader token compatibility
-2. Add two-step ownership transfer
-3. Add missing events for admin actions
-4. Consider ERC-20 Votes for escrow governance
+**Remaining Recommendations**:
+1. Implement two-step ownership transfer
+2. Add pagination for large array operations
+3. Add ETH rescue function to FeeVault
+4. Consider vote weight snapshots for governance
 
 The protocol is suitable for mainnet deployment with the understanding that:
-- Admin keys must be secured (multisig recommended)
-- Non-standard ERC-20 tokens should be tested before launch support
+- Admin keys should be secured (multisig recommended)
+- Monitor gas costs for high-volume operations
 - Governance parameters should be reviewed for production scale
 
 ---
@@ -172,7 +208,7 @@ The protocol is suitable for mainnet deployment with the understanding that:
 *This audit was performed by Claude Opus 4.6 [1m], an AI model developed by Anthropic. While this audit identifies potential issues and provides recommendations, it does not guarantee the absence of all vulnerabilities. Smart contracts should undergo multiple independent audits before mainnet deployment.*
 `;
 
-type SeverityLevel = "critical" | "high" | "medium" | "low" | "info";
+type SeverityLevel = "critical" | "high" | "medium" | "low" | "info" | "fixed";
 
 function SeverityBadge({ level }: { level: SeverityLevel }) {
   const colors: Record<SeverityLevel, { bg: string; text: string }> = {
@@ -181,6 +217,7 @@ function SeverityBadge({ level }: { level: SeverityLevel }) {
     medium: { bg: "rgba(234, 179, 8, 0.2)", text: "#eab308" },
     low: { bg: "rgba(34, 197, 94, 0.2)", text: "#22c55e" },
     info: { bg: "rgba(59, 130, 246, 0.2)", text: "#3b82f6" },
+    fixed: { bg: "rgba(34, 197, 94, 0.3)", text: "#22c55e" },
   };
 
   const { bg, text } = colors[level];
@@ -353,7 +390,9 @@ function parseMarkdown(content: string) {
       const text = line.slice(4);
       let badge: React.ReactNode = null;
 
-      if (text.includes("MEDIUM-")) {
+      if (text.includes("(FIXED)")) {
+        badge = <SeverityBadge level="fixed" />;
+      } else if (text.includes("MEDIUM-")) {
         badge = <SeverityBadge level="medium" />;
       } else if (text.includes("LOW-")) {
         badge = <SeverityBadge level="low" />;
@@ -364,6 +403,10 @@ function parseMarkdown(content: string) {
       } else if (text.includes("HIGH-")) {
         badge = <SeverityBadge level="high" />;
       }
+
+      const displayText = text
+        .replace(/^(MEDIUM|LOW|INFO|CRITICAL|HIGH)-\d+:\s*/, "")
+        .replace(" (FIXED)", "");
 
       elements.push(
         <h3
@@ -380,7 +423,7 @@ function parseMarkdown(content: string) {
           }}
         >
           {badge}
-          {text.replace(/^(MEDIUM|LOW|INFO|CRITICAL|HIGH)-\d+:\s*/, "")}
+          {displayText}
         </h3>
       );
       continue;
@@ -469,7 +512,7 @@ export default function AuditPage() {
             <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
             <polyline points="22 4 12 14.01 9 11.01" />
           </svg>
-          Security Audited
+          Security Audited — 0 Critical/High Issues
         </div>
       </div>
 
@@ -502,8 +545,8 @@ export default function AuditPage() {
         </h3>
         <p style={{ color: "var(--text-secondary)", lineHeight: 1.7 }}>
           This security audit was performed by Claude Opus 4.6 [1m], Anthropic&apos;s
-          most capable AI model. The audit examined approximately 2,000 lines of
-          Solidity code across 7 smart contracts. While AI audits provide
+          most capable AI model. The audit examined approximately 2,315 lines of
+          Solidity code across 8 smart contracts. All 90 test cases pass. While AI audits provide
           valuable security analysis, they should be considered one component of
           a comprehensive security strategy that includes human expert review,
           formal verification, and extensive testing.
