@@ -33,7 +33,7 @@ export async function verifyDomainDns(
                 "domain_dns",
                 projectId,
                 `DNS TXT record not found. Add this record:\n  ${lookupHost} TXT "${expectedValue}"`,
-                { recordsFound: flatRecords },
+                { proof: { recordsFound: flatRecords } },
             );
         }
 
