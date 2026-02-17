@@ -8,26 +8,32 @@
 import type { Context } from "hono";
 import type { z, ZodSchema } from "zod";
 
+type ValidTarget = "param" | "query" | "json";
+type RequestWithValid = Context["req"] & {
+    valid: (target: ValidTarget) => unknown;
+};
+
+function getValidated(c: Context, target: ValidTarget): unknown {
+    return (c.req as RequestWithValid).valid(target);
+}
+
 /**
  * Get validated path parameters from request.
  */
-// biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
 export function getParams<T extends ZodSchema>(c: Context, _schema: T): z.infer<T> {
-    return (c.req as any).valid("param");
+    return getValidated(c, "param") as z.infer<T>;
 }
 
 /**
  * Get validated query parameters from request.
  */
-// biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
 export function getQuery<T extends ZodSchema>(c: Context, _schema: T): z.infer<T> {
-    return (c.req as any).valid("query");
+    return getValidated(c, "query") as z.infer<T>;
 }
 
 /**
  * Get validated JSON body from request.
  */
-// biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
 export function getBody<T extends ZodSchema>(c: Context, _schema: T): z.infer<T> {
-    return (c.req as any).valid("json");
+    return getValidated(c, "json") as z.infer<T>;
 }
