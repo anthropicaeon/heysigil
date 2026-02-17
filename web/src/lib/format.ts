@@ -75,3 +75,13 @@ export function formatNumberInput(value: string): string {
     const cleaned = value.replace(/[^0-9]/g, "");
     return cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
+
+/**
+ * Format currency amount from bigint (defaults to USD with 6 decimals for USDC).
+ */
+export function formatCurrency(raw: bigint, decimals = 6, symbol = "$"): string {
+    const num = Number(raw) / Math.pow(10, decimals);
+    if (num === 0) return `${symbol}0.00`;
+    if (num < 0.01) return `<${symbol}0.01`;
+    return `${symbol}${num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
