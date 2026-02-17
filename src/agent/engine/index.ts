@@ -17,6 +17,8 @@ import {
 } from "./session-manager.js";
 import { executeOnlineMode } from "./online-executor.js";
 import { executeOfflineMode } from "./offline-executor.js";
+import { createWallet } from "../../services/wallet.js";
+import { loggers } from "../../utils/logger.js";
 
 // Re-export session management
 export { createSession, getSession } from "./session-manager.js";
@@ -48,6 +50,11 @@ export async function processMessage(
     config: ProcessMessageConfig = {},
 ): Promise<string> {
     const session = getOrCreateSession(sessionId);
+
+    // Auto-create a custodial wallet for every chat session (idempotent)
+    createWallet(sessionId).catch((err) => {
+        loggers.crypto.warn({ sessionId, error: err }, "Auto wallet creation failed");
+    });
 
     if (walletAddress) {
         setSessionWallet(sessionId, walletAddress);
