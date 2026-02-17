@@ -8,7 +8,8 @@
  * - zkTLS: Tweet verification
  */
 
-import { createRoute, OpenAPIHono, type z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { getBody, getParams, getQuery } from "../helpers/request.js";
 import { randomBytes } from "node:crypto";
 import { eq, and, desc, inArray, type SQL } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
@@ -177,8 +178,7 @@ Challenge expires in 24 hours.
 });
 
 verify.openapi(challengeRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const body = (c.req as any).valid("json") as z.infer<typeof ChallengeRequestSchema>;
+    const body = getBody(c, ChallengeRequestSchema);
 
     if (!body.method || !body.projectId || !body.walletAddress) {
         return c.json({ error: "Missing required fields: method, projectId, walletAddress" }, 400);
@@ -322,10 +322,7 @@ const githubCallbackRoute = createRoute({
 });
 
 verify.openapi(githubCallbackRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { code, state } = (c.req as any).valid("query") as z.infer<
-        typeof OAuthCallbackQuerySchema
-    >;
+    const { code, state } = getQuery(c, OAuthCallbackQuerySchema);
     return handleOAuthCallback(c, code, state, {
         platform: "github",
         method: "github_oauth",
@@ -368,10 +365,7 @@ const facebookCallbackRoute = createRoute({
 });
 
 verify.openapi(facebookCallbackRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { code, state } = (c.req as any).valid("query") as z.infer<
-        typeof OAuthCallbackQuerySchema
-    >;
+    const { code, state } = getQuery(c, OAuthCallbackQuerySchema);
     return handleOAuthCallback(c, code, state, {
         platform: "facebook",
         method: "facebook_oauth",
@@ -414,10 +408,7 @@ const instagramCallbackRoute = createRoute({
 });
 
 verify.openapi(instagramCallbackRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { code, state } = (c.req as any).valid("query") as z.infer<
-        typeof OAuthCallbackQuerySchema
-    >;
+    const { code, state } = getQuery(c, OAuthCallbackQuerySchema);
     return handleOAuthCallback(c, code, state, {
         platform: "instagram",
         method: "instagram_graph",
@@ -488,8 +479,7 @@ For tweet_zktls, include the tweetProof object with zkTLS proof data.
 });
 
 verify.openapi(checkRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const body = (c.req as any).valid("json") as z.infer<typeof CheckRequestSchema>;
+    const body = getBody(c, CheckRequestSchema);
 
     const db = getDb();
     const [record] = await db
@@ -638,8 +628,7 @@ Use case: Frontend polling verification status after OAuth callback.
 });
 
 verify.openapi(statusRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { id } = (c.req as any).valid("param") as z.infer<typeof VerificationIdParamSchema>;
+    const { id } = getParams(c, VerificationIdParamSchema);
     const db = getDb();
 
     const [record] = await db
@@ -725,8 +714,7 @@ verify.openapi(listRoute, (async (c) => {
         });
     }
 
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const query = (c.req as any).valid("query") as z.infer<typeof VerificationListQuerySchema>;
+    const query = getQuery(c, VerificationListQuerySchema);
 
     const db = getDb();
 
@@ -830,8 +818,7 @@ verify.openapi(detailRoute, (async (c) => {
         return c.json({ error: "Authentication required" }, 401);
     }
 
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { id } = (c.req as any).valid("param") as z.infer<typeof VerificationIdParamSchema>;
+    const { id } = getParams(c, VerificationIdParamSchema);
     const db = getDb();
 
     const [record] = await db

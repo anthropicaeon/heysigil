@@ -4,7 +4,8 @@
  * AI agent chat session endpoints.
  */
 
-import { createRoute, OpenAPIHono, type z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { getBody, getParams } from "../helpers/request.js";
 import { createSession, getSession, processMessage } from "../../agent/engine.js";
 import { chatRateLimit, sessionEnumerationRateLimit } from "../../middleware/rate-limit.js";
 import {
@@ -87,8 +88,7 @@ const postMessageRoute = createRoute({
 });
 
 chat.openapi(postMessageRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const body = (c.req as any).valid("json") as z.infer<typeof ChatMessageRequestSchema>;
+    const body = getBody(c, ChatMessageRequestSchema);
 
     if (!body.message?.trim()) {
         return c.json({ error: "Message is required" }, 400);
@@ -155,8 +155,7 @@ const getSessionRoute = createRoute({
 });
 
 chat.openapi(getSessionRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { sessionId } = (c.req as any).valid("param") as z.infer<typeof SessionIdParamSchema>;
+    const { sessionId } = getParams(c, SessionIdParamSchema);
     const session = getSession(sessionId);
 
     if (!session) {

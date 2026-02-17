@@ -5,7 +5,8 @@
  * All endpoints are read-only and publicly accessible.
  */
 
-import { createRoute, OpenAPIHono, type z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { getParams, getQuery } from "../helpers/request.js";
 import {
     findDistributions,
     findByPoolId,
@@ -118,8 +119,7 @@ const distributionsRoute = createRoute({
 });
 
 fees.openapi(distributionsRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const query = (c.req as any).valid("query") as z.infer<typeof DistributionsQuerySchema>;
+    const query = getQuery(c, DistributionsQuerySchema);
 
     // Validate event type if provided
     const validTypes: FeeEventType[] = [
@@ -191,10 +191,8 @@ const projectRoute = createRoute({
 });
 
 fees.openapi(projectRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { projectId } = (c.req as any).valid("param") as z.infer<typeof ProjectIdParamSchema>;
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const query = (c.req as any).valid("query") as z.infer<typeof PaginationQuerySchema>;
+    const { projectId } = getParams(c, ProjectIdParamSchema);
+    const query = getQuery(c, PaginationQuerySchema);
 
     // URL decode the projectId (handles "org/repo" format)
     const decodedProjectId = decodeURIComponent(projectId);
@@ -255,10 +253,8 @@ const poolRoute = createRoute({
 });
 
 fees.openapi(poolRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { poolId } = (c.req as any).valid("param") as z.infer<typeof PoolIdParamSchema>;
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const query = (c.req as any).valid("query") as z.infer<typeof PaginationQuerySchema>;
+    const { poolId } = getParams(c, PoolIdParamSchema);
+    const query = getQuery(c, PaginationQuerySchema);
 
     const result = await findByPoolId(poolId, { limit: query.limit, offset: query.offset });
 
@@ -312,10 +308,8 @@ const devRoute = createRoute({
 });
 
 fees.openapi(devRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { address } = (c.req as any).valid("param") as z.infer<typeof DevAddressParamSchema>;
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const query = (c.req as any).valid("query") as z.infer<typeof PaginationQuerySchema>;
+    const { address } = getParams(c, DevAddressParamSchema);
+    const query = getQuery(c, PaginationQuerySchema);
 
     const result = await findByDevAddress(address, { limit: query.limit, offset: query.offset });
 
@@ -433,8 +427,7 @@ const verifyTxRoute = createRoute({
 });
 
 fees.openapi(verifyTxRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { txHash } = (c.req as any).valid("param") as z.infer<typeof TxHashParamSchema>;
+    const { txHash } = getParams(c, TxHashParamSchema);
 
     const events = await findByTxHash(txHash);
 
