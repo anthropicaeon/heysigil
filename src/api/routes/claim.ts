@@ -6,11 +6,13 @@
  */
 
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { z } from "zod";
 import { getBody, getParams } from "../helpers/request.js";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
 import { find } from "../../db/helpers.js";
 import { createAttestation } from "../../attestation/eas.js";
+import { getPlatformFromMethod, type VerificationMethod } from "../../verification/types.js";
 import { ErrorResponseSchema, NotFoundResponseSchema } from "../schemas/common.js";
 import {
     ClaimRequestSchema,
@@ -122,23 +124,10 @@ claim.openapi(createClaimRoute, (async (c) => {
         );
     }
 
-    // Determine platform from method
-    const platformMap: Record<string, string> = {
-        github_oauth: "github",
-        github_oidc: "github",
-        github_file: "github",
-        facebook_oauth: "facebook",
-        instagram_graph: "instagram",
-        tweet_zktls: "twitter",
-        domain_dns: "domain",
-        domain_file: "domain",
-        domain_meta: "domain",
-    };
-
     try {
         const attestation = await createAttestation(
             {
-                platform: platformMap[verification.method] || verification.method,
+                platform: getPlatformFromMethod(verification.method as VerificationMethod),
                 projectId: verification.projectId,
                 wallet: verification.walletAddress,
                 verifiedAt: Math.floor((verification.verifiedAt?.getTime() || Date.now()) / 1000),
