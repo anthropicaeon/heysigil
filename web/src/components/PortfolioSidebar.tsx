@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useOptionalPrivy, getUserDisplay } from "@/hooks/useOptionalPrivy";
 import { apiClient, type WalletInfo } from "@/lib/api-client";
+import { EmptyState } from "@/components/common/EmptyState";
 
 // Token colors for visual differentiation
 const TOKEN_COLORS: Record<string, string> = {
@@ -142,54 +143,41 @@ export default function PortfolioSidebar({
 
             {/* Not signed in — prompt to login */}
             {!isAuthenticated && privy && (
-                <div className="portfolio-empty">
-                    <div className="portfolio-empty-icon">
+                <EmptyState
+                    icon={
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                             <circle cx="12" cy="7" r="4" />
                         </svg>
-                    </div>
-                    <p className="portfolio-empty-title">Sign in to get started</p>
-                    <p className="portfolio-empty-desc">
-                        Log in with GitHub, Telegram, or email to create a wallet and start trading.
-                    </p>
-                    <button
-                        className="btn-primary btn-sm"
-                        onClick={() => privy.login?.()}
-                        style={{ width: "100%", marginTop: "var(--space-3)" }}
-                    >
-                        Sign In
-                    </button>
-                </div>
+                    }
+                    title="Sign in to get started"
+                    description="Log in with GitHub, Telegram, or email to create a wallet and start trading."
+                    action={{
+                        label: "Sign In",
+                        onClick: () => privy.login?.(),
+                    }}
+                />
             )}
 
             {/* No wallet state — only show for authenticated users or when Privy isn't configured */}
             {!wallet?.exists && (isAuthenticated || !privy) && (
-                <div className="portfolio-empty">
-                    <div className="portfolio-empty-icon">
+                <EmptyState
+                    icon={
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
                             <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
                             <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
                         </svg>
-                    </div>
-                    <p className="portfolio-empty-title">No wallet yet</p>
-                    <p className="portfolio-empty-desc">
-                        Create a wallet to start trading directly from chat.
-                    </p>
-                    <button
-                        className="btn-primary btn-sm"
-                        onClick={createWallet}
-                        disabled={loading || !sessionId}
-                        style={{ width: "100%", marginTop: "var(--space-3)" }}
-                    >
-                        {loading ? (
-                            <span className="spinner" style={{ width: 14, height: 14 }} />
-                        ) : (
-                            "Create Wallet"
-                        )}
-                    </button>
-                </div>
+                    }
+                    title="No wallet yet"
+                    description="Create a wallet to start trading directly from chat."
+                    action={{
+                        label: "Create Wallet",
+                        onClick: createWallet,
+                        disabled: loading || !sessionId,
+                        loading: loading,
+                    }}
+                />
             )}
 
             {/* Wallet info */}
