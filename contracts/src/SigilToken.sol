@@ -18,6 +18,11 @@ contract SigilToken {
     event Approval(address indexed owner, address indexed spender, uint256 value);
 
     constructor(string memory _name, string memory _symbol, uint256 _totalSupply, address _recipient) {
+        require(bytes(_name).length > 0, "SIGIL: EMPTY_NAME");
+        require(bytes(_symbol).length > 0, "SIGIL: EMPTY_SYMBOL");
+        require(_totalSupply > 0, "SIGIL: ZERO_SUPPLY");
+        require(_recipient != address(0), "SIGIL: ZERO_RECIPIENT");
+
         name = _name;
         symbol = _symbol;
         totalSupply = _totalSupply;

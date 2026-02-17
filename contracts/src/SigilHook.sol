@@ -308,11 +308,15 @@ contract SigilHook is BaseHook {
         // For native ETH (address(0)), we don't need approval
         if (token == address(0)) return;
 
-        // Approve the fee vault to pull tokens
-        (bool success,) = token.call(
-            abi.encodeWithSignature("approve(address,uint256)", address(feeVault), amount)
-        );
-        require(success, "SIGIL: APPROVE_FAILED");
+        // Check current allowance - approve max if insufficient (avoids race condition)
+        uint256 currentAllowance = IERC20(token).allowance(address(this), address(feeVault));
+        if (currentAllowance < amount) {
+            // Approve max to avoid repeated approvals and race conditions
+            (bool success,) = token.call(
+                abi.encodeWithSignature("approve(address,uint256)", address(feeVault), type(uint256).max)
+            );
+            require(success, "SIGIL: APPROVE_FAILED");
+        }
     }
 
     // ─── Admin ───────────────────────────────────────────

@@ -99,6 +99,8 @@ contract SigilFeeVault {
     event DevFeesClaimed(address indexed dev, address indexed token, uint256 amount);
     event ProtocolFeesClaimed(address indexed token, uint256 amount, address to);
     event AuthorizedDepositorUpdated(address oldDepositor, address newDepositor);
+    event ProtocolTreasuryUpdated(address oldTreasury, address newTreasury);
+    event OwnerUpdated(address oldOwner, address newOwner);
 
     // ─── Errors ──────────────────────────────────────────
 
@@ -148,16 +150,8 @@ contract SigilFeeVault {
             revert("SIGIL: USE_WETH");
         }
 
-        // Transfer tokens from hook to this vault
-        (bool success,) = token.call(
-            abi.encodeWithSignature(
-                "transferFrom(address,address,uint256)",
-                msg.sender,
-                address(this),
-                totalAmount
-            )
-        );
-        if (!success) revert TransferFailed();
+        // Transfer tokens from hook to this vault (safe for non-standard tokens)
+        _transferFromToken(token, msg.sender, address(this), totalAmount);
 
         // Protocol 20% — ALWAYS goes to protocol
         protocolFees[token] += protocolAmount;
@@ -370,21 +364,37 @@ contract SigilFeeVault {
 
     function setProtocolTreasury(address _treasury) external onlyOwner {
         if (_treasury == address(0)) revert ZeroAddress();
+        emit ProtocolTreasuryUpdated(protocolTreasury, _treasury);
         protocolTreasury = _treasury;
     }
 
     function setOwner(address _newOwner) external onlyOwner {
         if (_newOwner == address(0)) revert ZeroAddress();
+        emit OwnerUpdated(owner, _newOwner);
         owner = _newOwner;
     }
 
     // ─── Internal ────────────────────────────────────────
 
+    /// @dev Safe ERC-20 transfer that handles non-standard tokens (USDT, BNB, etc.)
     function _transferToken(address token, address to, uint256 amount) internal {
-        (bool success,) = token.call(
+        (bool success, bytes memory data) = token.call(
             abi.encodeWithSignature("transfer(address,uint256)", to, amount)
         );
-        if (!success) revert TransferFailed();
+        // Check success AND (no return data OR return data decodes to true)
+        if (!success || (data.length > 0 && !abi.decode(data, (bool)))) {
+            revert TransferFailed();
+        }
+    }
+
+    /// @dev Safe ERC-20 transferFrom that handles non-standard tokens
+    function _transferFromToken(address token, address from, address to, uint256 amount) internal {
+        (bool success, bytes memory data) = token.call(
+            abi.encodeWithSignature("transferFrom(address,address,uint256)", from, to, amount)
+        );
+        if (!success || (data.length > 0 && !abi.decode(data, (bool)))) {
+            revert TransferFailed();
+        }
     }
 
     /// @notice Accept ETH (in case of WETH unwrap edge cases)
