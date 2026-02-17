@@ -5,7 +5,7 @@
  * GET  /api/claim/status/:id   — Check if project has been claimed
  */
 
-import { createRoute, OpenAPIHono, z, type RouteHandler } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
 import { createAttestation } from "../../attestation/eas.js";
@@ -17,12 +17,10 @@ import {
     ClaimProjectIdParamSchema,
     ClaimStatusResponseSchema,
 } from "../schemas/claim.js";
+import type { AnyHandler } from "../types.js";
+import { getErrorMessage } from "../../utils/errors.js";
 
 const claim = new OpenAPIHono();
-
-// Type helper to relax strict type checking for handlers
-// biome-ignore lint/suspicious/noExplicitAny: OpenAPI handler type relaxation
-type AnyHandler = RouteHandler<any, any>;
 
 /**
  * POST /api/claim
@@ -152,31 +150,34 @@ claim.openapi(createClaimRoute, (async (c) => {
             chainRpcUrl,
         );
 
-        // Update verification with attestation UID
-        await db
-            .update(schema.verifications)
-            .set({ attestationUid: attestation.uid })
-            .where(eq(schema.verifications.id, body.verificationId));
+        // Wrap DB updates in transaction for atomicity
+        await db.transaction(async (tx) => {
+            // Update verification with attestation UID
+            await tx
+                .update(schema.verifications)
+                .set({ attestationUid: attestation.uid })
+                .where(eq(schema.verifications.id, body.verificationId));
 
-        // Upsert project record
-        await db
-            .insert(schema.projects)
-            .values({
-                projectId: verification.projectId,
-                ownerWallet: verification.walletAddress,
-                verificationMethod: verification.method,
-                attestationUid: attestation.uid,
-                verifiedAt: verification.verifiedAt || new Date(),
-            })
-            .onConflictDoUpdate({
-                target: schema.projects.projectId,
-                set: {
+            // Upsert project record
+            await tx
+                .insert(schema.projects)
+                .values({
+                    projectId: verification.projectId,
                     ownerWallet: verification.walletAddress,
                     verificationMethod: verification.method,
                     attestationUid: attestation.uid,
                     verifiedAt: verification.verifiedAt || new Date(),
-                },
-            });
+                })
+                .onConflictDoUpdate({
+                    target: schema.projects.projectId,
+                    set: {
+                        ownerWallet: verification.walletAddress,
+                        verificationMethod: verification.method,
+                        attestationUid: attestation.uid,
+                        verifiedAt: verification.verifiedAt || new Date(),
+                    },
+                });
+        });
 
         return c.json({
             success: true as const,
@@ -186,10 +187,7 @@ claim.openapi(createClaimRoute, (async (c) => {
             walletAddress: verification.walletAddress,
         });
     } catch (err) {
-        return c.json(
-            { error: err instanceof Error ? err.message : "Failed to create attestation" },
-            500,
-        );
+        return c.json({ error: getErrorMessage(err, "Failed to create attestation") }, 500);
     }
 }) as AnyHandler);
 
