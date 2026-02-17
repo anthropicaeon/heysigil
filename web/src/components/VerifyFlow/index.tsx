@@ -11,7 +11,7 @@ import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 
 import type { Method, Step, ChallengeResponse, CheckResult } from "./types";
 import { STEP_LABELS } from "./constants";
-import { useVerifyApi } from "./hooks/useVerifyApi";
+import { apiClient } from "@/lib/api-client";
 import { MethodStep } from "./steps/MethodStep";
 import { DetailsStep } from "./steps/DetailsStep";
 import { ChallengeStep } from "./steps/ChallengeStep";
@@ -20,7 +20,6 @@ import { ResultStep } from "./steps/ResultStep";
 export default function VerifyFlow() {
     const privy = useOptionalPrivy();
     const address = privy?.user?.wallet?.address ?? null;
-    const api = useVerifyApi();
 
     const [step, setStep] = useState<Step>("method");
     const [selectedMethod, setSelectedMethod] = useState<Method | null>(null);
@@ -44,7 +43,7 @@ export default function VerifyFlow() {
         setError("");
 
         try {
-            const data = await api.createChallenge(selectedMethod.id, projectId, walletAddress);
+            const data = await apiClient.verify.createChallenge(selectedMethod.id, projectId, walletAddress);
             setChallenge(data);
 
             if (data.authUrl) {
@@ -66,7 +65,7 @@ export default function VerifyFlow() {
         setError("");
 
         try {
-            const data = await api.checkVerification(challenge.verificationId);
+            const data = await apiClient.verify.checkVerification(challenge.verificationId);
             setCheckResult(data);
 
             if (data.success) {
@@ -87,7 +86,7 @@ export default function VerifyFlow() {
         setError("");
 
         try {
-            const data = await api.claimAttestation(challenge.verificationId);
+            const data = await apiClient.claim.createAttestation(challenge.verificationId);
             setCheckResult((prev) => prev ? { ...prev, ...data } : prev);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to create attestation");
