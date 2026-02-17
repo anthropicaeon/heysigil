@@ -19,9 +19,12 @@
 import { ethers } from "ethers";
 import { getEnv } from "../config/env.js";
 import { createShortTTLMap } from "../utils/ttl-map.js";
-import { encryptKey, decryptKey } from "../utils/crypto.js";
+import { encryptWalletKeystore, decryptWalletKeystore, decryptKey } from "../utils/crypto.js";
 import { BALANCE_CHECK_TOKENS } from "../config/tokens.js";
 import * as walletRepo from "../db/repositories/wallet.repository.js";
+import { loggers } from "../utils/logger.js";
+
+const log = loggers.crypto;
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -48,6 +51,7 @@ const exportConfirmations = createShortTTLMap<{ requestedAt: number }>({
 
 /**
  * Create a new wallet for a session. If one already exists, return it.
+ * Uses ethers keystore format for secure encryption.
  */
 export async function createWallet(sessionId: string): Promise<WalletInfo> {
     // Check if wallet already exists
@@ -63,15 +67,13 @@ export async function createWallet(sessionId: string): Promise<WalletInfo> {
     // Generate random wallet
     const wallet = ethers.Wallet.createRandom();
 
-    // Encrypt private key
-    const { encrypted, iv, authTag } = encryptKey(wallet.privateKey);
+    // Encrypt using ethers keystore format (industry standard)
+    const { keystore } = await encryptWalletKeystore(wallet);
 
     // Store in database (or in-memory fallback)
     const stored = await walletRepo.createWallet({
         address: wallet.address,
-        encryptedKey: encrypted,
-        iv,
-        authTag,
+        encryptedKeystore: keystore,
         keyType: "session",
         keyId: sessionId,
     });
@@ -101,6 +103,8 @@ export async function getAddress(sessionId: string): Promise<string | undefined>
 
 /**
  * Get the ethers.Wallet instance for a session (for signing transactions).
+ * Supports both keystore (v2+) and legacy AES-256-GCM formats.
+ * Legacy wallets are lazily migrated to keystore format on read.
  */
 export async function getSignerWallet(sessionId: string): Promise<ethers.Wallet | undefined> {
     const stored = await walletRepo.findWalletByKey("session", sessionId);
@@ -110,8 +114,34 @@ export async function getSignerWallet(sessionId: string): Promise<ethers.Wallet 
     const rpcUrl = env.BASE_RPC_URL || "https://mainnet.base.org";
     const provider = new ethers.JsonRpcProvider(rpcUrl);
 
-    const privateKey = decryptKey(stored.encryptedKey, stored.iv, stored.authTag);
-    return new ethers.Wallet(privateKey, provider);
+    // New keystore format (v2+)
+    if (stored.keystoreVersion && stored.encryptedKeystore) {
+        const wallet = await decryptWalletKeystore(stored.encryptedKeystore);
+        return wallet.connect(provider);
+    }
+
+    // Legacy AES-256-GCM format - decrypt and migrate
+    if (stored.encryptedKey && stored.iv && stored.authTag) {
+        const privateKey = decryptKey(stored.encryptedKey, stored.iv, stored.authTag);
+        const wallet = new ethers.Wallet(privateKey, provider);
+
+        // Lazy migration to keystore format
+        try {
+            const { keystore } = await encryptWalletKeystore(new ethers.Wallet(privateKey));
+            await walletRepo.updateWalletKeystore(stored.id, keystore);
+            log.info({ address: stored.address }, "Migrated wallet to keystore format");
+        } catch (err) {
+            log.warn(
+                { address: stored.address, error: err },
+                "Failed to migrate wallet to keystore format",
+            );
+        }
+
+        return wallet;
+    }
+
+    log.error({ address: stored.address }, "Wallet has no valid encryption data");
+    return undefined;
 }
 
 const BALANCE_OF_ABI = ["function balanceOf(address) view returns (uint256)"];
@@ -217,8 +247,36 @@ export async function confirmExport(
         return { success: false, message: "No wallet found." };
     }
 
-    // Decrypt and return
-    const privateKey = decryptKey(stored.encryptedKey, stored.iv, stored.authTag);
+    // Decrypt using appropriate method
+    let privateKey: string;
+
+    if (stored.keystoreVersion && stored.encryptedKeystore) {
+        // New keystore format (v2+)
+        const wallet = await decryptWalletKeystore(stored.encryptedKeystore);
+        privateKey = wallet.privateKey;
+    } else if (stored.encryptedKey && stored.iv && stored.authTag) {
+        // Legacy AES-256-GCM format
+        privateKey = decryptKey(stored.encryptedKey, stored.iv, stored.authTag);
+
+        // Lazy migration to keystore format
+        try {
+            const { keystore } = await encryptWalletKeystore(new ethers.Wallet(privateKey));
+            await walletRepo.updateWalletKeystore(stored.id, keystore);
+            log.info(
+                { address: stored.address },
+                "Migrated wallet to keystore format during export",
+            );
+        } catch (err) {
+            log.warn(
+                { address: stored.address, error: err },
+                "Failed to migrate wallet during export",
+            );
+        }
+    } else {
+        exportConfirmations.delete(sessionId);
+        return { success: false, message: "Wallet encryption data is corrupted." };
+    }
+
     exportConfirmations.delete(sessionId);
 
     return {

@@ -1,8 +1,13 @@
 /**
  * Cryptographic Utilities
  *
- * AES-256-GCM encryption for sensitive data (private keys, secrets).
- * Centralized to ensure consistent security practices.
+ * Provides two encryption methods:
+ * 1. ethers.Wallet.encrypt() - Industry-standard keystore format (recommended)
+ * 2. AES-256-GCM (legacy) - For backwards compatibility during migration
+ *
+ * The keystore format uses scrypt for key derivation and AES-128-CTR for
+ * encryption, following the Ethereum keystore v3 standard. This is the
+ * same format used by MetaMask, Geth, and other wallets.
  *
  * SECURITY:
  * - Production REQUIRES WALLET_ENCRYPTION_KEY to be set
@@ -11,7 +16,11 @@
  */
 
 import crypto from "node:crypto";
+import { ethers } from "ethers";
 import { getEnv, isProduction } from "../config/env.js";
+import { loggers } from "./logger.js";
+
+const log = loggers.crypto;
 
 export interface EncryptedData {
     encrypted: string; // Ciphertext (hex)
@@ -21,6 +30,9 @@ export interface EncryptedData {
 
 // Track if we've already logged the dev key warning
 let _devKeyWarningLogged = false;
+
+/** Current keystore format version */
+export const KEYSTORE_VERSION = 2;
 
 /**
  * Get the 32-byte encryption key from environment.
@@ -44,9 +56,8 @@ export function getEncryptionKey(): Buffer {
 
         // Development fallback — log warning once
         if (!_devKeyWarningLogged) {
-            console.warn(
-                "[SECURITY WARNING] Using development fallback encryption key. " +
-                    "Set WALLET_ENCRYPTION_KEY for production use.",
+            log.warn(
+                "Using development fallback encryption key. Set WALLET_ENCRYPTION_KEY for production use.",
             );
             _devKeyWarningLogged = true;
         }
@@ -130,6 +141,8 @@ export function encryptKey(privateKey: string): EncryptedData {
 /**
  * Decrypt data encrypted with encryptKey().
  * Requires the ciphertext, IV, and auth tag.
+ *
+ * @deprecated Use decryptKeystore() for new code. This is maintained for backwards compatibility.
  */
 export function decryptKey(encrypted: string, iv: string, authTag: string): string {
     const key = getEncryptionKey();
@@ -140,4 +153,87 @@ export function decryptKey(encrypted: string, iv: string, authTag: string): stri
     decrypted += decipher.final("utf8");
 
     return decrypted;
+}
+
+// ─── Ethers Keystore Format (Recommended) ──────────────────
+
+/**
+ * Encrypted keystore data using ethers.Wallet.encrypt() format.
+ * This is the industry-standard Ethereum keystore v3 format.
+ */
+export interface KeystoreData {
+    /** JSON string of the encrypted keystore */
+    keystore: string;
+    /** Version identifier for migration purposes */
+    version: number;
+}
+
+/**
+ * Get the encryption password from environment.
+ * This is the password used for ethers keystore encryption.
+ */
+function getKeystorePassword(): string {
+    const key = getEncryptionKey();
+    // Use the hex representation of the key as the password
+    // This maintains the same security level as direct key usage
+    return key.toString("hex");
+}
+
+/**
+ * Encrypt a wallet using ethers keystore format.
+ * Uses scrypt for key derivation (industry standard).
+ *
+ * This is the recommended method for new wallets.
+ *
+ * @param wallet - The ethers Wallet to encrypt
+ * @returns KeystoreData with the encrypted keystore JSON
+ */
+export async function encryptWalletKeystore(wallet: ethers.Wallet): Promise<KeystoreData> {
+    const password = getKeystorePassword();
+
+    // Use lightweight scrypt params for faster encryption
+    // Production default: n=131072, r=8, p=1
+    // Our params: n=4096, r=8, p=1 (still secure, but faster for API usage)
+    const keystore = await wallet.encrypt(password, {
+        scrypt: { N: 4096, r: 8, p: 1 },
+    });
+
+    return {
+        keystore,
+        version: KEYSTORE_VERSION,
+    };
+}
+
+/**
+ * Decrypt a wallet from ethers keystore format.
+ *
+ * @param keystore - The JSON keystore string
+ * @returns The decrypted ethers Wallet
+ */
+export async function decryptWalletKeystore(keystore: string): Promise<ethers.Wallet> {
+    const password = getKeystorePassword();
+    return ethers.Wallet.fromEncryptedJson(keystore, password);
+}
+
+/**
+ * Encrypt a private key using ethers keystore format.
+ * Convenience wrapper that creates a wallet first.
+ *
+ * @param privateKey - The private key to encrypt
+ * @returns KeystoreData with the encrypted keystore JSON
+ */
+export async function encryptPrivateKeyKeystore(privateKey: string): Promise<KeystoreData> {
+    const wallet = new ethers.Wallet(privateKey);
+    return encryptWalletKeystore(wallet);
+}
+
+/**
+ * Decrypt a private key from ethers keystore format.
+ *
+ * @param keystore - The JSON keystore string
+ * @returns The decrypted private key
+ */
+export async function decryptPrivateKeyKeystore(keystore: string): Promise<string> {
+    const wallet = await decryptWalletKeystore(keystore);
+    return wallet.privateKey;
 }
