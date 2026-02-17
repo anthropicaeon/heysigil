@@ -79,6 +79,7 @@ export interface IndexerStatus {
 
 export class FeeIndexer {
     private provider: ethers.JsonRpcProvider;
+    private rpcUrl: string;
     private feeVaultAddress: string;
     private startBlock: number;
 
@@ -94,6 +95,7 @@ export class FeeIndexer {
         const env = getEnv();
 
         const rpcUrl = config.rpcUrl || env.BASE_RPC_URL;
+        this.rpcUrl = rpcUrl;
         this.feeVaultAddress = config.feeVaultAddress || env.SIGIL_FEE_VAULT_ADDRESS;
         this.startBlock = config.startBlock || 0;
 
@@ -123,10 +125,7 @@ export class FeeIndexer {
         this.startedAt = new Date();
         this.lastError = null;
 
-        log.info(
-            { rpc: this.provider._getConnection().url, feeVault: this.feeVaultAddress },
-            "Starting fee indexer",
-        );
+        log.info({ rpc: this.rpcUrl, feeVault: this.feeVaultAddress }, "Starting fee indexer");
 
         // Initial backfill
         await this.catchUp();
