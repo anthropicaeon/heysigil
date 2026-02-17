@@ -5,6 +5,7 @@ import { useOptionalPrivy, getUserDisplay } from "@/hooks/useOptionalPrivy";
 import { useWalletPolling } from "@/hooks/useWalletPolling";
 import { getTokenColor, TOKEN_COLORS } from "@/config/token-colors";
 import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorAlert } from "@/components/common/ErrorAlert";
 
 export default function PortfolioSidebar({
     sessionId,
@@ -21,7 +22,7 @@ export default function PortfolioSidebar({
     const isAuthenticated = privy?.authenticated ?? false;
     const userInfo = getUserDisplay(privy);
 
-    const { wallet, loading, refreshing, createWallet, refreshBalance } =
+    const { wallet, loading, refreshing, error, createWallet, refreshBalance } =
         useWalletPolling(sessionId);
 
     const copyAddress = async () => {
@@ -172,6 +173,8 @@ export default function PortfolioSidebar({
                     }}
                 />
             )}
+
+            {error && <ErrorAlert error={error} />}
 
             {/* Wallet info */}
             {wallet?.exists && (

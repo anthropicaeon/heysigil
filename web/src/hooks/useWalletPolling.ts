@@ -8,11 +8,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { apiClient, type WalletInfo } from "@/lib/api-client";
+import { getErrorMessage } from "@/lib/errors";
 
 interface UseWalletPollingResult {
     wallet: WalletInfo | null;
     loading: boolean;
     refreshing: boolean;
+    error: string | null;
     fetchWallet: () => Promise<void>;
     createWallet: () => Promise<void>;
     refreshBalance: () => Promise<void>;
@@ -24,6 +26,7 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
     const [wallet, setWallet] = useState<WalletInfo | null>(null);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const fetchWallet = useCallback(async () => {
         if (!sessionId) return;
@@ -31,8 +34,11 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
         try {
             const data = await apiClient.wallet.getInfo(sessionId);
             setWallet(data);
-        } catch {
-            // Silent fail — sidebar is non-critical
+            setError(null);
+        } catch (err) {
+            setError(
+                `Wallet service unavailable (${getErrorMessage(err, "request failed")}). Check backend and NEXT_PUBLIC_API_URL.`,
+            );
         }
     }, [sessionId]);
 
@@ -42,9 +48,12 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
 
         try {
             await apiClient.wallet.create(sessionId);
+            setError(null);
             await fetchWallet();
-        } catch {
-            // Silent fail
+        } catch (err) {
+            setError(
+                `Could not create wallet (${getErrorMessage(err, "request failed")}). Check backend and NEXT_PUBLIC_API_URL.`,
+            );
         } finally {
             setLoading(false);
         }
@@ -67,6 +76,7 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
         wallet,
         loading,
         refreshing,
+        error,
         fetchWallet,
         createWallet,
         refreshBalance,
