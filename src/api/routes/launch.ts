@@ -20,6 +20,7 @@ import {
     getDeployerBalance,
 } from "../../services/deployer.js";
 import { rateLimit } from "../../middleware/rate-limit.js";
+import { getUserId } from "../../middleware/auth.js";
 import {
     ErrorResponseSchema,
     NotFoundResponseSchema,
@@ -212,13 +213,18 @@ launch.openapi(launchTokenRoute, (async (c) => {
 
     // Deploy on-chain!
     try {
+        // Rate limiting: authenticated users get user-based limits (prevents bypass via multiple sessions)
+        const privyUserId = getUserId(c);
         const deployResult = await deployToken(
             {
                 name: tokenName,
                 symbol: tokenSymbol,
                 projectId,
             },
-            body.sessionId,
+            {
+                privyUserId: privyUserId,
+                sessionId: body.sessionId,
+            },
         );
 
         // Store in DB
