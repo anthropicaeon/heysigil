@@ -132,12 +132,20 @@ export const launchTokenHandler: ActionHandler = async (params) => {
         return {
             success: true,
             message: [
-                `**Deployed: ${tokenName} ($${tokenSymbol})**`,
+                `✅ **Deployed: ${tokenName} ($${tokenSymbol})**`,
                 "",
-                `Token: \`${result.tokenAddress}\``,
-                `[BaseScan](${result.explorerUrl}) · [DEX Screener](${result.dexUrl})`,
+                `**Contract:** \`${result.tokenAddress}\``,
+                `**Tx Hash:** \`${result.txHash}\``,
+                `**Pool ID:** \`${result.poolId}\``,
+                "",
+                `🔗 [View on BaseScan](${result.explorerUrl})`,
+                `📊 [DEX Screener](${result.dexUrl})`,
                 "",
                 ...linkSummary,
+                "",
+                isSelfLaunch
+                    ? "Verify your project to start earning fees."
+                    : "The dev can claim fees by verifying ownership.",
             ].join("\n"),
             data: {
                 name: tokenName,
