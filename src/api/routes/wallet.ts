@@ -15,7 +15,7 @@ import {
     WalletInfoResponseSchema,
     WalletCreateResponseSchema,
 } from "../schemas/wallet.js";
-import type { AnyHandler } from "../types.js";
+import { handler } from "../helpers/route.js";
 
 export const wallet = new OpenAPIHono();
 
@@ -59,31 +59,34 @@ const getWalletRoute = createRoute({
     },
 });
 
-wallet.openapi(getWalletRoute, (async (c) => {
-    const { sessionId } = getParams(c, WalletSessionIdParamSchema);
+wallet.openapi(
+    getWalletRoute,
+    handler(async (c) => {
+        const { sessionId } = getParams(c, WalletSessionIdParamSchema);
 
-    if (!(await hasWallet(sessionId))) {
-        return c.json({ exists: false as const, address: null, balance: null });
-    }
+        if (!(await hasWallet(sessionId))) {
+            return c.json({ exists: false as const, address: null, balance: null });
+        }
 
-    const address = await getAddress(sessionId);
-    const balance = await getBalance(sessionId);
+        const address = await getAddress(sessionId);
+        const balance = await getBalance(sessionId);
 
-    return c.json({
-        exists: true as const,
-        address,
-        balance: balance
-            ? {
-                  eth: balance.ethFormatted,
-                  tokens: balance.tokens.map((t) => ({
-                      symbol: t.symbol,
-                      balance: t.formatted,
-                      address: t.address,
-                  })),
-              }
-            : null,
-    });
-}) as AnyHandler);
+        return c.json({
+            exists: true as const,
+            address,
+            balance: balance
+                ? {
+                      eth: balance.ethFormatted,
+                      tokens: balance.tokens.map((t) => ({
+                          symbol: t.symbol,
+                          balance: t.formatted,
+                          address: t.address,
+                      })),
+                  }
+                : null,
+        });
+    }),
+);
 
 /**
  * POST /api/wallet/:sessionId/create
@@ -119,12 +122,15 @@ const createWalletRoute = createRoute({
     },
 });
 
-wallet.openapi(createWalletRoute, (async (c) => {
-    const { sessionId } = getParams(c, WalletSessionIdParamSchema);
-    const walletInfo = await createWallet(sessionId);
+wallet.openapi(
+    createWalletRoute,
+    handler(async (c) => {
+        const { sessionId } = getParams(c, WalletSessionIdParamSchema);
+        const walletInfo = await createWallet(sessionId);
 
-    return c.json({
-        address: walletInfo.address,
-        createdAt: walletInfo.createdAt,
-    });
-}) as AnyHandler);
+        return c.json({
+            address: walletInfo.address,
+            createdAt: walletInfo.createdAt,
+        });
+    }),
+);

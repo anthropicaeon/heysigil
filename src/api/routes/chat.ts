@@ -19,7 +19,7 @@ import {
     SessionIdParamSchema,
     ChatSessionResponseSchema,
 } from "../schemas/chat.js";
-import type { AnyHandler } from "../types.js";
+import { handler } from "../helpers/route.js";
 import { getErrorMessage } from "../../utils/errors.js";
 
 const chat = new OpenAPIHono();
@@ -87,31 +87,34 @@ const postMessageRoute = createRoute({
     },
 });
 
-chat.openapi(postMessageRoute, (async (c) => {
-    const body = getBody(c, ChatMessageRequestSchema);
+chat.openapi(
+    postMessageRoute,
+    handler(async (c) => {
+        const body = getBody(c, ChatMessageRequestSchema);
 
-    if (!body.message?.trim()) {
-        return c.json({ error: "Message is required" }, 400);
-    }
+        if (!body.message?.trim()) {
+            return c.json({ error: "Message is required" }, 400);
+        }
 
-    // Get or create session
-    let sid = body.sessionId;
-    if (!sid) {
-        const session = createSession("web");
-        sid = session.id;
-    }
+        // Get or create session
+        let sid = body.sessionId;
+        if (!sid) {
+            const session = createSession("web");
+            sid = session.id;
+        }
 
-    try {
-        const response = await processMessage(sid, body.message, body.walletAddress);
+        try {
+            const response = await processMessage(sid, body.message, body.walletAddress);
 
-        return c.json({
-            sessionId: sid,
-            response,
-        });
-    } catch (err) {
-        return c.json({ error: getErrorMessage(err, "Agent error") }, 500);
-    }
-}) as AnyHandler);
+            return c.json({
+                sessionId: sid,
+                response,
+            });
+        } catch (err) {
+            return c.json({ error: getErrorMessage(err, "Agent error") }, 500);
+        }
+    }),
+);
 
 /**
  * GET /api/chat/:sessionId
@@ -154,24 +157,27 @@ const getSessionRoute = createRoute({
     },
 });
 
-chat.openapi(getSessionRoute, (async (c) => {
-    const { sessionId } = getParams(c, SessionIdParamSchema);
-    const session = getSession(sessionId);
+chat.openapi(
+    getSessionRoute,
+    handler(async (c) => {
+        const { sessionId } = getParams(c, SessionIdParamSchema);
+        const session = getSession(sessionId);
 
-    if (!session) {
-        return c.json({ error: "Session not found" }, 404);
-    }
+        if (!session) {
+            return c.json({ error: "Session not found" }, 404);
+        }
 
-    return c.json({
-        sessionId: session.id,
-        platform: session.platform,
-        hasWallet: !!session.walletAddress,
-        messages: session.messages.map((m) => ({
-            role: m.role,
-            content: m.content,
-            timestamp: m.timestamp.toISOString(),
-        })),
-    });
-}) as AnyHandler);
+        return c.json({
+            sessionId: session.id,
+            platform: session.platform,
+            hasWallet: !!session.walletAddress,
+            messages: session.messages.map((m) => ({
+                role: m.role,
+                content: m.content,
+                timestamp: m.timestamp.toISOString(),
+            })),
+        });
+    }),
+);
 
 export { chat };

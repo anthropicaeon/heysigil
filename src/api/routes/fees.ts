@@ -37,7 +37,7 @@ import {
     TxVerifyResponseSchema,
     IndexerHealthResponseSchema,
 } from "../schemas/fees.js";
-import type { AnyHandler } from "../types.js";
+import { handler } from "../helpers/route.js";
 
 const fees = new OpenAPIHono();
 
@@ -118,43 +118,46 @@ const distributionsRoute = createRoute({
     },
 });
 
-fees.openapi(distributionsRoute, (async (c) => {
-    const query = getQuery(c, DistributionsQuerySchema);
+fees.openapi(
+    distributionsRoute,
+    handler(async (c) => {
+        const query = getQuery(c, DistributionsQuerySchema);
 
-    // Validate event type if provided
-    const validTypes: FeeEventType[] = [
-        "deposit",
-        "escrow",
-        "dev_assigned",
-        "expired",
-        "dev_claimed",
-        "protocol_claimed",
-    ];
+        // Validate event type if provided
+        const validTypes: FeeEventType[] = [
+            "deposit",
+            "escrow",
+            "dev_assigned",
+            "expired",
+            "dev_claimed",
+            "protocol_claimed",
+        ];
 
-    if (query.type && !validTypes.includes(query.type as FeeEventType)) {
-        return c.json(
+        if (query.type && !validTypes.includes(query.type as FeeEventType)) {
+            return c.json(
+                {
+                    error: `Invalid type. Must be one of: ${validTypes.join(", ")}`,
+                },
+                400,
+            );
+        }
+
+        const result = await findDistributions(
             {
-                error: `Invalid type. Must be one of: ${validTypes.join(", ")}`,
+                eventType: query.type as FeeEventType | undefined,
+                poolId: query.pool || undefined,
+                devAddress: query.dev || undefined,
+                tokenAddress: query.token || undefined,
             },
-            400,
+            { limit: query.limit, offset: query.offset },
         );
-    }
 
-    const result = await findDistributions(
-        {
-            eventType: query.type as FeeEventType | undefined,
-            poolId: query.pool || undefined,
-            devAddress: query.dev || undefined,
-            tokenAddress: query.token || undefined,
-        },
-        { limit: query.limit, offset: query.offset },
-    );
-
-    return c.json({
-        distributions: result.data.map(formatDistribution),
-        pagination: result.pagination,
-    });
-}) as AnyHandler);
+        return c.json({
+            distributions: result.data.map(formatDistribution),
+            pagination: result.pagination,
+        });
+    }),
+);
 
 /**
  * GET /api/fees/project/:projectId
@@ -190,33 +193,36 @@ const projectRoute = createRoute({
     },
 });
 
-fees.openapi(projectRoute, (async (c) => {
-    const { projectId } = getParams(c, ProjectIdParamSchema);
-    const query = getQuery(c, PaginationQuerySchema);
+fees.openapi(
+    projectRoute,
+    handler(async (c) => {
+        const { projectId } = getParams(c, ProjectIdParamSchema);
+        const query = getQuery(c, PaginationQuerySchema);
 
-    // URL decode the projectId (handles "org/repo" format)
-    const decodedProjectId = decodeURIComponent(projectId);
+        // URL decode the projectId (handles "org/repo" format)
+        const decodedProjectId = decodeURIComponent(projectId);
 
-    // Search by projectId field in fee distributions
-    const result = await findDistributions(
-        { poolId: undefined },
-        { limit: query.limit, offset: query.offset },
-    );
+        // Search by projectId field in fee distributions
+        const result = await findDistributions(
+            { poolId: undefined },
+            { limit: query.limit, offset: query.offset },
+        );
 
-    // Filter results by projectId client-side (until we add projectId index)
-    const filtered = result.data.filter((d) => d.projectId === decodedProjectId);
+        // Filter results by projectId client-side (until we add projectId index)
+        const filtered = result.data.filter((d) => d.projectId === decodedProjectId);
 
-    return c.json({
-        projectId: decodedProjectId,
-        distributions: filtered.map(formatDistribution),
-        pagination: {
-            limit: query.limit,
-            offset: query.offset,
-            count: filtered.length,
-            hasMore: result.pagination.hasMore,
-        },
-    });
-}) as AnyHandler);
+        return c.json({
+            projectId: decodedProjectId,
+            distributions: filtered.map(formatDistribution),
+            pagination: {
+                limit: query.limit,
+                offset: query.offset,
+                count: filtered.length,
+                hasMore: result.pagination.hasMore,
+            },
+        });
+    }),
+);
 
 /**
  * GET /api/fees/pool/:poolId
@@ -252,18 +258,21 @@ const poolRoute = createRoute({
     },
 });
 
-fees.openapi(poolRoute, (async (c) => {
-    const { poolId } = getParams(c, PoolIdParamSchema);
-    const query = getQuery(c, PaginationQuerySchema);
+fees.openapi(
+    poolRoute,
+    handler(async (c) => {
+        const { poolId } = getParams(c, PoolIdParamSchema);
+        const query = getQuery(c, PaginationQuerySchema);
 
-    const result = await findByPoolId(poolId, { limit: query.limit, offset: query.offset });
+        const result = await findByPoolId(poolId, { limit: query.limit, offset: query.offset });
 
-    return c.json({
-        poolId,
-        distributions: result.data.map(formatDistribution),
-        pagination: result.pagination,
-    });
-}) as AnyHandler);
+        return c.json({
+            poolId,
+            distributions: result.data.map(formatDistribution),
+            pagination: result.pagination,
+        });
+    }),
+);
 
 /**
  * GET /api/fees/dev/:address
@@ -307,36 +316,42 @@ const devRoute = createRoute({
     },
 });
 
-fees.openapi(devRoute, (async (c) => {
-    const { address } = getParams(c, DevAddressParamSchema);
-    const query = getQuery(c, PaginationQuerySchema);
+fees.openapi(
+    devRoute,
+    handler(async (c) => {
+        const { address } = getParams(c, DevAddressParamSchema);
+        const query = getQuery(c, PaginationQuerySchema);
 
-    const result = await findByDevAddress(address, { limit: query.limit, offset: query.offset });
+        const result = await findByDevAddress(address, {
+            limit: query.limit,
+            offset: query.offset,
+        });
 
-    // Calculate earnings summary
-    let totalEarned = 0n;
-    let totalClaimed = 0n;
+        // Calculate earnings summary
+        let totalEarned = 0n;
+        let totalClaimed = 0n;
 
-    for (const d of result.data) {
-        if (d.eventType === "deposit" && d.devAmount) {
-            totalEarned += BigInt(d.devAmount);
+        for (const d of result.data) {
+            if (d.eventType === "deposit" && d.devAmount) {
+                totalEarned += BigInt(d.devAmount);
+            }
+            if (d.eventType === "dev_claimed" && d.amount) {
+                totalClaimed += BigInt(d.amount);
+            }
         }
-        if (d.eventType === "dev_claimed" && d.amount) {
-            totalClaimed += BigInt(d.amount);
-        }
-    }
 
-    return c.json({
-        address,
-        summary: {
-            totalEarnedWei: totalEarned.toString(),
-            totalClaimedWei: totalClaimed.toString(),
-            unclaimedWei: (totalEarned - totalClaimed).toString(),
-        },
-        distributions: result.data.map(formatDistribution),
-        pagination: result.pagination,
-    });
-}) as AnyHandler);
+        return c.json({
+            address,
+            summary: {
+                totalEarnedWei: totalEarned.toString(),
+                totalClaimedWei: totalClaimed.toString(),
+                unclaimedWei: (totalEarned - totalClaimed).toString(),
+            },
+            distributions: result.data.map(formatDistribution),
+            pagination: result.pagination,
+        });
+    }),
+);
 
 /**
  * GET /api/fees/totals
@@ -368,21 +383,24 @@ const totalsRoute = createRoute({
     },
 });
 
-fees.openapi(totalsRoute, (async (c) => {
-    const stats = await getAggregateStats();
+fees.openapi(
+    totalsRoute,
+    handler(async (c) => {
+        const stats = await getAggregateStats();
 
-    return c.json({
-        totalDistributedWei: stats.totalDistributedWei,
-        totalDevClaimedWei: stats.totalDevClaimedWei,
-        totalProtocolClaimedWei: stats.totalProtocolClaimedWei,
-        totalEscrowedWei: stats.totalEscrowedWei,
-        distributionCount: stats.distributionCount,
-        uniqueDevs: stats.uniqueDevs,
-        uniquePools: stats.uniquePools,
-        lastIndexedBlock: stats.lastIndexedBlock,
-        lastIndexedAt: stats.lastIndexedAt?.toISOString() ?? null,
-    });
-}) as AnyHandler);
+        return c.json({
+            totalDistributedWei: stats.totalDistributedWei,
+            totalDevClaimedWei: stats.totalDevClaimedWei,
+            totalProtocolClaimedWei: stats.totalProtocolClaimedWei,
+            totalEscrowedWei: stats.totalEscrowedWei,
+            distributionCount: stats.distributionCount,
+            uniqueDevs: stats.uniqueDevs,
+            uniquePools: stats.uniquePools,
+            lastIndexedBlock: stats.lastIndexedBlock,
+            lastIndexedAt: stats.lastIndexedAt?.toISOString() ?? null,
+        });
+    }),
+);
 
 /**
  * GET /api/fees/verify/:txHash
@@ -426,29 +444,32 @@ const verifyTxRoute = createRoute({
     },
 });
 
-fees.openapi(verifyTxRoute, (async (c) => {
-    const { txHash } = getParams(c, TxHashParamSchema);
+fees.openapi(
+    verifyTxRoute,
+    handler(async (c) => {
+        const { txHash } = getParams(c, TxHashParamSchema);
 
-    const events = await findByTxHash(txHash);
+        const events = await findByTxHash(txHash);
 
-    if (events.length === 0) {
+        if (events.length === 0) {
+            return c.json({
+                txHash,
+                found: false as const,
+                message: "No fee distribution events found for this transaction",
+                events: [],
+                explorerUrl: `https://basescan.org/tx/${txHash}`,
+            });
+        }
+
         return c.json({
             txHash,
-            found: false as const,
-            message: "No fee distribution events found for this transaction",
-            events: [],
+            found: true as const,
+            eventCount: events.length,
+            events: events.map(formatDistribution),
             explorerUrl: `https://basescan.org/tx/${txHash}`,
         });
-    }
-
-    return c.json({
-        txHash,
-        found: true as const,
-        eventCount: events.length,
-        events: events.map(formatDistribution),
-        explorerUrl: `https://basescan.org/tx/${txHash}`,
-    });
-}) as AnyHandler);
+    }),
+);
 
 /**
  * GET /api/fees/health
@@ -481,51 +502,54 @@ const healthRoute = createRoute({
     },
 });
 
-fees.openapi(healthRoute, (async (c) => {
-    const isConfigured = isFeeIndexerConfigured();
+fees.openapi(
+    healthRoute,
+    handler(async (c) => {
+        const isConfigured = isFeeIndexerConfigured();
 
-    if (!isConfigured) {
+        if (!isConfigured) {
+            return c.json({
+                status: "disabled" as const,
+                message: "Fee indexer not configured (SIGIL_FEE_VAULT_ADDRESS not set)",
+                isRunning: false,
+                lastProcessedBlock: null,
+                currentBlock: null,
+                blockLag: null,
+                lastError: null,
+                eventsIndexed: 0,
+                startedAt: null,
+            });
+        }
+
+        const indexer = getFeeIndexer();
+        const status = await indexer.getStatus();
+
+        // Determine health status based on block lag
+        let healthStatus: "healthy" | "degraded" | "unhealthy" | "stopped";
+
+        if (!status.isRunning) {
+            healthStatus = "stopped";
+        } else if (status.blockLag === null) {
+            healthStatus = "degraded";
+        } else if (status.blockLag <= 10) {
+            healthStatus = "healthy";
+        } else if (status.blockLag <= 100) {
+            healthStatus = "degraded";
+        } else {
+            healthStatus = "unhealthy";
+        }
+
         return c.json({
-            status: "disabled" as const,
-            message: "Fee indexer not configured (SIGIL_FEE_VAULT_ADDRESS not set)",
-            isRunning: false,
-            lastProcessedBlock: null,
-            currentBlock: null,
-            blockLag: null,
-            lastError: null,
-            eventsIndexed: 0,
-            startedAt: null,
+            status: healthStatus,
+            isRunning: status.isRunning,
+            lastProcessedBlock: status.lastProcessedBlock,
+            currentBlock: status.currentBlock,
+            blockLag: status.blockLag,
+            lastError: status.lastError,
+            eventsIndexed: status.eventsIndexed,
+            startedAt: status.startedAt?.toISOString() ?? null,
         });
-    }
-
-    const indexer = getFeeIndexer();
-    const status = await indexer.getStatus();
-
-    // Determine health status based on block lag
-    let healthStatus: "healthy" | "degraded" | "unhealthy" | "stopped";
-
-    if (!status.isRunning) {
-        healthStatus = "stopped";
-    } else if (status.blockLag === null) {
-        healthStatus = "degraded";
-    } else if (status.blockLag <= 10) {
-        healthStatus = "healthy";
-    } else if (status.blockLag <= 100) {
-        healthStatus = "degraded";
-    } else {
-        healthStatus = "unhealthy";
-    }
-
-    return c.json({
-        status: healthStatus,
-        isRunning: status.isRunning,
-        lastProcessedBlock: status.lastProcessedBlock,
-        currentBlock: status.currentBlock,
-        blockLag: status.blockLag,
-        lastError: status.lastError,
-        eventsIndexed: status.eventsIndexed,
-        startedAt: status.startedAt?.toISOString() ?? null,
-    });
-}) as AnyHandler);
+    }),
+);
 
 export { fees };

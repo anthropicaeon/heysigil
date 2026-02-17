@@ -9,7 +9,7 @@ import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
 import { OAuthCallbackQuerySchema, RateLimitResponseSchema } from "../schemas/verify.js";
 import { getQuery } from "./request.js";
 import { handleOAuthCallback, type OAuthCallbackConfig } from "./oauth-callback.js";
-import type { AnyHandler } from "../types.js";
+import { handler } from "./route.js";
 
 export interface OAuthRouteConfig extends OAuthCallbackConfig {
     /** Capitalized platform name for docs (GitHub, Facebook, Instagram) */
@@ -50,8 +50,11 @@ export function registerOAuthCallbackRoute(app: OpenAPIHono, config: OAuthRouteC
         },
     });
 
-    app.openapi(route, (async (c) => {
-        const { code, state } = getQuery(c, OAuthCallbackQuerySchema);
-        return handleOAuthCallback(c, code, state, config);
-    }) as AnyHandler);
+    app.openapi(
+        route,
+        handler(async (c) => {
+            const { code, state } = getQuery(c, OAuthCallbackQuerySchema);
+            return handleOAuthCallback(c, code, state, config);
+        }),
+    );
 }

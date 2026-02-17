@@ -36,7 +36,7 @@ import {
     LaunchProjectIdParamSchema,
     ProjectDetailsResponseSchema,
 } from "../schemas/launch.js";
-import type { AnyHandler } from "../types.js";
+import { handler } from "../helpers/route.js";
 import { getErrorMessage } from "../../utils/errors.js";
 
 const launch = new OpenAPIHono();
@@ -114,63 +114,117 @@ Developer links are parsed to identify platforms (GitHub, Twitter, Instagram, do
     },
 });
 
-launch.openapi(launchTokenRoute, (async (c) => {
-    const body = getBody(c, LaunchRequestSchema);
-    const badRequest = (payload: Record<string, unknown>) => c.json(payload, 400);
+launch.openapi(
+    launchTokenRoute,
+    handler(async (c) => {
+        const body = getBody(c, LaunchRequestSchema);
+        const badRequest = (payload: Record<string, unknown>) => c.json(payload, 400);
 
-    if (!body.devLinks || body.devLinks.length === 0) {
-        return badRequest({
-            error: "At least one developer link is required",
-            hint: "Provide GitHub repos, Instagram handles, Twitter handles, or website URLs",
-            examples: [
-                "https://github.com/org/repo",
-                "https://instagram.com/handle",
-                "https://x.com/handle",
-                "https://mysite.dev",
-            ],
-        });
-    }
-
-    // Parse all provided links
-    const parsedLinks: ParsedLink[] = [];
-    const errors: string[] = [];
-
-    for (const raw of body.devLinks) {
-        const parsed = parseLink(raw);
-        if (parsed) {
-            parsedLinks.push(parsed);
-        } else {
-            errors.push(`Could not parse: "${raw}"`);
+        if (!body.devLinks || body.devLinks.length === 0) {
+            return badRequest({
+                error: "At least one developer link is required",
+                hint: "Provide GitHub repos, Instagram handles, Twitter handles, or website URLs",
+                examples: [
+                    "https://github.com/org/repo",
+                    "https://instagram.com/handle",
+                    "https://x.com/handle",
+                    "https://mysite.dev",
+                ],
+            });
         }
-    }
 
-    if (parsedLinks.length === 0) {
-        return badRequest({
-            error: "None of the provided links could be recognized",
-            invalidLinks: errors,
-            hint: "Try full URLs like https://github.com/org/repo",
-        });
-    }
+        // Parse all provided links
+        const parsedLinks: ParsedLink[] = [];
+        const errors: string[] = [];
 
-    // Use the primary link's projectId as the canonical project ID
-    const primaryLink = parsedLinks[0];
-    const projectId = `${primaryLink.platform}:${primaryLink.projectId}`;
+        for (const raw of body.devLinks) {
+            const parsed = parseLink(raw);
+            if (parsed) {
+                parsedLinks.push(parsed);
+            } else {
+                errors.push(`Could not parse: "${raw}"`);
+            }
+        }
 
-    // Auto-generate name/symbol if not provided
-    const tokenName = body.name || generateName(primaryLink.projectId);
-    const tokenSymbol = body.symbol || generateSymbol(primaryLink.projectId);
+        if (parsedLinks.length === 0) {
+            return badRequest({
+                error: "None of the provided links could be recognized",
+                invalidLinks: errors,
+                hint: "Try full URLs like https://github.com/org/repo",
+            });
+        }
 
-    const db = getDb();
-    const devLinksData = parsedLinks.map((l) => ({
-        platform: l.platform,
-        url: l.displayUrl,
-        projectId: l.projectId,
-    }));
+        // Use the primary link's projectId as the canonical project ID
+        const primaryLink = parsedLinks[0];
+        const projectId = `${primaryLink.platform}:${primaryLink.projectId}`;
 
-    // Check if deployer is configured for on-chain deployment
-    if (!isDeployerConfigured()) {
-        // Fallback: store project without deploying on-chain
+        // Auto-generate name/symbol if not provided
+        const tokenName = body.name || generateName(primaryLink.projectId);
+        const tokenSymbol = body.symbol || generateSymbol(primaryLink.projectId);
+
+        const db = getDb();
+        const devLinksData = parsedLinks.map((l) => ({
+            platform: l.platform,
+            url: l.displayUrl,
+            projectId: l.projectId,
+        }));
+
+        // Check if deployer is configured for on-chain deployment
+        if (!isDeployerConfigured()) {
+            // Fallback: store project without deploying on-chain
+            try {
+                const [project] = await db
+                    .insert(schema.projects)
+                    .values({
+                        projectId,
+                        name: tokenName,
+                        description: body.description || `${tokenName} ($${tokenSymbol})`,
+                        devLinks: devLinksData,
+                        deployedBy: "api",
+                    })
+                    .onConflictDoUpdate({
+                        target: schema.projects.projectId,
+                        set: {
+                            name: tokenName,
+                            description: body.description || `${tokenName} ($${tokenSymbol})`,
+                            devLinks: devLinksData,
+                        },
+                    })
+                    .returning();
+
+                return c.json({
+                    success: true as const,
+                    deployed: false as const,
+                    message:
+                        "Project registered but on-chain deployment not configured. Set DEPLOYER_PRIVATE_KEY and SIGIL_FACTORY_ADDRESS.",
+                    project: {
+                        id: project.id,
+                        projectId: project.projectId,
+                        name: project.name,
+                    },
+                });
+            } catch (err) {
+                return c.json({ error: getErrorMessage(err, "Failed to register project") }, 500);
+            }
+        }
+
+        // Deploy on-chain!
         try {
+            // Rate limiting: authenticated users get user-based limits (prevents bypass via multiple sessions)
+            const privyUserId = getUserId(c);
+            const deployResult = await deployToken(
+                {
+                    name: tokenName,
+                    symbol: tokenSymbol,
+                    projectId,
+                },
+                {
+                    privyUserId: privyUserId,
+                    sessionId: body.sessionId,
+                },
+            );
+
+            // Store in DB
             const [project] = await db
                 .insert(schema.projects)
                 .values({
@@ -178,6 +232,9 @@ launch.openapi(launchTokenRoute, (async (c) => {
                     name: tokenName,
                     description: body.description || `${tokenName} ($${tokenSymbol})`,
                     devLinks: devLinksData,
+                    poolTokenAddress: deployResult.tokenAddress,
+                    poolId: deployResult.poolId,
+                    deployTxHash: deployResult.txHash,
                     deployedBy: "api",
                 })
                 .onConflictDoUpdate({
@@ -186,95 +243,41 @@ launch.openapi(launchTokenRoute, (async (c) => {
                         name: tokenName,
                         description: body.description || `${tokenName} ($${tokenSymbol})`,
                         devLinks: devLinksData,
+                        poolTokenAddress: deployResult.tokenAddress,
+                        poolId: deployResult.poolId,
+                        deployTxHash: deployResult.txHash,
                     },
                 })
                 .returning();
 
             return c.json({
                 success: true as const,
-                deployed: false as const,
-                message:
-                    "Project registered but on-chain deployment not configured. Set DEPLOYER_PRIVATE_KEY and SIGIL_FACTORY_ADDRESS.",
+                deployed: true as const,
                 project: {
                     id: project.id,
                     projectId: project.projectId,
-                    name: project.name,
+                    name: tokenName,
+                    symbol: tokenSymbol,
                 },
+                token: {
+                    address: deployResult.tokenAddress,
+                    poolId: deployResult.poolId,
+                    txHash: deployResult.txHash,
+                    explorerUrl: deployResult.explorerUrl,
+                    dexUrl: deployResult.dexUrl,
+                },
+                claimInstructions: parsedLinks.map((l) => ({
+                    platform: l.platform,
+                    projectId: l.projectId,
+                    displayUrl: l.displayUrl,
+                    verifyMethods: l.verifyMethods,
+                })),
             });
         } catch (err) {
-            return c.json({ error: getErrorMessage(err, "Failed to register project") }, 500);
+            return c.json({ error: getErrorMessage(err, "Failed to deploy token") }, 500);
         }
-    }
-
-    // Deploy on-chain!
-    try {
-        // Rate limiting: authenticated users get user-based limits (prevents bypass via multiple sessions)
-        const privyUserId = getUserId(c);
-        const deployResult = await deployToken(
-            {
-                name: tokenName,
-                symbol: tokenSymbol,
-                projectId,
-            },
-            {
-                privyUserId: privyUserId,
-                sessionId: body.sessionId,
-            },
-        );
-
-        // Store in DB
-        const [project] = await db
-            .insert(schema.projects)
-            .values({
-                projectId,
-                name: tokenName,
-                description: body.description || `${tokenName} ($${tokenSymbol})`,
-                devLinks: devLinksData,
-                poolTokenAddress: deployResult.tokenAddress,
-                poolId: deployResult.poolId,
-                deployTxHash: deployResult.txHash,
-                deployedBy: "api",
-            })
-            .onConflictDoUpdate({
-                target: schema.projects.projectId,
-                set: {
-                    name: tokenName,
-                    description: body.description || `${tokenName} ($${tokenSymbol})`,
-                    devLinks: devLinksData,
-                    poolTokenAddress: deployResult.tokenAddress,
-                    poolId: deployResult.poolId,
-                    deployTxHash: deployResult.txHash,
-                },
-            })
-            .returning();
-
-        return c.json({
-            success: true as const,
-            deployed: true as const,
-            project: {
-                id: project.id,
-                projectId: project.projectId,
-                name: tokenName,
-                symbol: tokenSymbol,
-            },
-            token: {
-                address: deployResult.tokenAddress,
-                poolId: deployResult.poolId,
-                txHash: deployResult.txHash,
-                explorerUrl: deployResult.explorerUrl,
-                dexUrl: deployResult.dexUrl,
-            },
-            claimInstructions: parsedLinks.map((l) => ({
-                platform: l.platform,
-                projectId: l.projectId,
-                displayUrl: l.displayUrl,
-                verifyMethods: l.verifyMethods,
-            })),
-        });
-    } catch (err) {
-        return c.json({ error: getErrorMessage(err, "Failed to deploy token") }, 500);
-    }
-}) as AnyHandler);
+    }),
+);
 
 /**
  * GET /api/launch/deployer
@@ -309,21 +312,27 @@ const deployerStatusRoute = createRoute({
     },
 });
 
-launch.openapi(deployerStatusRoute, (async (c) => {
-    if (!isDeployerConfigured()) {
-        return c.json({ configured: false as const, message: "Deployer not configured" });
-    }
+launch.openapi(
+    deployerStatusRoute,
+    handler(async (c) => {
+        if (!isDeployerConfigured()) {
+            return c.json({ configured: false as const, message: "Deployer not configured" });
+        }
 
-    try {
-        const balance = await getDeployerBalance();
-        return c.json({ configured: true as const, ...balance });
-    } catch (err) {
-        return c.json(
-            { configured: true as const, error: getErrorMessage(err, "Failed to check balance") },
-            500,
-        );
-    }
-}) as AnyHandler);
+        try {
+            const balance = await getDeployerBalance();
+            return c.json({ configured: true as const, ...balance });
+        } catch (err) {
+            return c.json(
+                {
+                    configured: true as const,
+                    error: getErrorMessage(err, "Failed to check balance"),
+                },
+                500,
+            );
+        }
+    }),
+);
 
 /**
  * GET /api/launch/:projectId
@@ -359,37 +368,40 @@ const getProjectRoute = createRoute({
     },
 });
 
-launch.openapi(getProjectRoute, (async (c) => {
-    const { projectId } = getParams(c, LaunchProjectIdParamSchema);
-    const db = getDb();
+launch.openapi(
+    getProjectRoute,
+    handler(async (c) => {
+        const { projectId } = getParams(c, LaunchProjectIdParamSchema);
+        const db = getDb();
 
-    const [project] = await db
-        .select()
-        .from(schema.projects)
-        .where(eq(schema.projects.projectId, projectId))
-        .limit(1);
+        const [project] = await db
+            .select()
+            .from(schema.projects)
+            .where(eq(schema.projects.projectId, projectId))
+            .limit(1);
 
-    if (!project) {
-        return c.json({ error: "Project not found" }, 404);
-    }
+        if (!project) {
+            return c.json({ error: "Project not found" }, 404);
+        }
 
-    return c.json({
-        id: project.id,
-        projectId: project.projectId,
-        name: project.name,
-        description: project.description,
-        devLinks: project.devLinks,
-        ownerWallet: project.ownerWallet,
-        token: {
-            address: project.poolTokenAddress,
-            poolId: project.poolId,
-            deployTxHash: project.deployTxHash,
-        },
-        attestationUid: project.attestationUid,
-        deployedBy: project.deployedBy,
-        createdAt: project.createdAt?.toISOString() ?? null,
-        verifiedAt: project.verifiedAt?.toISOString() ?? null,
-    });
-}) as AnyHandler);
+        return c.json({
+            id: project.id,
+            projectId: project.projectId,
+            name: project.name,
+            description: project.description,
+            devLinks: project.devLinks,
+            ownerWallet: project.ownerWallet,
+            token: {
+                address: project.poolTokenAddress,
+                poolId: project.poolId,
+                deployTxHash: project.deployTxHash,
+            },
+            attestationUid: project.attestationUid,
+            deployedBy: project.deployedBy,
+            createdAt: project.createdAt?.toISOString() ?? null,
+            verifiedAt: project.verifiedAt?.toISOString() ?? null,
+        });
+    }),
+);
 
 export { launch };
