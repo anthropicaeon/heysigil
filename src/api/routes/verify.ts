@@ -13,16 +13,13 @@ import { getBody, getParams, getQuery } from "../helpers/request.js";
 import { randomBytes } from "node:crypto";
 import { eq, and, desc, inArray, type SQL } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
-import { getEnv } from "../../config/env.js";
+import { verifyGitHubOwnership } from "../../verification/github.js";
+import { verifyFacebookOwnership } from "../../verification/facebook.js";
+import { verifyInstagramOwnership } from "../../verification/instagram.js";
 import {
-    getGitHubAuthUrl,
-    verifyGitHubOwnership,
-    verifyGitHubFile,
-} from "../../verification/github.js";
-import { verifyDomainDns, verifyDomainFile, verifyDomainMeta } from "../../verification/domain.js";
-import { createTweetChallenge, verifyTweetProof } from "../../verification/tweet.js";
-import { getFacebookAuthUrl, verifyFacebookOwnership } from "../../verification/facebook.js";
-import { getInstagramAuthUrl, verifyInstagramOwnership } from "../../verification/instagram.js";
+    buildVerificationInstructions,
+    executeVerificationCheck,
+} from "../../services/verification.js";
 import { type VerificationMethod, getPlatformFromMethod } from "../../verification/types.js";
 import {
     findIdentity,
@@ -194,78 +191,22 @@ verify.openapi(challengeRoute, (async (c) => {
         })
         .returning();
 
-    // Build method-specific instructions
-    let instructions = "";
-    let authUrl = "";
+    // Build method-specific instructions using service layer
+    const instructionResult = buildVerificationInstructions(
+        {
+            method: body.method,
+            projectId: body.projectId,
+            walletAddress: body.walletAddress,
+            challengeCode,
+        },
+        record.id,
+    );
 
-    switch (body.method) {
-        case "github_oauth": {
-            authUrl = getGitHubAuthUrl(record.id);
-            instructions = `Click the authorization URL to verify you have admin access to ${body.projectId}.`;
-            break;
-        }
-        case "github_file": {
-            instructions = [
-                `Add a file at .well-known/pool-claim.txt in the ${body.projectId} repo with this content:`,
-                ``,
-                `verification-code=${challengeCode}`,
-                `wallet-address=${body.walletAddress}`,
-                ``,
-                `Then call POST /api/verify/check with your verification ID.`,
-            ].join("\n");
-            break;
-        }
-        case "domain_dns": {
-            instructions = [
-                `Add this DNS TXT record:`,
-                ``,
-                `  _poolclaim.${body.projectId} TXT "pool-claim-verify=${body.walletAddress}:${challengeCode}"`,
-                ``,
-                `DNS propagation can take 15 minutes to 72 hours.`,
-                `Then call POST /api/verify/check with your verification ID.`,
-            ].join("\n");
-            break;
-        }
-        case "domain_file": {
-            instructions = [
-                `Place a file at: https://${body.projectId}/.well-known/pool-claim.txt`,
-                ``,
-                `Content:`,
-                `verification-token=${challengeCode}`,
-                `wallet-address=${body.walletAddress}`,
-                ``,
-                `Then call POST /api/verify/check with your verification ID.`,
-            ].join("\n");
-            break;
-        }
-        case "domain_meta": {
-            instructions = [
-                `Add this meta tag to the <head> of https://${body.projectId}:`,
-                ``,
-                `<meta name="pool-claim-verification" content="${body.walletAddress}:${challengeCode}" />`,
-                ``,
-                `Then call POST /api/verify/check with your verification ID.`,
-            ].join("\n");
-            break;
-        }
-        case "tweet_zktls": {
-            const tweetChallenge = createTweetChallenge(body.projectId, body.walletAddress);
-            instructions = tweetChallenge.instructions;
-            break;
-        }
-        case "facebook_oauth": {
-            authUrl = getFacebookAuthUrl(record.id);
-            instructions = `Click the authorization URL to verify you admin the Facebook page "${body.projectId}".`;
-            break;
-        }
-        case "instagram_graph": {
-            authUrl = getInstagramAuthUrl(record.id);
-            instructions = `Click the authorization URL to verify you own the Instagram account @${body.projectId}.`;
-            break;
-        }
-        default:
-            return c.json({ error: `Unsupported verification method: ${body.method}` }, 400);
+    if ("error" in instructionResult) {
+        return c.json({ error: instructionResult.error }, 400);
     }
+
+    const { instructions, authUrl } = instructionResult;
 
     return c.json({
         verificationId: record.id,
@@ -497,52 +438,17 @@ verify.openapi(checkRoute, (async (c) => {
         return c.json({ error: "Verification expired" }, 400);
     }
 
-    let result;
+    // Execute verification using service layer
+    const result = await executeVerificationCheck({
+        method: record.method as VerificationMethod,
+        projectId: record.projectId,
+        walletAddress: record.walletAddress,
+        challengeCode: record.challengeCode,
+        tweetProof: body.tweetProof,
+    });
 
-    switch (record.method) {
-        case "github_file":
-            result = await verifyGitHubFile(
-                record.projectId,
-                record.challengeCode,
-                record.walletAddress,
-            );
-            break;
-        case "domain_dns":
-            result = await verifyDomainDns(
-                record.projectId,
-                record.challengeCode,
-                record.walletAddress,
-            );
-            break;
-        case "domain_file":
-            result = await verifyDomainFile(
-                record.projectId,
-                record.challengeCode,
-                record.walletAddress,
-            );
-            break;
-        case "domain_meta":
-            result = await verifyDomainMeta(
-                record.projectId,
-                record.challengeCode,
-                record.walletAddress,
-            );
-            break;
-        case "tweet_zktls":
-            if (!body.tweetProof) {
-                return c.json({ error: "Missing tweetProof for tweet_zktls verification" }, 400);
-            }
-            result = await verifyTweetProof(
-                body.tweetProof,
-                record.projectId,
-                record.challengeCode,
-            );
-            break;
-        default:
-            return c.json(
-                { error: `Method ${record.method} uses OAuth — check the callback instead` },
-                400,
-            );
+    if ("error" in result && !("success" in result)) {
+        return c.json({ error: result.error }, 400);
     }
 
     if (result.success) {
