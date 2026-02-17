@@ -9,6 +9,7 @@
 
 import { useState, useMemo } from "react";
 import type { Proposal } from "../types";
+import { formatNumberInput, parseNumberString } from "@/lib/format";
 
 interface CreateProposalModalProps {
     onClose: () => void;
@@ -68,11 +69,7 @@ export function CreateProposalModal({ onClose, onCreate }: CreateProposalModalPr
 
     // Format token amount with commas as user types
     const handleTokenAmountChange = (value: string) => {
-        // Remove non-numeric characters except commas
-        const cleaned = value.replace(/[^0-9]/g, "");
-        // Add commas for thousands
-        const formatted = cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-        setTokenAmount(formatted);
+        setTokenAmount(formatNumberInput(value));
     };
 
     const handleSubmit = () => {
