@@ -9,6 +9,7 @@ import {
     USDC_ADDRESS,
 } from "@/config/contracts";
 import { getErrorMessage } from "@/lib/errors";
+import { formatCurrency } from "@/lib/format";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -43,13 +44,6 @@ interface UseFeeVaultReturn {
 }
 
 // ─── Helpers ────────────────────────────────────────────
-
-function formatUsdc(raw: bigint): string {
-    const num = parseFloat(formatUnits(raw, 6));
-    if (num === 0) return "$0.00";
-    if (num < 0.01) return "<$0.01";
-    return `$${num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 // Try to get Privy wallets — returns null if not configured
 function useOptionalWallets() {
@@ -115,8 +109,8 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
 
             if (!isMounted.current) return;
 
-            setClaimableUsdc(formatUsdc(usdcBalance));
-            setLifetimeUsdc(formatUsdc(usdcLifetime));
+            setClaimableUsdc(formatCurrency(usdcBalance));
+            setLifetimeUsdc(formatCurrency(usdcLifetime));
 
             const feeBalances: FeeBalance[] = [];
             for (let i = 0; i < tokens.length; i++) {
@@ -127,7 +121,7 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
                         symbol: isUsdc ? "USDC" : tokens[i].slice(0, 6) + "...",
                         balance: balances[i],
                         formatted: isUsdc
-                            ? formatUsdc(balances[i])
+                            ? formatCurrency(balances[i])
                             : formatUnits(balances[i], 18), // assume 18 dec for non-USDC
                     });
                 }
