@@ -11,6 +11,8 @@
 import pino, { type Logger, type LoggerOptions } from "pino";
 import { isProduction } from "../config/env.js";
 
+const VALID_LOG_LEVELS = new Set(["fatal", "error", "warn", "info", "debug", "trace", "silent"]);
+
 // Sensitive fields to redact from logs
 const REDACT_PATHS = [
     "password",
@@ -35,9 +37,13 @@ const REDACT_PATHS = [
  */
 function createLoggerConfig(): LoggerOptions {
     const prod = isProduction();
+    const configuredLevel = process.env.LOG_LEVEL?.toLowerCase();
+    const defaultLevel = prod ? "info" : "debug";
+    const level =
+        configuredLevel && VALID_LOG_LEVELS.has(configuredLevel) ? configuredLevel : defaultLevel;
 
     const baseConfig: LoggerOptions = {
-        level: process.env.LOG_LEVEL || (prod ? "info" : "debug"),
+        level,
         redact: {
             paths: REDACT_PATHS,
             censor: "[REDACTED]",
