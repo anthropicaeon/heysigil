@@ -1,6 +1,7 @@
 import type { VerificationResult } from "./types.js";
 import { OAuthVerifier, fetchWithAuth } from "./oauth-base.js";
 import { getEnv } from "../config/env.js";
+import { getErrorMessage } from "../utils/errors.js";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -269,7 +270,7 @@ export async function verifyGitHubFile(
             success: false,
             method: "github_file",
             projectId,
-            error: err instanceof Error ? err.message : "Unknown error",
+            error: getErrorMessage(err),
         };
     }
 }

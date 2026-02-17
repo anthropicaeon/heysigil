@@ -8,6 +8,7 @@ import {
     FEE_VAULT_ADDRESS,
     USDC_ADDRESS,
 } from "@/config/contracts";
+import { getErrorMessage } from "@/lib/errors";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -134,7 +135,7 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
             setAllBalances(feeBalances);
         } catch (err) {
             if (isMounted.current) {
-                setError(err instanceof Error ? err.message : "Failed to read fees");
+                setError(getErrorMessage(err, "Failed to read fees"));
             }
         } finally {
             if (isMounted.current) setLoading(false);
@@ -206,7 +207,7 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
             });
             await sendTx(data);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Claim failed");
+            setError(getErrorMessage(err, "Claim failed"));
         } finally {
             setClaiming(false);
         }
@@ -223,7 +224,7 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
             });
             await sendTx(data);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Claim failed");
+            setError(getErrorMessage(err, "Claim failed"));
         } finally {
             setClaiming(false);
         }

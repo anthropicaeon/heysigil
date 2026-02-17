@@ -15,6 +15,7 @@
 
 import { ethers } from "ethers";
 import { getEnv } from "../config/env.js";
+import { getErrorMessage } from "../utils/errors.js";
 import {
     createFeeDistribution,
     getLastProcessedBlock,
@@ -223,7 +224,7 @@ export class FeeIndexer {
             this.retryDelay = INITIAL_RETRY_DELAY_MS; // Reset on success
             this.lastError = null;
         } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
+            const message = getErrorMessage(err, String(err));
             console.error(`[fee-indexer] Poll error: ${message}`);
             this.lastError = message;
 

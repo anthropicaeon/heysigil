@@ -8,6 +8,7 @@
 
 import { useState, useEffect } from "react";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
+import { getErrorMessage } from "@/lib/errors";
 
 import type { Method, Step, ChallengeResponse, CheckResult } from "./types";
 import { STEP_LABELS } from "./constants";
@@ -53,7 +54,7 @@ export default function VerifyFlow() {
 
             setStep("challenge");
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to create challenge");
+            setError(getErrorMessage(err, "Failed to create challenge"));
         } finally {
             setLoading(false);
         }
@@ -74,7 +75,7 @@ export default function VerifyFlow() {
                 setError(data.error);
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to check verification");
+            setError(getErrorMessage(err, "Failed to check verification"));
         } finally {
             setLoading(false);
         }
@@ -89,7 +90,7 @@ export default function VerifyFlow() {
             const data = await apiClient.claim.createAttestation(challenge.verificationId);
             setCheckResult((prev) => prev ? { ...prev, ...data } : prev);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to create attestation");
+            setError(getErrorMessage(err, "Failed to create attestation"));
         } finally {
             setLoading(false);
         }

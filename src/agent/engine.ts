@@ -4,6 +4,7 @@ import { parseLocalMessage } from "./local-parser.js";
 import { executeAction } from "./router.js";
 import type { ParsedAction } from "./types.js";
 import { getEnv } from "../config/env.js";
+import { getErrorMessage } from "../utils/errors.js";
 import { randomBytes } from "node:crypto";
 import { createDayTTLMap } from "../utils/ttl-map.js";
 import { buildOptimizedContext } from "./context-manager.js";
@@ -217,7 +218,7 @@ export async function processMessage(
                 } catch (err) {
                     result = {
                         success: false,
-                        message: `Tool error: ${err instanceof Error ? err.message : "unknown error"}`,
+                        message: `Tool error: ${getErrorMessage(err, "unknown error")}`,
                     };
                 }
 
