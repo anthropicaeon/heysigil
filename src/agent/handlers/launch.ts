@@ -82,6 +82,38 @@ export const launchTokenHandler: ActionHandler = async (params) => {
         };
     }
 
+    // ── Confirmation gate ──
+    // If not confirmed, show a preview and wait for user to say "yes"
+    const confirmed = params.confirmed === true;
+
+    if (!confirmed) {
+        const linkSummary = parsedLinks.map((l) =>
+            `• **${l.platform}** — [${l.projectId}](${l.displayUrl})`,
+        );
+
+        return {
+            success: true,
+            message: [
+                `**Launch Preview: ${tokenName} ($${tokenSymbol})**`,
+                "",
+                ...linkSummary,
+                "",
+                "Ready to deploy on Base. Confirm?",
+            ].join("\n"),
+            data: {
+                name: tokenName,
+                symbol: tokenSymbol,
+                projectId,
+                devLinks: parsedLinks.map((l) => ({
+                    platform: l.platform,
+                    projectId: l.projectId,
+                    displayUrl: l.displayUrl,
+                })),
+                status: "pending_confirmation",
+            },
+        };
+    }
+
     // Deploy on-chain! 🚀
     try {
         const isSelfLaunch = params.isSelfLaunch as boolean | undefined;
