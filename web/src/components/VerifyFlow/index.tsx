@@ -12,15 +12,23 @@ import { getErrorMessage } from "@/lib/errors";
 
 import type { Method, Step, ChallengeResponse, CheckResult } from "./types";
 import { STEP_LABELS } from "./constants";
-import { apiClient } from "@/lib/api-client";
+import { useVerificationService, type IVerificationService } from "./hooks/useVerificationService";
 import { MethodStep } from "./steps/MethodStep";
 import { DetailsStep } from "./steps/DetailsStep";
 import { ChallengeStep } from "./steps/ChallengeStep";
 import { ResultStep } from "./steps/ResultStep";
 
-export default function VerifyFlow() {
+interface VerifyFlowProps {
+    /** Optional service for testing/DI */
+    verificationService?: IVerificationService;
+}
+
+export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}) {
     const privy = useOptionalPrivy();
     const address = privy?.user?.wallet?.address ?? null;
+
+    const { createChallenge: apiCreateChallenge, checkVerification: apiCheckVerification, createAttestation: apiCreateAttestation } =
+        useVerificationService({ service: verificationService });
 
     const [step, setStep] = useState<Step>("method");
     const [selectedMethod, setSelectedMethod] = useState<Method | null>(null);
@@ -38,13 +46,13 @@ export default function VerifyFlow() {
 
     const stepIndex = ["method", "details", "challenge", "result"].indexOf(step);
 
-    async function createChallenge() {
+    async function handleCreateChallenge() {
         if (!selectedMethod || !projectId || !walletAddress) return;
         setLoading(true);
         setError("");
 
         try {
-            const data = await apiClient.verify.createChallenge(selectedMethod.id, projectId, walletAddress);
+            const data = await apiCreateChallenge(selectedMethod.id, projectId, walletAddress);
             setChallenge(data);
 
             if (data.authUrl) {
@@ -60,13 +68,13 @@ export default function VerifyFlow() {
         }
     }
 
-    async function checkVerification() {
+    async function handleCheckVerification() {
         if (!challenge) return;
         setLoading(true);
         setError("");
 
         try {
-            const data = await apiClient.verify.checkVerification(challenge.verificationId);
+            const data = await apiCheckVerification(challenge.verificationId);
             setCheckResult(data);
 
             if (data.success) {
@@ -81,13 +89,13 @@ export default function VerifyFlow() {
         }
     }
 
-    async function claimAttestation() {
+    async function handleClaimAttestation() {
         if (!challenge) return;
         setLoading(true);
         setError("");
 
         try {
-            const data = await apiClient.claim.createAttestation(challenge.verificationId);
+            const data = await apiCreateAttestation(challenge.verificationId);
             setCheckResult((prev) => prev ? { ...prev, ...data } : prev);
         } catch (err) {
             setError(getErrorMessage(err, "Failed to create attestation"));
@@ -151,7 +159,7 @@ export default function VerifyFlow() {
                     onProjectIdChange={setProjectId}
                     onWalletAddressChange={setWalletAddress}
                     onBack={() => setStep("method")}
-                    onSubmit={createChallenge}
+                    onSubmit={handleCreateChallenge}
                     onClearError={() => setError("")}
                 />
             )}
@@ -163,7 +171,7 @@ export default function VerifyFlow() {
                     loading={loading}
                     error={error}
                     onBack={() => setStep("details")}
-                    onCheck={checkVerification}
+                    onCheck={handleCheckVerification}
                 />
             )}
 
@@ -173,7 +181,7 @@ export default function VerifyFlow() {
                     challenge={challenge}
                     checkResult={checkResult}
                     loading={loading}
-                    onClaim={claimAttestation}
+                    onClaim={handleClaimAttestation}
                 />
             )}
         </div>
