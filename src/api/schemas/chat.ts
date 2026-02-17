@@ -82,8 +82,9 @@ export const ChatSessionResponseSchema = z
             example: "web",
             description: "Platform where session was created",
         }),
-        walletAddress: WalletAddressSchema.nullable().openapi({
-            description: "Associated wallet address if provided",
+        hasWallet: z.boolean().openapi({
+            example: true,
+            description: "Whether a wallet address is associated with this session",
         }),
         messages: z.array(ChatHistoryMessageSchema).openapi({
             description: "Chat message history",
