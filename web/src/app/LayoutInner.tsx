@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import PrivyAuthProvider from "../providers/PrivyAuthProvider";
@@ -8,6 +9,13 @@ import { useOptionalPrivy, getUserDisplay } from "@/hooks/useOptionalPrivy";
 
 function NavLoginButton() {
     const privy = useOptionalPrivy();
+    const [timedOut, setTimedOut] = useState(false);
+
+    // If Privy doesn't become ready within 3s, stop showing "Loading..."
+    useEffect(() => {
+        const timer = setTimeout(() => setTimedOut(true), 3000);
+        return () => clearTimeout(timer);
+    }, []);
 
     // Privy not configured — show nothing
     if (!privy) return null;
@@ -18,7 +26,7 @@ function NavLoginButton() {
         ? (userInfo.provider === "Email" ? userInfo.name.split("@")[0] : userInfo.name)
         : "";
 
-    if (!privy.ready) {
+    if (!privy.ready && !timedOut) {
         return (
             <span className="nav-link" style={{ opacity: 0.4 }}>
                 Loading...
