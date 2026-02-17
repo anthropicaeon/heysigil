@@ -1,13 +1,18 @@
 /**
  * Optional Privy Hooks
  *
- * Safely access Privy authentication context without requiring the provider.
- * Returns null if Privy is not configured or available.
+ * Safely access Privy authentication context.
+ * Returns null when Privy is not configured (no NEXT_PUBLIC_PRIVY_APP_ID).
+ * Uses real usePrivy hook when Privy IS configured.
  */
+
+"use client";
+
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useIsPrivyConfigured } from "@/providers/PrivyAuthProvider";
 
 // Type for Privy user object
 interface PrivyUser {
-    id: string;
     github?: { username: string };
     telegram?: { username: string };
     email?: { address: string };
@@ -20,38 +25,38 @@ export interface PrivyContext {
     ready: boolean;
     authenticated: boolean;
     user: PrivyUser | null;
-    login?: () => void;
-    logout?: () => void;
-    getAccessToken?: () => Promise<string | null>;
+    login: () => void;
+    logout: () => Promise<void>;
 }
 
 /**
- * Safely access Privy context without requiring provider.
- * Returns null if Privy is not configured or available.
+ * Access Privy context. Returns null if Privy is not configured.
+ * When Privy IS configured, uses the real usePrivy hook.
  */
 export function useOptionalPrivy(): PrivyContext | null {
-    try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { usePrivy } = require("@privy-io/react-auth");
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        return usePrivy();
-    } catch {
+    const isConfigured = useIsPrivyConfigured();
+
+    if (!isConfigured) {
         return null;
     }
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    const { ready, authenticated, user, login, logout } = usePrivy();
+    return { ready, authenticated, user: user as PrivyUser | null, login, logout };
 }
 
 /**
- * Safely access Privy wallets without requiring provider.
+ * Access Privy wallets. Returns null if Privy is not configured.
  */
 export function useOptionalWallets() {
-    try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const { useWallets } = require("@privy-io/react-auth");
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        return useWallets();
-    } catch {
+    const isConfigured = useIsPrivyConfigured();
+
+    if (!isConfigured) {
         return null;
     }
+
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    return useWallets();
 }
 
 /**
