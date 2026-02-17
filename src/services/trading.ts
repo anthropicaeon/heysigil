@@ -51,7 +51,7 @@ interface CachedQuote {
 }
 
 const quoteCache = new Map<string, CachedQuote>();
-const QUOTE_CACHE_TTL_MS = 30_000; // 30 seconds
+const QUOTE_CACHE_TTL_MS = 15_000; // 15 seconds (reduced from 30s for volatile assets)
 
 /**
  * Generate cache key for a quote request.
@@ -129,6 +129,7 @@ export async function getQuote(
         buyToken: toToken.address,
         sellAmount,
         chainId: BASE_CHAIN_ID.toString(),
+        slippagePercentage: "0.01", // 1% slippage tolerance
     });
 
     try {
@@ -239,6 +240,7 @@ export async function executeSwap(
             sellAmount,
             takerAddress: wallet.address,
             chainId: BASE_CHAIN_ID.toString(),
+            slippagePercentage: "0.01", // 1% slippage tolerance
         });
 
         const headers: Record<string, string> = { "Content-Type": "application/json" };
