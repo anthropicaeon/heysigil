@@ -3,8 +3,8 @@
  */
 
 import type { ActionHandler } from "./types.js";
-import { hasWallet } from "../../services/wallet.js";
-import { executeSwap, getQuote, resolveToken } from "../../services/trading.js";
+import { executeSwap, resolveToken } from "../../services/trading.js";
+import { requireWallet } from "../helpers/wallet-check.js";
 
 export const swapHandler: ActionHandler = async (params, sessionId) => {
     const { fromToken, toToken, amount } = params;
@@ -20,21 +20,29 @@ export const swapHandler: ActionHandler = async (params, sessionId) => {
     }
 
     // Ensure user has a wallet
-    if (!sessionId || !hasWallet(sessionId)) {
-        return {
-            success: false,
-            message: `To swap tokens, you need a wallet first.\n\nSay **"show my wallet"** to create one and get your deposit address. Fund it with ETH, then try swapping again.`,
-        };
-    }
+    const walletCheck = await requireWallet(sessionId, {
+        action: "swap tokens",
+        createPrompt:
+            'Say **"show my wallet"** to create one and get your deposit address. Fund it with ETH, then try swapping again.',
+    });
+    if (!walletCheck.ok) return walletCheck.result;
 
     // Check if tokens are known
     const fromResolved = resolveToken(from);
     const toResolved = resolveToken(to);
-    if (!fromResolved) return { success: false, message: `Unknown token: ${from}. Try using a contract address (0x...) instead.` };
-    if (!toResolved) return { success: false, message: `Unknown token: ${to}. Try using a contract address (0x...) instead.` };
+    if (!fromResolved)
+        return {
+            success: false,
+            message: `Unknown token: ${from}. Try using a contract address (0x...) instead.`,
+        };
+    if (!toResolved)
+        return {
+            success: false,
+            message: `Unknown token: ${to}. Try using a contract address (0x...) instead.`,
+        };
 
     // Execute the swap
-    const result = await executeSwap(sessionId, from, to, amt);
+    const result = await executeSwap(walletCheck.sessionId, from, to, amt);
 
     if (result.success) {
         return {
@@ -71,16 +79,26 @@ export const bridgeHandler: ActionHandler = async (params) => {
 export const priceHandler: ActionHandler = async (params) => {
     const { token } = params;
     const tokenMap: Record<string, string> = {
-        eth: "ethereum", ethereum: "ethereum", weth: "ethereum",
-        btc: "bitcoin", bitcoin: "bitcoin",
-        usdc: "usd-coin", usdt: "tether",
-        sol: "solana", solana: "solana",
+        eth: "ethereum",
+        ethereum: "ethereum",
+        weth: "ethereum",
+        btc: "bitcoin",
+        bitcoin: "bitcoin",
+        usdc: "usd-coin",
+        usdt: "tether",
+        sol: "solana",
+        solana: "solana",
         base: "ethereum",
-        matic: "matic-network", polygon: "matic-network",
-        arb: "arbitrum", arbitrum: "arbitrum",
-        op: "optimism", optimism: "optimism",
-        avax: "avalanche-2", link: "chainlink",
-        uni: "uniswap", aave: "aave",
+        matic: "matic-network",
+        polygon: "matic-network",
+        arb: "arbitrum",
+        arbitrum: "arbitrum",
+        op: "optimism",
+        optimism: "optimism",
+        avax: "avalanche-2",
+        link: "chainlink",
+        uni: "uniswap",
+        aave: "aave",
     };
 
     const tokenStr = String(token || "eth").toLowerCase();
@@ -88,9 +106,9 @@ export const priceHandler: ActionHandler = async (params) => {
 
     try {
         const res = await fetch(
-            `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`
+            `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true`,
         );
-        const data = await res.json() as Record<string, { usd: number; usd_24h_change: number }>;
+        const data = (await res.json()) as Record<string, { usd: number; usd_24h_change: number }>;
         const priceData = data[coinId];
 
         if (!priceData) {
