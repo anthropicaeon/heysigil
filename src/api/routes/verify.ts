@@ -49,10 +49,9 @@ import {
     VerificationListQuerySchema,
     VerificationListResponseSchema,
     VerificationDetailResponseSchema,
-    OAuthCallbackQuerySchema,
 } from "../schemas/verify.js";
 import type { AnyHandler } from "../types.js";
-import { handleOAuthCallback } from "../helpers/oauth-callback.js";
+import { registerOAuthCallbackRoute } from "../helpers/oauth-route-factory.js";
 import { loggers } from "../../utils/logger.js";
 
 const verify = new OpenAPIHono();
@@ -220,138 +219,31 @@ verify.openapi(challengeRoute, (async (c) => {
     });
 }) as AnyHandler);
 
-// ---------- OAuth callbacks ----------
+// ---------- OAuth callbacks (factory-generated) ----------
 
-/**
- * GET /api/verify/github/callback
- * GitHub OAuth callback — completes GitHub verification.
- */
-const githubCallbackRoute = createRoute({
-    method: "get",
-    path: "/github/callback",
-    tags: ["Verify"],
-    summary: "GitHub OAuth callback",
-    description:
-        "OAuth callback endpoint for GitHub verification. Redirects to frontend with status.",
-    request: {
-        query: OAuthCallbackQuerySchema,
-    },
-    responses: {
-        302: {
-            description: "Redirect to frontend with verification status",
-            headers: {
-                Location: {
-                    schema: { type: "string" },
-                    description: "Frontend URL with status parameters",
-                },
-            },
-        },
-        429: {
-            content: {
-                "application/json": {
-                    schema: RateLimitResponseSchema,
-                },
-            },
-            description: "Rate limit exceeded (20 requests per minute)",
-        },
-    },
+registerOAuthCallbackRoute(verify, {
+    platform: "github",
+    displayName: "GitHub",
+    method: "github_oauth",
+    verifyFn: verifyGitHubOwnership,
+    claimPhantomFn: tryClaimPhantomIdentity,
 });
 
-verify.openapi(githubCallbackRoute, (async (c) => {
-    const { code, state } = getQuery(c, OAuthCallbackQuerySchema);
-    return handleOAuthCallback(c, code, state, {
-        platform: "github",
-        method: "github_oauth",
-        verifyFn: verifyGitHubOwnership,
-        claimPhantomFn: tryClaimPhantomIdentity,
-    });
-}) as AnyHandler);
-
-/**
- * GET /api/verify/facebook/callback
- */
-const facebookCallbackRoute = createRoute({
-    method: "get",
-    path: "/facebook/callback",
-    tags: ["Verify"],
-    summary: "Facebook OAuth callback",
-    description:
-        "OAuth callback endpoint for Facebook verification. Redirects to frontend with status.",
-    request: {
-        query: OAuthCallbackQuerySchema,
-    },
-    responses: {
-        302: {
-            description: "Redirect to frontend with verification status",
-            headers: {
-                Location: {
-                    schema: { type: "string" },
-                },
-            },
-        },
-        429: {
-            content: {
-                "application/json": {
-                    schema: RateLimitResponseSchema,
-                },
-            },
-            description: "Rate limit exceeded (20 requests per minute)",
-        },
-    },
+registerOAuthCallbackRoute(verify, {
+    platform: "facebook",
+    displayName: "Facebook",
+    method: "facebook_oauth",
+    verifyFn: verifyFacebookOwnership,
+    claimPhantomFn: tryClaimPhantomIdentity,
 });
 
-verify.openapi(facebookCallbackRoute, (async (c) => {
-    const { code, state } = getQuery(c, OAuthCallbackQuerySchema);
-    return handleOAuthCallback(c, code, state, {
-        platform: "facebook",
-        method: "facebook_oauth",
-        verifyFn: verifyFacebookOwnership,
-        claimPhantomFn: tryClaimPhantomIdentity,
-    });
-}) as AnyHandler);
-
-/**
- * GET /api/verify/instagram/callback
- */
-const instagramCallbackRoute = createRoute({
-    method: "get",
-    path: "/instagram/callback",
-    tags: ["Verify"],
-    summary: "Instagram OAuth callback",
-    description:
-        "OAuth callback endpoint for Instagram verification. Redirects to frontend with status.",
-    request: {
-        query: OAuthCallbackQuerySchema,
-    },
-    responses: {
-        302: {
-            description: "Redirect to frontend with verification status",
-            headers: {
-                Location: {
-                    schema: { type: "string" },
-                },
-            },
-        },
-        429: {
-            content: {
-                "application/json": {
-                    schema: RateLimitResponseSchema,
-                },
-            },
-            description: "Rate limit exceeded (20 requests per minute)",
-        },
-    },
+registerOAuthCallbackRoute(verify, {
+    platform: "instagram",
+    displayName: "Instagram",
+    method: "instagram_graph",
+    verifyFn: verifyInstagramOwnership,
+    claimPhantomFn: tryClaimPhantomIdentity,
 });
-
-verify.openapi(instagramCallbackRoute, (async (c) => {
-    const { code, state } = getQuery(c, OAuthCallbackQuerySchema);
-    return handleOAuthCallback(c, code, state, {
-        platform: "instagram",
-        method: "instagram_graph",
-        verifyFn: verifyInstagramOwnership,
-        claimPhantomFn: tryClaimPhantomIdentity,
-    });
-}) as AnyHandler);
 
 // ---------- Manual check (file/DNS/meta/tweet) ----------
 
