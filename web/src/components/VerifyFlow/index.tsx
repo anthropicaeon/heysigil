@@ -9,6 +9,7 @@
 import { useState, useEffect } from "react";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import { getErrorMessage } from "@/lib/errors";
+import { ApiError } from "@/lib/api-client";
 
 import type { Method, Step, ChallengeResponse, CheckResult } from "./types";
 import { STEP_LABELS } from "./constants";
@@ -21,6 +22,21 @@ import { ResultStep } from "./steps/ResultStep";
 interface VerifyFlowProps {
     /** Optional service for testing/DI */
     verificationService?: IVerificationService;
+}
+
+function mapVerifyError(err: unknown, fallback: string): string {
+    const message = getErrorMessage(err, fallback);
+
+    if (err instanceof ApiError && err.status === 503) {
+        if (message.includes("Authentication service unavailable")) {
+            return "Backend auth is not configured (set PRIVY_APP_ID and PRIVY_APP_SECRET in backend .env).";
+        }
+        if (message.includes("Database not configured")) {
+            return "Backend database is not configured (set DATABASE_URL in backend .env).";
+        }
+    }
+
+    return message;
 }
 
 export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}) {
@@ -62,7 +78,7 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
 
             setStep("challenge");
         } catch (err) {
-            setError(getErrorMessage(err, "Failed to create challenge"));
+            setError(mapVerifyError(err, "Failed to create challenge"));
         } finally {
             setLoading(false);
         }
@@ -83,7 +99,7 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                 setError(data.error);
             }
         } catch (err) {
-            setError(getErrorMessage(err, "Failed to check verification"));
+            setError(mapVerifyError(err, "Failed to check verification"));
         } finally {
             setLoading(false);
         }
@@ -98,7 +114,7 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
             const data = await apiCreateAttestation(challenge.verificationId);
             setCheckResult((prev) => prev ? { ...prev, ...data } : prev);
         } catch (err) {
-            setError(getErrorMessage(err, "Failed to create attestation"));
+            setError(mapVerifyError(err, "Failed to create attestation"));
         } finally {
             setLoading(false);
         }
