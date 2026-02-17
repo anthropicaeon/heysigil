@@ -154,7 +154,7 @@ export async function getGitHubUser(accessToken: string): Promise<GitHubUser> {
             GITHUB_API_HEADERS,
         );
     } catch (error) {
-        const msg = error instanceof Error ? error.message : "Unknown error";
+        const msg = getErrorMessage(error);
         if (msg.startsWith("API error: ")) {
             throw new Error(`GitHub ${msg}`);
         }
@@ -175,7 +175,7 @@ export async function checkRepoPermission(
             GITHUB_API_HEADERS,
         );
     } catch (error) {
-        const msg = error instanceof Error ? error.message : "Unknown error";
+        const msg = getErrorMessage(error);
         if (msg.startsWith("API error: ")) {
             throw new Error(`GitHub ${msg}`);
         }
