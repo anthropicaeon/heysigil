@@ -50,7 +50,7 @@ import {
     VerificationListResponseSchema,
     VerificationDetailResponseSchema,
 } from "../schemas/verify.js";
-import type { AnyHandler } from "../types.js";
+import { handler } from "../helpers/route.js";
 import { registerOAuthCallbackRoute } from "../helpers/oauth-route-factory.js";
 import { loggers } from "../../utils/logger.js";
 
@@ -168,56 +168,62 @@ Challenge expires in 24 hours.
     },
 });
 
-verify.openapi(challengeRoute, (async (c) => {
-    const body = getBody(c, ChallengeRequestSchema);
+verify.openapi(
+    challengeRoute,
+    handler(async (c) => {
+        const body = getBody(c, ChallengeRequestSchema);
 
-    if (!body.method || !body.projectId || !body.walletAddress) {
-        return c.json({ error: "Missing required fields: method, projectId, walletAddress" }, 400);
-    }
+        if (!body.method || !body.projectId || !body.walletAddress) {
+            return c.json(
+                { error: "Missing required fields: method, projectId, walletAddress" },
+                400,
+            );
+        }
 
-    const challengeCode = `oc-${randomBytes(12).toString("hex")}`;
-    const db = getDb();
+        const challengeCode = `oc-${randomBytes(12).toString("hex")}`;
+        const db = getDb();
 
-    const [record] = await db
-        .insert(schema.verifications)
-        .values({
+        const [record] = await db
+            .insert(schema.verifications)
+            .values({
+                method: body.method,
+                projectId: body.projectId,
+                walletAddress: body.walletAddress,
+                challengeCode,
+                status: "pending",
+                expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h expiry
+            })
+            .returning();
+
+        // Build method-specific instructions using service layer
+        const instructionResult = buildVerificationInstructions(
+            {
+                method: body.method,
+                projectId: body.projectId,
+                walletAddress: body.walletAddress,
+                challengeCode,
+            },
+            record.id,
+        );
+
+        if ("error" in instructionResult) {
+            return c.json({ error: instructionResult.error }, 400);
+        }
+
+        const { instructions, authUrl } = instructionResult;
+
+        return c.json({
+            verificationId: record.id,
+            challengeCode,
             method: body.method,
             projectId: body.projectId,
             walletAddress: body.walletAddress,
-            challengeCode,
-            status: "pending",
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h expiry
-        })
-        .returning();
-
-    // Build method-specific instructions using service layer
-    const instructionResult = buildVerificationInstructions(
-        {
-            method: body.method,
-            projectId: body.projectId,
-            walletAddress: body.walletAddress,
-            challengeCode,
-        },
-        record.id,
-    );
-
-    if ("error" in instructionResult) {
-        return c.json({ error: instructionResult.error }, 400);
-    }
-
-    const { instructions, authUrl } = instructionResult;
-
-    return c.json({
-        verificationId: record.id,
-        challengeCode,
-        method: body.method,
-        projectId: body.projectId,
-        walletAddress: body.walletAddress,
-        instructions,
-        authUrl: authUrl || undefined,
-        expiresAt: record.expiresAt?.toISOString(),
-    });
-}) as AnyHandler);
+            instructions,
+            authUrl: authUrl || undefined,
+            expiresAt: record.expiresAt?.toISOString(),
+        });
+    }),
+);
 
 // ---------- OAuth callbacks (factory-generated) ----------
 
@@ -306,72 +312,75 @@ For tweet_zktls, include the tweetProof object with zkTLS proof data.
     },
 });
 
-verify.openapi(checkRoute, (async (c) => {
-    const body = getBody(c, CheckRequestSchema);
+verify.openapi(
+    checkRoute,
+    handler(async (c) => {
+        const body = getBody(c, CheckRequestSchema);
 
-    const db = getDb();
-    const [record] = await db
-        .select()
-        .from(schema.verifications)
-        .where(eq(schema.verifications.id, body.verificationId))
-        .limit(1);
+        const db = getDb();
+        const [record] = await db
+            .select()
+            .from(schema.verifications)
+            .where(eq(schema.verifications.id, body.verificationId))
+            .limit(1);
 
-    if (!record) {
-        return c.json({ error: "Verification not found" }, 404);
-    }
-    if (record.status !== "pending") {
-        return c.json({ error: `Verification already ${record.status}` }, 400);
-    }
-    if (record.expiresAt && record.expiresAt < new Date()) {
-        await db
-            .update(schema.verifications)
-            .set({ status: "expired" })
-            .where(eq(schema.verifications.id, body.verificationId));
-        return c.json({ error: "Verification expired" }, 400);
-    }
+        if (!record) {
+            return c.json({ error: "Verification not found" }, 404);
+        }
+        if (record.status !== "pending") {
+            return c.json({ error: `Verification already ${record.status}` }, 400);
+        }
+        if (record.expiresAt && record.expiresAt < new Date()) {
+            await db
+                .update(schema.verifications)
+                .set({ status: "expired" })
+                .where(eq(schema.verifications.id, body.verificationId));
+            return c.json({ error: "Verification expired" }, 400);
+        }
 
-    // Execute verification using service layer
-    const result = await executeVerificationCheck({
-        method: record.method as VerificationMethod,
-        projectId: record.projectId,
-        walletAddress: record.walletAddress,
-        challengeCode: record.challengeCode,
-        tweetProof: body.tweetProof,
-    });
+        // Execute verification using service layer
+        const result = await executeVerificationCheck({
+            method: record.method as VerificationMethod,
+            projectId: record.projectId,
+            walletAddress: record.walletAddress,
+            challengeCode: record.challengeCode,
+            tweetProof: body.tweetProof,
+        });
 
-    if ("error" in result && !("success" in result)) {
-        return c.json({ error: result.error }, 400);
-    }
+        if ("error" in result && !("success" in result)) {
+            return c.json({ error: result.error }, 400);
+        }
 
-    if (result.success) {
-        await db
-            .update(schema.verifications)
-            .set({
-                status: "verified",
-                platformUsername: result.platformUsername,
-                proof: result.proof,
-                verifiedAt: new Date(),
-            })
-            .where(eq(schema.verifications.id, body.verificationId));
+        if (result.success) {
+            await db
+                .update(schema.verifications)
+                .set({
+                    status: "verified",
+                    platformUsername: result.platformUsername,
+                    proof: result.proof,
+                    verifiedAt: new Date(),
+                })
+                .where(eq(schema.verifications.id, body.verificationId));
 
-        // Claim any phantom identity tied to this verified project
-        await tryClaimPhantomIdentity(
-            record.method as VerificationMethod,
-            record.projectId,
-            record.walletAddress,
-        );
-    }
-    // Keep as pending so they can retry (don't mark failed yet)
+            // Claim any phantom identity tied to this verified project
+            await tryClaimPhantomIdentity(
+                record.method as VerificationMethod,
+                record.projectId,
+                record.walletAddress,
+            );
+        }
+        // Keep as pending so they can retry (don't mark failed yet)
 
-    return c.json({
-        verificationId: body.verificationId,
-        status: result.success ? ("verified" as const) : ("pending" as const),
-        success: result.success,
-        error: result.error,
-        method: record.method,
-        projectId: record.projectId,
-    });
-}) as AnyHandler);
+        return c.json({
+            verificationId: body.verificationId,
+            status: result.success ? ("verified" as const) : ("pending" as const),
+            success: result.success,
+            error: result.error,
+            method: record.method,
+            projectId: record.projectId,
+        });
+    }),
+);
 
 // ---------- List & Status ----------
 
@@ -420,35 +429,38 @@ Use case: Frontend polling verification status after OAuth callback.
     },
 });
 
-verify.openapi(statusRoute, (async (c) => {
-    const { id } = getParams(c, VerificationIdParamSchema);
-    const db = getDb();
+verify.openapi(
+    statusRoute,
+    handler(async (c) => {
+        const { id } = getParams(c, VerificationIdParamSchema);
+        const db = getDb();
 
-    const [record] = await db
-        .select({
-            id: schema.verifications.id,
-            status: schema.verifications.status,
-            method: schema.verifications.method,
-            createdAt: schema.verifications.createdAt,
-            verifiedAt: schema.verifications.verifiedAt,
-        })
-        .from(schema.verifications)
-        .where(eq(schema.verifications.id, id))
-        .limit(1);
+        const [record] = await db
+            .select({
+                id: schema.verifications.id,
+                status: schema.verifications.status,
+                method: schema.verifications.method,
+                createdAt: schema.verifications.createdAt,
+                verifiedAt: schema.verifications.verifiedAt,
+            })
+            .from(schema.verifications)
+            .where(eq(schema.verifications.id, id))
+            .limit(1);
 
-    if (!record) {
-        return c.json({ error: "Verification not found" }, 404);
-    }
+        if (!record) {
+            return c.json({ error: "Verification not found" }, 404);
+        }
 
-    // Note: projectId intentionally omitted to prevent enumeration
-    return c.json({
-        id: record.id,
-        status: record.status,
-        method: record.method,
-        createdAt: record.createdAt?.toISOString(),
-        verifiedAt: record.verifiedAt?.toISOString() ?? null,
-    });
-}) as AnyHandler);
+        // Note: projectId intentionally omitted to prevent enumeration
+        return c.json({
+            id: record.id,
+            status: record.status,
+            method: record.method,
+            createdAt: record.createdAt?.toISOString(),
+            verifiedAt: record.verifiedAt?.toISOString() ?? null,
+        });
+    }),
+);
 
 /**
  * GET /api/verify
@@ -488,74 +500,77 @@ Supports filtering by status, method, and projectId.
     },
 });
 
-verify.openapi(listRoute, (async (c) => {
-    // Apply auth inline since openapi() middleware typing is strict
-    const authResult = await privyAuth()(c, async () => {});
-    if (authResult) return authResult;
-    const userId = getUserId(c);
-    if (!userId) {
-        return c.json({ error: "Authentication required" }, 401);
-    }
+verify.openapi(
+    listRoute,
+    handler(async (c) => {
+        // Apply auth inline since openapi() middleware typing is strict
+        const authResult = await privyAuth()(c, async () => {});
+        if (authResult) return authResult;
+        const userId = getUserId(c);
+        if (!userId) {
+            return c.json({ error: "Authentication required" }, 401);
+        }
 
-    // Get all wallet addresses owned by this user (includes merged wallets)
-    const userWallets = await getWalletAddressesByPrivyId(userId);
-    if (userWallets.length === 0) {
-        // User has no linked wallets yet - return empty list
+        // Get all wallet addresses owned by this user (includes merged wallets)
+        const userWallets = await getWalletAddressesByPrivyId(userId);
+        if (userWallets.length === 0) {
+            // User has no linked wallets yet - return empty list
+            return c.json({
+                verifications: [],
+                pagination: { limit: 20, offset: 0, count: 0, hasMore: false },
+            });
+        }
+
+        const query = getQuery(c, VerificationListQuerySchema);
+
+        const db = getDb();
+
+        // Build conditional where clauses
+        const conditions: SQL[] = [];
+
+        // SECURITY: Always filter to user's wallet addresses
+        conditions.push(inArray(schema.verifications.walletAddress, userWallets));
+
+        if (query.status) {
+            conditions.push(eq(schema.verifications.status, query.status));
+        }
+        if (query.method) {
+            conditions.push(eq(schema.verifications.method, query.method));
+        }
+        if (query.projectId) {
+            conditions.push(eq(schema.verifications.projectId, query.projectId));
+        }
+
+        // Execute query with ownership filter
+        const records = await db
+            .select({
+                id: schema.verifications.id,
+                method: schema.verifications.method,
+                projectId: schema.verifications.projectId,
+                walletAddress: schema.verifications.walletAddress,
+                status: schema.verifications.status,
+                platformUsername: schema.verifications.platformUsername,
+                attestationUid: schema.verifications.attestationUid,
+                createdAt: schema.verifications.createdAt,
+                verifiedAt: schema.verifications.verifiedAt,
+            })
+            .from(schema.verifications)
+            .where(and(...conditions))
+            .orderBy(desc(schema.verifications.createdAt))
+            .limit(query.limit)
+            .offset(query.offset);
+
         return c.json({
-            verifications: [],
-            pagination: { limit: 20, offset: 0, count: 0, hasMore: false },
+            verifications: records,
+            pagination: {
+                limit: query.limit,
+                offset: query.offset,
+                count: records.length,
+                hasMore: records.length === query.limit,
+            },
         });
-    }
-
-    const query = getQuery(c, VerificationListQuerySchema);
-
-    const db = getDb();
-
-    // Build conditional where clauses
-    const conditions: SQL[] = [];
-
-    // SECURITY: Always filter to user's wallet addresses
-    conditions.push(inArray(schema.verifications.walletAddress, userWallets));
-
-    if (query.status) {
-        conditions.push(eq(schema.verifications.status, query.status));
-    }
-    if (query.method) {
-        conditions.push(eq(schema.verifications.method, query.method));
-    }
-    if (query.projectId) {
-        conditions.push(eq(schema.verifications.projectId, query.projectId));
-    }
-
-    // Execute query with ownership filter
-    const records = await db
-        .select({
-            id: schema.verifications.id,
-            method: schema.verifications.method,
-            projectId: schema.verifications.projectId,
-            walletAddress: schema.verifications.walletAddress,
-            status: schema.verifications.status,
-            platformUsername: schema.verifications.platformUsername,
-            attestationUid: schema.verifications.attestationUid,
-            createdAt: schema.verifications.createdAt,
-            verifiedAt: schema.verifications.verifiedAt,
-        })
-        .from(schema.verifications)
-        .where(and(...conditions))
-        .orderBy(desc(schema.verifications.createdAt))
-        .limit(query.limit)
-        .offset(query.offset);
-
-    return c.json({
-        verifications: records,
-        pagination: {
-            limit: query.limit,
-            offset: query.offset,
-            count: records.length,
-            hasMore: records.length === query.limit,
-        },
-    });
-}) as AnyHandler);
+    }),
+);
 
 /**
  * GET /api/verify/:id
@@ -602,46 +617,49 @@ Returns 404 (not 403) for unauthorized access to prevent enumeration.
     },
 });
 
-verify.openapi(detailRoute, (async (c) => {
-    // Apply auth inline since openapi() middleware typing is strict
-    const authResult = await privyAuth()(c, async () => {});
-    if (authResult) return authResult;
-    const userId = getUserId(c);
-    if (!userId) {
-        return c.json({ error: "Authentication required" }, 401);
-    }
+verify.openapi(
+    detailRoute,
+    handler(async (c) => {
+        // Apply auth inline since openapi() middleware typing is strict
+        const authResult = await privyAuth()(c, async () => {});
+        if (authResult) return authResult;
+        const userId = getUserId(c);
+        if (!userId) {
+            return c.json({ error: "Authentication required" }, 401);
+        }
 
-    const { id } = getParams(c, VerificationIdParamSchema);
-    const db = getDb();
+        const { id } = getParams(c, VerificationIdParamSchema);
+        const db = getDb();
 
-    const [record] = await db
-        .select()
-        .from(schema.verifications)
-        .where(eq(schema.verifications.id, id))
-        .limit(1);
+        const [record] = await db
+            .select()
+            .from(schema.verifications)
+            .where(eq(schema.verifications.id, id))
+            .limit(1);
 
-    if (!record) {
-        return c.json({ error: "Verification not found" }, 404);
-    }
+        if (!record) {
+            return c.json({ error: "Verification not found" }, 404);
+        }
 
-    // SECURITY: Verify ownership - user must own the wallet that created this verification
-    const userWallets = await getWalletAddressesByPrivyId(userId);
-    if (!userWallets.includes(record.walletAddress)) {
-        // Return 404 instead of 403 to prevent enumeration attacks
-        return c.json({ error: "Verification not found" }, 404);
-    }
+        // SECURITY: Verify ownership - user must own the wallet that created this verification
+        const userWallets = await getWalletAddressesByPrivyId(userId);
+        if (!userWallets.includes(record.walletAddress)) {
+            // Return 404 instead of 403 to prevent enumeration attacks
+            return c.json({ error: "Verification not found" }, 404);
+        }
 
-    return c.json({
-        id: record.id,
-        method: record.method,
-        projectId: record.projectId,
-        walletAddress: record.walletAddress,
-        status: record.status,
-        platformUsername: record.platformUsername,
-        attestationUid: record.attestationUid,
-        createdAt: record.createdAt?.toISOString(),
-        verifiedAt: record.verifiedAt?.toISOString() ?? null,
-    });
-}) as AnyHandler);
+        return c.json({
+            id: record.id,
+            method: record.method,
+            projectId: record.projectId,
+            walletAddress: record.walletAddress,
+            status: record.status,
+            platformUsername: record.platformUsername,
+            attestationUid: record.attestationUid,
+            createdAt: record.createdAt?.toISOString(),
+            verifiedAt: record.verifiedAt?.toISOString() ?? null,
+        });
+    }),
+);
 
 export { verify };

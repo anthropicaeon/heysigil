@@ -21,7 +21,7 @@ import {
     ClaimProjectIdParamSchema,
     ClaimStatusResponseSchema,
 } from "../schemas/claim.js";
-import type { AnyHandler } from "../types.js";
+import { handler } from "../helpers/route.js";
 import { getErrorMessage } from "../../utils/errors.js";
 
 const claim = new OpenAPIHono();
@@ -88,94 +88,99 @@ Issue an EAS attestation for a verified project. This endpoint:
     },
 });
 
-claim.openapi(createClaimRoute, (async (c) => {
-    const body = getBody(c, ClaimRequestSchema);
+claim.openapi(
+    createClaimRoute,
+    handler(async (c) => {
+        const body = getBody(c, ClaimRequestSchema);
 
-    if (!body.verificationId) {
-        return c.json({ error: "Missing verificationId" }, 400);
-    }
+        if (!body.verificationId) {
+            return c.json({ error: "Missing verificationId" }, 400);
+        }
 
-    const chainRpcUrl = body.rpcUrl || "https://mainnet.base.org";
-    const db = getDb();
+        const chainRpcUrl = body.rpcUrl || "https://mainnet.base.org";
+        const db = getDb();
 
-    // Get the verification record
-    const verification = await find.verification(body.verificationId);
+        // Get the verification record
+        const verification = await find.verification(body.verificationId);
 
-    if (!verification) {
-        return c.json({ error: "Verification not found" }, 404);
-    }
+        if (!verification) {
+            return c.json({ error: "Verification not found" }, 404);
+        }
 
-    if (verification.status !== "verified") {
-        return c.json(
-            {
-                error: `Cannot claim — verification status is "${verification.status}", needs "verified"`,
-            },
-            400,
-        );
-    }
+        if (verification.status !== "verified") {
+            return c.json(
+                {
+                    error: `Cannot claim — verification status is "${verification.status}", needs "verified"`,
+                },
+                400,
+            );
+        }
 
-    if (verification.attestationUid) {
-        return c.json(
-            {
-                message: "Attestation already issued" as const,
-                attestationUid: verification.attestationUid,
-            },
-            200,
-        );
-    }
+        if (verification.attestationUid) {
+            return c.json(
+                {
+                    message: "Attestation already issued" as const,
+                    attestationUid: verification.attestationUid,
+                },
+                200,
+            );
+        }
 
-    try {
-        const attestation = await createAttestation(
-            {
-                platform: getPlatformFromMethod(verification.method as VerificationMethod),
-                projectId: verification.projectId,
-                wallet: verification.walletAddress,
-                verifiedAt: Math.floor((verification.verifiedAt?.getTime() || Date.now()) / 1000),
-                isOwner: true,
-            },
-            chainRpcUrl,
-        );
-
-        // Wrap DB updates in transaction for atomicity
-        await db.transaction(async (tx) => {
-            // Update verification with attestation UID
-            await tx
-                .update(schema.verifications)
-                .set({ attestationUid: attestation.uid })
-                .where(eq(schema.verifications.id, body.verificationId));
-
-            // Upsert project record
-            await tx
-                .insert(schema.projects)
-                .values({
+        try {
+            const attestation = await createAttestation(
+                {
+                    platform: getPlatformFromMethod(verification.method as VerificationMethod),
                     projectId: verification.projectId,
-                    ownerWallet: verification.walletAddress,
-                    verificationMethod: verification.method,
-                    attestationUid: attestation.uid,
-                    verifiedAt: verification.verifiedAt || new Date(),
-                })
-                .onConflictDoUpdate({
-                    target: schema.projects.projectId,
-                    set: {
+                    wallet: verification.walletAddress,
+                    verifiedAt: Math.floor(
+                        (verification.verifiedAt?.getTime() || Date.now()) / 1000,
+                    ),
+                    isOwner: true,
+                },
+                chainRpcUrl,
+            );
+
+            // Wrap DB updates in transaction for atomicity
+            await db.transaction(async (tx) => {
+                // Update verification with attestation UID
+                await tx
+                    .update(schema.verifications)
+                    .set({ attestationUid: attestation.uid })
+                    .where(eq(schema.verifications.id, body.verificationId));
+
+                // Upsert project record
+                await tx
+                    .insert(schema.projects)
+                    .values({
+                        projectId: verification.projectId,
                         ownerWallet: verification.walletAddress,
                         verificationMethod: verification.method,
                         attestationUid: attestation.uid,
                         verifiedAt: verification.verifiedAt || new Date(),
-                    },
-                });
-        });
+                    })
+                    .onConflictDoUpdate({
+                        target: schema.projects.projectId,
+                        set: {
+                            ownerWallet: verification.walletAddress,
+                            verificationMethod: verification.method,
+                            attestationUid: attestation.uid,
+                            verifiedAt: verification.verifiedAt || new Date(),
+                        },
+                    });
+            });
 
-        return c.json({
-            success: true as const,
-            attestationUid: attestation.uid,
-            txHash: attestation.txHash,
-            projectId: verification.projectId,
-            walletAddress: verification.walletAddress,
-        });
-    } catch (err) {
-        return c.json({ error: getErrorMessage(err, "Failed to create attestation") }, 500);
-    }
-}) as AnyHandler);
+            return c.json({
+                success: true as const,
+                attestationUid: attestation.uid,
+                txHash: attestation.txHash,
+                projectId: verification.projectId,
+                walletAddress: verification.walletAddress,
+            });
+        } catch (err) {
+            return c.json({ error: getErrorMessage(err, "Failed to create attestation") }, 500);
+        }
+    }),
+);
 
 /**
  * GET /api/claim/status/:projectId
@@ -202,25 +207,28 @@ const getClaimStatusRoute = createRoute({
     },
 });
 
-claim.openapi(getClaimStatusRoute, (async (c) => {
-    const { projectId } = getParams(c, ClaimProjectIdParamSchema);
+claim.openapi(
+    getClaimStatusRoute,
+    handler(async (c) => {
+        const { projectId } = getParams(c, ClaimProjectIdParamSchema);
 
-    const project = await find.projectByProjectId(projectId);
+        const project = await find.projectByProjectId(projectId);
 
-    if (!project) {
+        if (!project) {
+            return c.json({
+                claimed: false as const,
+                projectId,
+            });
+        }
+
         return c.json({
-            claimed: false as const,
-            projectId,
+            claimed: true as const,
+            projectId: project.projectId,
+            verificationMethod: project.verificationMethod,
+            attestationUid: project.attestationUid,
+            verifiedAt: project.verifiedAt?.toISOString() ?? null,
         });
-    }
-
-    return c.json({
-        claimed: true as const,
-        projectId: project.projectId,
-        verificationMethod: project.verificationMethod,
-        attestationUid: project.attestationUid,
-        verifiedAt: project.verifiedAt?.toISOString() ?? null,
-    });
-}) as AnyHandler);
+    }),
+);
 
 export { claim };
