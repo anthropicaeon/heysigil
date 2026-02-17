@@ -116,21 +116,19 @@ Developer links are parsed to identify platforms (GitHub, Twitter, Instagram, do
 
 launch.openapi(launchTokenRoute, (async (c) => {
     const body = getBody(c, LaunchRequestSchema);
+    const badRequest = (payload: Record<string, unknown>) => c.json(payload, 400);
 
     if (!body.devLinks || body.devLinks.length === 0) {
-        return c.json(
-            {
-                error: "At least one developer link is required",
-                hint: "Provide GitHub repos, Instagram handles, Twitter handles, or website URLs",
-                examples: [
-                    "https://github.com/org/repo",
-                    "https://instagram.com/handle",
-                    "https://x.com/handle",
-                    "https://mysite.dev",
-                ],
-            },
-            400,
-        );
+        return badRequest({
+            error: "At least one developer link is required",
+            hint: "Provide GitHub repos, Instagram handles, Twitter handles, or website URLs",
+            examples: [
+                "https://github.com/org/repo",
+                "https://instagram.com/handle",
+                "https://x.com/handle",
+                "https://mysite.dev",
+            ],
+        });
     }
 
     // Parse all provided links
@@ -147,14 +145,11 @@ launch.openapi(launchTokenRoute, (async (c) => {
     }
 
     if (parsedLinks.length === 0) {
-        return c.json(
-            {
-                error: "None of the provided links could be recognized",
-                invalidLinks: errors,
-                hint: "Try full URLs like https://github.com/org/repo",
-            },
-            400,
-        );
+        return badRequest({
+            error: "None of the provided links could be recognized",
+            invalidLinks: errors,
+            hint: "Try full URLs like https://github.com/org/repo",
+        });
     }
 
     // Use the primary link's projectId as the canonical project ID
