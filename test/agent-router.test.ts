@@ -400,7 +400,7 @@ describe("Agent Router: Launch Token", () => {
 
         expect(result.success).toBe(true);
         expect(result.message).toContain("MyToken");
-        expect(result.message).toContain("need a link");
+        expect(result.message).toContain("Drop a link");
         expect(result.data?.status).toBe("needs_dev_links");
     });
 

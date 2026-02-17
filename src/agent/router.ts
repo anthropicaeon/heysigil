@@ -129,8 +129,8 @@ export async function executeAction(
     }
 
     // ── Auto-create wallet for session if needed ───────────
-    if (sessionId && !hasWallet(sessionId)) {
-        createWallet(sessionId);
+    if (sessionId && !(await hasWallet(sessionId))) {
+        await createWallet(sessionId);
     }
 
     // ── Execute the action ─────────────────────────────────

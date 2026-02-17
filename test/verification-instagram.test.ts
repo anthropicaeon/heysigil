@@ -34,7 +34,7 @@ describe("getInstagramAuthUrl", () => {
     expect(url).toContain("https://www.facebook.com/v21.0/dialog/oauth");
     expect(url).toContain(`client_id=${mockEnv.FACEBOOK_APP_ID}`);
     expect(url).toContain(`state=${state}`);
-    expect(url).toContain("scope=instagram_basic%2Cpages_show_list");
+    expect(url).toContain("scope=instagram_basic+pages_show_list");
     expect(url).toContain(
       `redirect_uri=${encodeURIComponent(`${mockEnv.BASE_URL}/api/verify/instagram/callback`)}`,
     );
@@ -59,7 +59,7 @@ describe("getInstagramAuthUrl", () => {
     const urlObj = new URL(url);
     const scope = urlObj.searchParams.get("scope");
 
-    expect(scope).toBe("instagram_basic,pages_show_list");
+    expect(scope).toBe("instagram_basic pages_show_list");
   });
 });
 
