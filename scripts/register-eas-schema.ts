@@ -86,7 +86,8 @@ async function main() {
     console.log(`  EAS_SCHEMA_UID=${schemaUid}`);
 }
 
-main().catch((err) => {
-    console.error("❌ Error:", err.message || err);
+main().catch((err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("❌ Error:", message);
     process.exit(1);
 });

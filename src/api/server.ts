@@ -15,6 +15,7 @@ import { globalRateLimit } from "../middleware/rate-limit.js";
 import { requestLogger, getRequestLogger } from "../middleware/request-logger.js";
 import { openApiInfo } from "./openapi.js";
 import { loggers } from "../utils/logger.js";
+import { getErrorMessage } from "../utils/errors.js";
 import { z } from "@hono/zod-openapi";
 import { createRoute } from "@hono/zod-openapi";
 
@@ -66,11 +67,11 @@ export function createApp() {
     // Global error handler — catches DB unavailable, unknown errors, etc.
     app.onError((err, c) => {
         if (err instanceof DatabaseUnavailableError) {
-            return c.json({ error: err.message }, 503);
+            return c.json({ error: getErrorMessage(err) }, 503);
         }
         const reqLog = getRequestLogger(c);
         reqLog.error({ err }, "Unhandled error");
-        return c.json({ error: err.message || "Internal server error" }, 500);
+        return c.json({ error: getErrorMessage(err, "Internal server error") }, 500);
     });
 
     // Detect production environment (HTTPS in BASE_URL)
