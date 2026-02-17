@@ -2,6 +2,7 @@ import type { VerificationResult } from "./types.js";
 import { OAuthVerifier, fetchWithAuth } from "./oauth-base.js";
 import { getErrorMessage } from "../utils/errors.js";
 import { parseConfigFile } from "../utils/config-parser.js";
+import { buildSuccess, buildFailure } from "./result-builder.js";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -195,12 +196,11 @@ export async function verifyGitHubFile(
 ): Promise<VerificationResult> {
     const parts = projectId.split("/");
     if (parts.length !== 2) {
-        return {
-            success: false,
-            method: "github_file",
+        return buildFailure(
+            "github_file",
             projectId,
-            error: "Invalid project ID — expected 'owner/repo' format",
-        };
+            "Invalid project ID — expected 'owner/repo' format",
+        );
     }
     const [owner, repo] = parts;
 
@@ -211,15 +211,13 @@ export async function verifyGitHubFile(
         );
 
         if (!response.ok) {
-            return {
-                success: false,
-                method: "github_file",
+            return buildFailure(
+                "github_file",
                 projectId,
-                error:
-                    response.status === 404
-                        ? "Verification file not found — add .well-known/pool-claim.txt to your repo"
-                        : `GitHub API error: ${response.status}`,
-            };
+                response.status === 404
+                    ? "Verification file not found — add .well-known/pool-claim.txt to your repo"
+                    : `GitHub API error: ${response.status}`,
+            );
         }
 
         const data = (await response.json()) as { content: string; encoding: string };
@@ -233,35 +231,15 @@ export async function verifyGitHubFile(
         const fileWallet = parsed["wallet-address"];
 
         if (fileCode !== expectedCode) {
-            return {
-                success: false,
-                method: "github_file",
-                projectId,
-                error: "Verification code does not match",
-            };
+            return buildFailure("github_file", projectId, "Verification code does not match");
         }
 
         if (fileWallet?.toLowerCase() !== expectedWallet.toLowerCase()) {
-            return {
-                success: false,
-                method: "github_file",
-                projectId,
-                error: "Wallet address does not match",
-            };
+            return buildFailure("github_file", projectId, "Wallet address does not match");
         }
 
-        return {
-            success: true,
-            method: "github_file",
-            projectId,
-            proof: { fileContent: content },
-        };
+        return buildSuccess("github_file", projectId, undefined, { fileContent: content });
     } catch (err) {
-        return {
-            success: false,
-            method: "github_file",
-            projectId,
-            error: getErrorMessage(err),
-        };
+        return buildFailure("github_file", projectId, getErrorMessage(err));
     }
 }
