@@ -1,17 +1,23 @@
 /**
  * Optional Privy Hooks
  *
- * Safely access Privy authentication context.
- * Returns null when Privy is not configured (no NEXT_PUBLIC_PRIVY_APP_ID).
- * Uses real usePrivy hook when Privy IS configured.
+ * Access Privy authentication state via context bridge.
+ * Safe to call from any component — uses useContext (not usePrivy directly).
+ * Returns null when Privy is not configured.
  */
 
-"use client";
+import { usePrivyState } from "@/providers/PrivyAuthProvider";
 
-import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { useIsPrivyConfigured } from "@/providers/PrivyAuthProvider";
+// ─── Types ──────────────────────────────────────────────
 
-// Type for Privy user object
+export interface PrivyContext {
+    ready: boolean;
+    authenticated: boolean;
+    user: PrivyUser | null;
+    login: () => void;
+    logout: () => Promise<void>;
+}
+
 interface PrivyUser {
     id?: string;
     github?: { username: string };
@@ -21,43 +27,14 @@ interface PrivyUser {
     wallet?: { address: string };
 }
 
-// Return type for useOptionalPrivy
-export interface PrivyContext {
-    ready: boolean;
-    authenticated: boolean;
-    user: PrivyUser | null;
-    login: () => void;
-    logout: () => Promise<void>;
-}
+// ─── Hooks ──────────────────────────────────────────────
 
 /**
- * Access Privy context. Returns null if Privy is not configured.
- * When Privy IS configured, uses the real usePrivy hook.
+ * Access Privy state. Returns null if Privy is not configured.
+ * This is just useContext — no rules-of-hooks issues.
  */
 export function useOptionalPrivy(): PrivyContext | null {
-    const isConfigured = useIsPrivyConfigured();
-
-    if (!isConfigured) {
-        return null;
-    }
-
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { ready, authenticated, user, login, logout } = usePrivy();
-    return { ready, authenticated, user: user as PrivyUser | null, login, logout };
-}
-
-/**
- * Access Privy wallets. Returns null if Privy is not configured.
- */
-export function useOptionalWallets() {
-    const isConfigured = useIsPrivyConfigured();
-
-    if (!isConfigured) {
-        return null;
-    }
-
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    return useWallets();
+    return usePrivyState() as PrivyContext | null;
 }
 
 /**

@@ -1,14 +1,45 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { PrivyProvider } from "@privy-io/react-auth";
+import { PrivyProvider, usePrivy, useWallets } from "@privy-io/react-auth";
 
-// Context to signal whether Privy is actually configured
-const PrivyConfiguredContext = createContext(false);
+// ─── Privy State Context ────────────────────────────────
+// Bridge pattern: usePrivy() is called inside PrivyProvider,
+// results are exposed via a plain React context that's safe
+// to consume from any component (no conditional hooks needed).
 
-export function useIsPrivyConfigured() {
-    return useContext(PrivyConfiguredContext);
+interface PrivyState {
+    ready: boolean;
+    authenticated: boolean;
+    user: Record<string, unknown> | null;
+    login: () => void;
+    logout: () => Promise<void>;
 }
+
+const PrivyStateContext = createContext<PrivyState | null>(null);
+
+/**
+ * Read Privy state from context. Returns null if Privy is not configured.
+ * Safe to call from any component — no hooks rules violations.
+ */
+export function usePrivyState(): PrivyState | null {
+    return useContext(PrivyStateContext);
+}
+
+// ─── Inner bridge component ─────────────────────────────
+// This component lives INSIDE PrivyProvider, so usePrivy() is always valid.
+
+function PrivyStateBridge({ children }: { children: React.ReactNode }) {
+    const { ready, authenticated, user, login, logout } = usePrivy();
+
+    return (
+        <PrivyStateContext.Provider value={{ ready, authenticated, user, login, logout }}>
+            {children}
+        </PrivyStateContext.Provider>
+    );
+}
+
+// ─── Public provider ────────────────────────────────────
 
 export default function PrivyAuthProvider({
     children,
@@ -18,40 +49,35 @@ export default function PrivyAuthProvider({
     const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID || "";
 
     if (!appId) {
-        // Graceful fallback when Privy isn't configured
+        // No Privy configured — context returns null
         return (
-            <PrivyConfiguredContext.Provider value={false}>
+            <PrivyStateContext.Provider value={null}>
                 {children}
-            </PrivyConfiguredContext.Provider>
+            </PrivyStateContext.Provider>
         );
     }
 
     return (
-        <PrivyConfiguredContext.Provider value={true}>
-            <PrivyProvider
-                appId={appId}
-                config={{
-                    // Login methods — only include methods configured in Privy dashboard
-                    loginMethods: ["email", "wallet", "github"],
-
-                    // Branding
-                    appearance: {
-                        theme: "light",
-                        accentColor: "#482863",
-                        logo: "/logo-sage.png",
-                        landingHeader: "Sign in to Sigil",
-                        loginMessage: "Fund builders. Trade tokens. No wallet needed.",
-                    },
-
-                    // Legal
-                    legal: {
-                        termsAndConditionsUrl: "https://heysigil.fund/terms",
-                        privacyPolicyUrl: "https://heysigil.fund/privacy",
-                    },
-                }}
-            >
+        <PrivyProvider
+            appId={appId}
+            config={{
+                loginMethods: ["email", "wallet", "github"],
+                appearance: {
+                    theme: "light",
+                    accentColor: "#482863",
+                    logo: "/logo-sage.png",
+                    landingHeader: "Sign in to Sigil",
+                    loginMessage: "Fund builders. Trade tokens. No wallet needed.",
+                },
+                legal: {
+                    termsAndConditionsUrl: "https://heysigil.fund/terms",
+                    privacyPolicyUrl: "https://heysigil.fund/privacy",
+                },
+            }}
+        >
+            <PrivyStateBridge>
                 {children}
-            </PrivyProvider>
-        </PrivyConfiguredContext.Provider>
+            </PrivyStateBridge>
+        </PrivyProvider>
     );
 }
