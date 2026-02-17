@@ -1,0 +1,10 @@
+# Heavy directories not needed for backend
+ad/
+video/
+contracts/
+.agent/
+.agents/
+.gemini/
+*.mp4
+*.pdf
+Sigil_Contract_Review.pdf
