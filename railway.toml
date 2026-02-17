@@ -1,0 +1,6 @@
+[build]
+installCommand = "bun install"
+buildCommand = "npm install"
+
+[deploy]
+startCommand = "npx tsx src/index.ts"
