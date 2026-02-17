@@ -6,6 +6,7 @@
 
 import type { Method } from "../types";
 import type { PrivyContext } from "@/hooks/useOptionalPrivy";
+import { ErrorAlert } from "@/components/common/ErrorAlert";
 
 interface DetailsStepProps {
     method: Method;
@@ -99,19 +100,7 @@ export function DetailsStep({
                     )}
                 </div>
             </div>
-            {error && (
-                <div className="result-box result-error" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <p style={{ color: "var(--error)", fontSize: "var(--text-sm)", margin: 0 }}>{error}</p>
-                    <button
-                        type="button"
-                        onClick={onClearError}
-                        style={{ background: "none", border: "none", color: "var(--error)", cursor: "pointer", fontSize: "1.2em", padding: "0 var(--space-1)" }}
-                        aria-label="Dismiss error"
-                    >
-                        {"\u00D7"}
-                    </button>
-                </div>
-            )}
+            {error && <ErrorAlert error={error} onDismiss={onClearError} />}
             <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
                 <button type="button" className="btn-secondary" onClick={onBack}>
                     Back
