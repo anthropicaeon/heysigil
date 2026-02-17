@@ -5,7 +5,7 @@
  * All endpoints are read-only and publicly accessible.
  */
 
-import { Hono } from "hono";
+import { createRoute, OpenAPIHono, type z, type RouteHandler } from "@hono/zod-openapi";
 import {
     findDistributions,
     findByPoolId,
@@ -17,8 +17,31 @@ import {
 } from "../../db/repositories/index.js";
 import { getFeeIndexer, isFeeIndexerConfigured } from "../../services/fee-indexer.js";
 import { rateLimit } from "../../middleware/rate-limit.js";
+import {
+    ErrorResponseSchema,
+    PaginationQuerySchema,
+    RateLimitResponseSchema,
+} from "../schemas/common.js";
+import {
+    DistributionsQuerySchema,
+    DistributionsResponseSchema,
+    ProjectIdParamSchema,
+    ProjectDistributionsResponseSchema,
+    PoolIdParamSchema,
+    PoolDistributionsResponseSchema,
+    DevAddressParamSchema,
+    DevDistributionsResponseSchema,
+    FeeTotalsResponseSchema,
+    TxHashParamSchema,
+    TxVerifyResponseSchema,
+    IndexerHealthResponseSchema,
+} from "../schemas/fees.js";
 
-const fees = new Hono();
+const fees = new OpenAPIHono();
+
+// Type helper to relax strict type checking for handlers
+// biome-ignore lint/suspicious/noExplicitAny: OpenAPI handler type relaxation
+type AnyHandler = RouteHandler<any, any>;
 
 // Rate limit: 60 requests per minute per IP (public endpoints)
 fees.use(
@@ -57,24 +80,49 @@ function formatDistribution(d: DbFeeDistribution) {
 
 /**
  * GET /api/fees/distributions
- *
  * List fee distributions with optional filters and pagination.
- *
- * Query params:
- *   - type: Event type filter (deposit, escrow, dev_assigned, expired, dev_claimed, protocol_claimed)
- *   - pool: Pool ID filter
- *   - dev: Developer address filter
- *   - token: Token address filter
- *   - limit: Max results (default 20, max 100)
- *   - offset: Pagination offset (default 0)
  */
-fees.get("/distributions", async (c) => {
-    const typeParam = c.req.query("type");
-    const poolId = c.req.query("pool");
-    const devAddress = c.req.query("dev");
-    const tokenAddress = c.req.query("token");
-    const limitParam = c.req.query("limit");
-    const offsetParam = c.req.query("offset");
+const distributionsRoute = createRoute({
+    method: "get",
+    path: "/distributions",
+    tags: ["Fees"],
+    summary: "List fee distributions",
+    description:
+        "List fee distributions with optional filters by event type, pool, developer, or token. Supports pagination.",
+    request: {
+        query: DistributionsQuerySchema,
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: DistributionsResponseSchema,
+                },
+            },
+            description: "List of fee distributions",
+        },
+        400: {
+            content: {
+                "application/json": {
+                    schema: ErrorResponseSchema,
+                },
+            },
+            description: "Invalid query parameters",
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (60 requests per minute)",
+        },
+    },
+});
+
+fees.openapi(distributionsRoute, (async (c) => {
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const query = (c.req as any).valid("query") as z.infer<typeof DistributionsQuerySchema>;
 
     // Validate event type if provided
     const validTypes: FeeEventType[] = [
@@ -86,7 +134,7 @@ fees.get("/distributions", async (c) => {
         "protocol_claimed",
     ];
 
-    if (typeParam && !validTypes.includes(typeParam as FeeEventType)) {
+    if (query.type && !validTypes.includes(query.type as FeeEventType)) {
         return c.json(
             {
                 error: `Invalid type. Must be one of: ${validTypes.join(", ")}`,
@@ -95,15 +143,15 @@ fees.get("/distributions", async (c) => {
         );
     }
 
-    const limit = Math.min(Math.max(1, Number(limitParam) || 20), 100);
-    const offset = Math.max(0, Number(offsetParam) || 0);
+    const limit = Math.min(Math.max(1, query.limit || 20), 100);
+    const offset = Math.max(0, query.offset || 0);
 
     const result = await findDistributions(
         {
-            eventType: typeParam as FeeEventType | undefined,
-            poolId: poolId || undefined,
-            devAddress: devAddress || undefined,
-            tokenAddress: tokenAddress || undefined,
+            eventType: query.type as FeeEventType | undefined,
+            poolId: query.pool || undefined,
+            devAddress: query.dev || undefined,
+            tokenAddress: query.token || undefined,
         },
         { limit, offset },
     );
@@ -112,33 +160,56 @@ fees.get("/distributions", async (c) => {
         distributions: result.data.map(formatDistribution),
         pagination: result.pagination,
     });
-});
+}) as AnyHandler);
 
 /**
  * GET /api/fees/project/:projectId
- *
  * Get fee history for a specific project.
- * Uses the poolId linked to the project.
- *
- * Note: This looks up by project's poolId, not projectId string.
- * For direct poolId lookup, use /api/fees/pool/:poolId
  */
-fees.get("/project/:projectId", async (c) => {
-    const projectId = c.req.param("projectId");
-    const limitParam = c.req.query("limit");
-    const offsetParam = c.req.query("offset");
+const projectRoute = createRoute({
+    method: "get",
+    path: "/project/{projectId}",
+    tags: ["Fees"],
+    summary: "Get project fee history",
+    description: "Get fee distribution history for a specific project by its project ID.",
+    request: {
+        params: ProjectIdParamSchema,
+        query: PaginationQuerySchema,
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: ProjectDistributionsResponseSchema,
+                },
+            },
+            description: "Project fee distributions",
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (60 requests per minute)",
+        },
+    },
+});
+
+fees.openapi(projectRoute, (async (c) => {
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const { projectId } = (c.req as any).valid("param") as z.infer<typeof ProjectIdParamSchema>;
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const query = (c.req as any).valid("query") as z.infer<typeof PaginationQuerySchema>;
 
     // URL decode the projectId (handles "org/repo" format)
     const decodedProjectId = decodeURIComponent(projectId);
 
-    const limit = Math.min(Math.max(1, Number(limitParam) || 20), 100);
-    const offset = Math.max(0, Number(offsetParam) || 0);
+    const limit = Math.min(Math.max(1, query.limit || 20), 100);
+    const offset = Math.max(0, query.offset || 0);
 
     // Search by projectId field in fee distributions
-    const result = await findDistributions(
-        { poolId: undefined }, // We can't filter by projectId directly yet
-        { limit, offset },
-    );
+    const result = await findDistributions({ poolId: undefined }, { limit, offset });
 
     // Filter results by projectId client-side (until we add projectId index)
     const filtered = result.data.filter((d) => d.projectId === decodedProjectId);
@@ -153,20 +224,50 @@ fees.get("/project/:projectId", async (c) => {
             hasMore: result.pagination.hasMore,
         },
     });
-});
+}) as AnyHandler);
 
 /**
  * GET /api/fees/pool/:poolId
- *
  * Get fee history for a specific Uniswap V4 pool.
  */
-fees.get("/pool/:poolId", async (c) => {
-    const poolId = c.req.param("poolId");
-    const limitParam = c.req.query("limit");
-    const offsetParam = c.req.query("offset");
+const poolRoute = createRoute({
+    method: "get",
+    path: "/pool/{poolId}",
+    tags: ["Fees"],
+    summary: "Get pool fee history",
+    description: "Get fee distribution history for a specific Uniswap V4 pool.",
+    request: {
+        params: PoolIdParamSchema,
+        query: PaginationQuerySchema,
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: PoolDistributionsResponseSchema,
+                },
+            },
+            description: "Pool fee distributions",
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (60 requests per minute)",
+        },
+    },
+});
 
-    const limit = Math.min(Math.max(1, Number(limitParam) || 20), 100);
-    const offset = Math.max(0, Number(offsetParam) || 0);
+fees.openapi(poolRoute, (async (c) => {
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const { poolId } = (c.req as any).valid("param") as z.infer<typeof PoolIdParamSchema>;
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const query = (c.req as any).valid("query") as z.infer<typeof PaginationQuerySchema>;
+
+    const limit = Math.min(Math.max(1, query.limit || 20), 100);
+    const offset = Math.max(0, query.offset || 0);
 
     const result = await findByPoolId(poolId, { limit, offset });
 
@@ -175,26 +276,58 @@ fees.get("/pool/:poolId", async (c) => {
         distributions: result.data.map(formatDistribution),
         pagination: result.pagination,
     });
-});
+}) as AnyHandler);
 
 /**
  * GET /api/fees/dev/:address
- *
  * Get fee history for a specific developer address.
- * Includes deposits, claims, and assignments.
  */
-fees.get("/dev/:address", async (c) => {
-    const address = c.req.param("address");
-    const limitParam = c.req.query("limit");
-    const offsetParam = c.req.query("offset");
+const devRoute = createRoute({
+    method: "get",
+    path: "/dev/{address}",
+    tags: ["Fees"],
+    summary: "Get developer fee history",
+    description: "Get fee history for a specific developer address, including earnings summary.",
+    request: {
+        params: DevAddressParamSchema,
+        query: PaginationQuerySchema,
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: DevDistributionsResponseSchema,
+                },
+            },
+            description: "Developer fee distributions with earnings summary",
+        },
+        400: {
+            content: {
+                "application/json": {
+                    schema: ErrorResponseSchema,
+                },
+            },
+            description: "Invalid Ethereum address format",
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (60 requests per minute)",
+        },
+    },
+});
 
-    // Validate address format
-    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
-        return c.json({ error: "Invalid Ethereum address format" }, 400);
-    }
+fees.openapi(devRoute, (async (c) => {
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const { address } = (c.req as any).valid("param") as z.infer<typeof DevAddressParamSchema>;
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const query = (c.req as any).valid("query") as z.infer<typeof PaginationQuerySchema>;
 
-    const limit = Math.min(Math.max(1, Number(limitParam) || 20), 100);
-    const offset = Math.max(0, Number(offsetParam) || 0);
+    const limit = Math.min(Math.max(1, query.limit || 20), 100);
+    const offset = Math.max(0, query.offset || 0);
 
     const result = await findByDevAddress(address, { limit, offset });
 
@@ -221,14 +354,39 @@ fees.get("/dev/:address", async (c) => {
         distributions: result.data.map(formatDistribution),
         pagination: result.pagination,
     });
-});
+}) as AnyHandler);
 
 /**
  * GET /api/fees/totals
- *
  * Get aggregate statistics for all fee distributions.
  */
-fees.get("/totals", async (c) => {
+const totalsRoute = createRoute({
+    method: "get",
+    path: "/totals",
+    tags: ["Fees"],
+    summary: "Get aggregate fee statistics",
+    description: "Get aggregate statistics for all fee distributions across the platform.",
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: FeeTotalsResponseSchema,
+                },
+            },
+            description: "Aggregate fee statistics",
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (60 requests per minute)",
+        },
+    },
+});
+
+fees.openapi(totalsRoute, (async (c) => {
     const stats = await getAggregateStats();
 
     return c.json({
@@ -242,28 +400,60 @@ fees.get("/totals", async (c) => {
         lastIndexedBlock: stats.lastIndexedBlock,
         lastIndexedAt: stats.lastIndexedAt?.toISOString() ?? null,
     });
-});
+}) as AnyHandler);
 
 /**
  * GET /api/fees/verify/:txHash
- *
  * Verify a specific transaction and return all fee events it contains.
- * Useful for confirming that a swap's fees were properly distributed.
  */
-fees.get("/verify/:txHash", async (c) => {
-    const txHash = c.req.param("txHash");
+const verifyTxRoute = createRoute({
+    method: "get",
+    path: "/verify/{txHash}",
+    tags: ["Fees"],
+    summary: "Verify transaction fee events",
+    description:
+        "Verify a specific transaction and return all fee distribution events it contains.",
+    request: {
+        params: TxHashParamSchema,
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: TxVerifyResponseSchema,
+                },
+            },
+            description: "Fee events for transaction (found: true/false)",
+        },
+        400: {
+            content: {
+                "application/json": {
+                    schema: ErrorResponseSchema,
+                },
+            },
+            description: "Invalid transaction hash format",
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (60 requests per minute)",
+        },
+    },
+});
 
-    // Validate transaction hash format
-    if (!/^0x[a-fA-F0-9]{64}$/.test(txHash)) {
-        return c.json({ error: "Invalid transaction hash format" }, 400);
-    }
+fees.openapi(verifyTxRoute, (async (c) => {
+    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
+    const { txHash } = (c.req as any).valid("param") as z.infer<typeof TxHashParamSchema>;
 
     const events = await findByTxHash(txHash);
 
     if (events.length === 0) {
         return c.json({
             txHash,
-            found: false,
+            found: false as const,
             message: "No fee distribution events found for this transaction",
             events: [],
             explorerUrl: `https://basescan.org/tx/${txHash}`,
@@ -272,25 +462,50 @@ fees.get("/verify/:txHash", async (c) => {
 
     return c.json({
         txHash,
-        found: true,
+        found: true as const,
         eventCount: events.length,
         events: events.map(formatDistribution),
         explorerUrl: `https://basescan.org/tx/${txHash}`,
     });
-});
+}) as AnyHandler);
 
 /**
  * GET /api/fees/health
- *
  * Check the indexer health status.
- * Returns block lag, running state, and any errors.
  */
-fees.get("/health", async (c) => {
+const healthRoute = createRoute({
+    method: "get",
+    path: "/health",
+    tags: ["Fees"],
+    summary: "Check indexer health",
+    description:
+        "Check the fee indexer health status including block lag, running state, and errors.",
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: IndexerHealthResponseSchema,
+                },
+            },
+            description: "Indexer health status",
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Rate limit exceeded (60 requests per minute)",
+        },
+    },
+});
+
+fees.openapi(healthRoute, (async (c) => {
     const isConfigured = isFeeIndexerConfigured();
 
     if (!isConfigured) {
         return c.json({
-            status: "disabled",
+            status: "disabled" as const,
             message: "Fee indexer not configured (SIGIL_FEE_VAULT_ADDRESS not set)",
             isRunning: false,
             lastProcessedBlock: null,
@@ -330,6 +545,6 @@ fees.get("/health", async (c) => {
         eventsIndexed: status.eventsIndexed,
         startedAt: status.startedAt?.toISOString() ?? null,
     });
-});
+}) as AnyHandler);
 
 export { fees };
