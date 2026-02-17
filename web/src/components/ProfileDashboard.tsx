@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, memo } from "react";
+import { useState, memo, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useFeeVault } from "@/hooks/useFeeVault";
@@ -307,6 +307,16 @@ export default function ProfileDashboard() {
             activeSection === "held" ? heldTokens :
                 allTokens;
 
+    const tabDefinitions = useMemo(
+        () =>
+            [
+                ["all", `All Tokens (${allTokens.length})`],
+                ["dev", `My Projects (${devTokens.length})`],
+                ["held", `Holdings (${heldTokens.length})`],
+            ] as const,
+        [allTokens.length, devTokens.length, heldTokens.length]
+    );
+
     return (
         <div className="container" style={{ padding: "var(--space-12) var(--space-6)" }}>
             {/* Profile Hero */}
@@ -386,11 +396,7 @@ export default function ProfileDashboard() {
 
                 {/* Filter tabs */}
                 <div className="gov-tabs" style={{ marginBottom: "var(--space-6)" }}>
-                    {([
-                        ["all", `All Tokens (${allTokens.length})`],
-                        ["dev", `My Projects (${devTokens.length})`],
-                        ["held", `Holdings (${heldTokens.length})`],
-                    ] as [string, string][]).map(([key, label]) => (
+                    {tabDefinitions.map(([key, label]) => (
                         <button
                             key={key}
                             type="button"
