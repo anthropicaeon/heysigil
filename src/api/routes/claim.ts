@@ -5,7 +5,8 @@
  * GET  /api/claim/status/:id   — Check if project has been claimed
  */
 
-import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { getBody, getParams } from "../helpers/request.js";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
 import { find } from "../../db/helpers.js";
@@ -86,8 +87,7 @@ Issue an EAS attestation for a verified project. This endpoint:
 });
 
 claim.openapi(createClaimRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const body = (c.req as any).valid("json") as z.infer<typeof ClaimRequestSchema>;
+    const body = getBody(c, ClaimRequestSchema);
 
     if (!body.verificationId) {
         return c.json({ error: "Missing verificationId" }, 400);
@@ -214,10 +214,7 @@ const getClaimStatusRoute = createRoute({
 });
 
 claim.openapi(getClaimStatusRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { projectId } = (c.req as any).valid("param") as z.infer<
-        typeof ClaimProjectIdParamSchema
-    >;
+    const { projectId } = getParams(c, ClaimProjectIdParamSchema);
 
     const project = await find.projectByProjectId(projectId);
 

@@ -5,7 +5,8 @@
  * POST /api/wallet/:sessionId/create — Create wallet for session
  */
 
-import { createRoute, OpenAPIHono, type z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { getParams } from "../helpers/request.js";
 import { createWallet, hasWallet, getAddress, getBalance } from "../../services/wallet.js";
 import { walletCreateRateLimit, sessionEnumerationRateLimit } from "../../middleware/rate-limit.js";
 import { RateLimitResponseSchema } from "../schemas/common.js";
@@ -59,10 +60,7 @@ const getWalletRoute = createRoute({
 });
 
 wallet.openapi(getWalletRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { sessionId } = (c.req as any).valid("param") as z.infer<
-        typeof WalletSessionIdParamSchema
-    >;
+    const { sessionId } = getParams(c, WalletSessionIdParamSchema);
 
     if (!(await hasWallet(sessionId))) {
         return c.json({ exists: false as const, address: null, balance: null });
@@ -122,10 +120,7 @@ const createWalletRoute = createRoute({
 });
 
 wallet.openapi(createWalletRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { sessionId } = (c.req as any).valid("param") as z.infer<
-        typeof WalletSessionIdParamSchema
-    >;
+    const { sessionId } = getParams(c, WalletSessionIdParamSchema);
     const walletInfo = await createWallet(sessionId);
 
     return c.json({

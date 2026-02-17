@@ -6,7 +6,8 @@
  * GET  /api/launch/:projectId   — Get project details
  */
 
-import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { getBody, getParams } from "../helpers/request.js";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
 import { parseLink } from "../../utils/link-parser.js";
@@ -113,8 +114,7 @@ Developer links are parsed to identify platforms (GitHub, Twitter, Instagram, do
 });
 
 launch.openapi(launchTokenRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const body = (c.req as any).valid("json") as z.infer<typeof LaunchRequestSchema>;
+    const body = getBody(c, LaunchRequestSchema);
 
     if (!body.devLinks || body.devLinks.length === 0) {
         return c.json(
@@ -359,10 +359,7 @@ const getProjectRoute = createRoute({
 });
 
 launch.openapi(getProjectRoute, (async (c) => {
-    // biome-ignore lint/suspicious/noExplicitAny: OpenAPI runtime validation handles typing
-    const { projectId } = (c.req as any).valid("param") as z.infer<
-        typeof LaunchProjectIdParamSchema
-    >;
+    const { projectId } = getParams(c, LaunchProjectIdParamSchema);
     const db = getDb();
 
     const [project] = await db
