@@ -8,7 +8,7 @@
  * - zkTLS: Tweet verification
  */
 
-import { createRoute, OpenAPIHono, type z, type RouteHandler } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, type z } from "@hono/zod-openapi";
 import { randomBytes } from "node:crypto";
 import { eq, and, desc, inArray, type SQL } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
@@ -53,12 +53,9 @@ import {
     VerificationDetailResponseSchema,
     OAuthCallbackQuerySchema,
 } from "../schemas/verify.js";
+import type { AnyHandler } from "../types.js";
 
 const verify = new OpenAPIHono();
-
-// Type helper to relax strict type checking for handlers
-// biome-ignore lint/suspicious/noExplicitAny: OpenAPI handler type relaxation
-type AnyHandler = RouteHandler<any, any>;
 
 // Rate limit challenge creation (10 per hour per IP - prevents DB spam)
 verify.use("/challenge", verifyChallengeRateLimit());
@@ -767,7 +764,6 @@ verify.openapi(statusRoute, (async (c) => {
             id: schema.verifications.id,
             status: schema.verifications.status,
             method: schema.verifications.method,
-            projectId: schema.verifications.projectId,
             createdAt: schema.verifications.createdAt,
             verifiedAt: schema.verifications.verifiedAt,
         })
@@ -779,11 +775,11 @@ verify.openapi(statusRoute, (async (c) => {
         return c.json({ error: "Verification not found" }, 404);
     }
 
+    // Note: projectId intentionally omitted to prevent enumeration
     return c.json({
         id: record.id,
         status: record.status,
         method: record.method,
-        projectId: record.projectId,
         createdAt: record.createdAt?.toISOString(),
         verifiedAt: record.verifiedAt?.toISOString() ?? null,
     });

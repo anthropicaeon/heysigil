@@ -139,13 +139,13 @@ export const CheckResponseSchema = z
 
 /**
  * GET /api/verify/status/:id response (public, minimal)
+ * Note: projectId intentionally omitted to prevent enumeration
  */
 export const VerificationStatusResponseSchema = z
     .object({
         id: UUIDSchema,
         status: VerificationStatusSchema,
         method: VerificationMethodSchema,
-        projectId: z.string().openapi({ example: "org/repo" }),
         createdAt: TimestampSchema,
         verifiedAt: TimestampSchema.nullable(),
     })
