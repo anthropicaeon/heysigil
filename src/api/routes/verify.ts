@@ -51,6 +51,7 @@ import {
     VerificationDetailResponseSchema,
 } from "../schemas/verify.js";
 import { handler } from "../helpers/route.js";
+import { paginatedResponse } from "../helpers/responses.js";
 import { registerOAuthCallbackRoute } from "../helpers/oauth-route-factory.js";
 import { loggers } from "../../utils/logger.js";
 
@@ -515,10 +516,7 @@ verify.openapi(
         const userWallets = await getWalletAddressesByPrivyId(userId);
         if (userWallets.length === 0) {
             // User has no linked wallets yet - return empty list
-            return c.json({
-                verifications: [],
-                pagination: { limit: 20, offset: 0, count: 0, hasMore: false },
-            });
+            return c.json(paginatedResponse("verifications", [], 20, 0));
         }
 
         const query = getQuery(c, VerificationListQuerySchema);
@@ -560,15 +558,7 @@ verify.openapi(
             .limit(query.limit)
             .offset(query.offset);
 
-        return c.json({
-            verifications: records,
-            pagination: {
-                limit: query.limit,
-                offset: query.offset,
-                count: records.length,
-                hasMore: records.length === query.limit,
-            },
-        });
+        return c.json(paginatedResponse("verifications", records, query.limit, query.offset));
     }),
 );
 
