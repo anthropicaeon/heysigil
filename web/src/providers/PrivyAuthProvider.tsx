@@ -1,13 +1,35 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { PrivyProvider } from "@privy-io/react-auth";
+import { PrivyProvider, usePrivy, useWallets } from "@privy-io/react-auth";
 
 // Context to signal whether Privy is actually configured
 const PrivyConfiguredContext = createContext(false);
 
 export function useIsPrivyConfigured() {
     return useContext(PrivyConfiguredContext);
+}
+
+// Contexts populated by PrivyBridge (always inside PrivyProvider).
+// Default is null — hooks that consume these return null when Privy is not configured.
+export const OptionalPrivyContext = createContext<ReturnType<typeof usePrivy> | null>(null);
+export const OptionalWalletsContext = createContext<ReturnType<typeof useWallets> | null>(null);
+
+/**
+ * Inner bridge component — always rendered inside <PrivyProvider>.
+ * Calls usePrivy() and useWallets() at the top level (no conditions),
+ * satisfying the Rules of Hooks, then forwards the values via context.
+ */
+function PrivyBridge({ children }: { children: React.ReactNode }) {
+    const privyData = usePrivy();
+    const walletsData = useWallets();
+    return (
+        <OptionalPrivyContext.Provider value={privyData}>
+            <OptionalWalletsContext.Provider value={walletsData}>
+                {children}
+            </OptionalWalletsContext.Provider>
+        </OptionalPrivyContext.Provider>
+    );
 }
 
 export default function PrivyAuthProvider({
@@ -50,7 +72,7 @@ export default function PrivyAuthProvider({
                     },
                 }}
             >
-                {children}
+                <PrivyBridge>{children}</PrivyBridge>
             </PrivyProvider>
         </PrivyConfiguredContext.Provider>
     );
