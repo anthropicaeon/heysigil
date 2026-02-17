@@ -198,15 +198,6 @@ export function createShortTTLMap<V>(options?: Partial<TTLMapOptions<V>>): TTLMa
     });
 }
 
-/** 1 hour TTL - for rate limiting, session tokens */
-export function createHourTTLMap<V>(options?: Partial<TTLMapOptions<V>>): TTLMap<V> {
-    return new TTLMap({
-        ttlMs: 60 * 60 * 1000,
-        cleanupIntervalMs: 5 * 60 * 1000,
-        ...options,
-    });
-}
-
 /** 24 hour TTL - for chat sessions, daily caches */
 export function createDayTTLMap<V>(options?: Partial<TTLMapOptions<V>>): TTLMap<V> {
     return new TTLMap({

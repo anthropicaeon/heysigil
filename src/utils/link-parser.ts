@@ -47,8 +47,7 @@ function parseGitHub(input: string): ParsedLink | null {
 
 // ─── Instagram ──────────────────────────────────────────
 
-const INSTAGRAM_URL_RE =
-    /^(?:https?:\/\/)?(?:www\.)?instagram\.com\/([a-zA-Z0-9_.]+)\/?/i;
+const INSTAGRAM_URL_RE = /^(?:https?:\/\/)?(?:www\.)?instagram\.com\/([a-zA-Z0-9_.]+)\/?/i;
 
 function parseInstagram(input: string): ParsedLink | null {
     const urlMatch = input.match(INSTAGRAM_URL_RE);
@@ -67,8 +66,7 @@ function parseInstagram(input: string): ParsedLink | null {
 
 // ─── Twitter / X ────────────────────────────────────────
 
-const TWITTER_URL_RE =
-    /^(?:https?:\/\/)?(?:www\.)?(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/?/i;
+const TWITTER_URL_RE = /^(?:https?:\/\/)?(?:www\.)?(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/?/i;
 
 function parseTwitter(input: string): ParsedLink | null {
     const urlMatch = input.match(TWITTER_URL_RE);
@@ -120,10 +118,7 @@ function parseDomain(input: string): ParsedLink | null {
  * Detect @-prefixed handles.
  * Context hint can be "instagram", "twitter", "github" to disambiguate.
  */
-function parseHandle(
-    input: string,
-    contextHint?: Platform,
-): ParsedLink | null {
+function parseHandle(input: string, contextHint?: Platform): ParsedLink | null {
     const handleMatch = input.match(/^@([a-zA-Z0-9_.-]+)$/);
     if (!handleMatch) return null;
 
@@ -226,14 +221,6 @@ export function parseLinks(input: string, contextHint?: Platform): ParsedLink[] 
         if (parsed) results.push(parsed);
     }
     return results;
-}
-
-/**
- * Quick platform detection without full parsing.
- */
-export function detectPlatform(input: string): Platform | null {
-    const parsed = parseLink(input);
-    return parsed?.platform ?? null;
 }
 
 /**
