@@ -103,18 +103,31 @@ export const identities = pgTable("identities", {
 
 /**
  * Persistent wallet storage.
- * Private keys are AES-256-GCM encrypted.
+ * Private keys can be encrypted in two formats:
+ * 1. ethers keystore v3 (encryptedKeystore) - Recommended for new wallets
+ * 2. AES-256-GCM (encryptedKey, iv, authTag) - Legacy format, maintained for migration
+ *
+ * New wallets use keystore format. Old wallets are lazily migrated on read.
  */
 export const wallets = pgTable("wallets", {
     id: uuid("id").primaryKey().defaultRandom(),
     /** The wallet's public address */
     address: varchar("address", { length: 42 }).notNull().unique(),
-    /** AES-256-GCM encrypted private key (hex) */
-    encryptedKey: text("encrypted_key").notNull(),
-    /** Initialization vector (hex) */
-    iv: varchar("iv", { length: 64 }).notNull(),
-    /** GCM authentication tag (hex) */
-    authTag: varchar("auth_tag", { length: 64 }).notNull(),
+
+    // ─── New Keystore Format (v2+) ─────────────────────────
+    /** JSON keystore using ethers.Wallet.encrypt() format */
+    encryptedKeystore: text("encrypted_keystore"),
+    /** Keystore format version (null = legacy, 2 = current) */
+    keystoreVersion: integer("keystore_version"),
+
+    // ─── Legacy AES-256-GCM Format (v1) ────────────────────
+    /** @deprecated Use encryptedKeystore instead */
+    encryptedKey: text("encrypted_key"),
+    /** @deprecated Part of legacy encryption */
+    iv: varchar("iv", { length: 64 }),
+    /** @deprecated Part of legacy encryption */
+    authTag: varchar("auth_tag", { length: 64 }),
+
     /** What this wallet is keyed to: "user" | "session" */
     keyType: varchar("key_type", { length: 16 }).notNull(),
     /** The key value: userId or sessionId */
