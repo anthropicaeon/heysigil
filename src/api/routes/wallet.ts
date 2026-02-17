@@ -5,7 +5,7 @@
  * POST /api/wallet/:sessionId/create — Create wallet for session
  */
 
-import { createRoute, OpenAPIHono, type z, type RouteHandler } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, type z } from "@hono/zod-openapi";
 import { createWallet, hasWallet, getAddress, getBalance } from "../../services/wallet.js";
 import { walletCreateRateLimit, sessionEnumerationRateLimit } from "../../middleware/rate-limit.js";
 import { RateLimitResponseSchema } from "../schemas/common.js";
@@ -14,12 +14,9 @@ import {
     WalletInfoResponseSchema,
     WalletCreateResponseSchema,
 } from "../schemas/wallet.js";
+import type { AnyHandler } from "../types.js";
 
 export const wallet = new OpenAPIHono();
-
-// Type helper to relax strict type checking for handlers
-// biome-ignore lint/suspicious/noExplicitAny: OpenAPI handler type relaxation
-type AnyHandler = RouteHandler<any, any>;
 
 // Rate limit wallet lookups to prevent session ID enumeration
 wallet.use("/:sessionId", sessionEnumerationRateLimit());

@@ -6,7 +6,7 @@
  * GET  /api/launch/:projectId   — Get project details
  */
 
-import { createRoute, OpenAPIHono, z, type RouteHandler } from "@hono/zod-openapi";
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
 import { parseLink } from "../../utils/link-parser.js";
@@ -34,12 +34,10 @@ import {
     LaunchProjectIdParamSchema,
     ProjectDetailsResponseSchema,
 } from "../schemas/launch.js";
+import type { AnyHandler } from "../types.js";
+import { getErrorMessage } from "../../utils/errors.js";
 
 const launch = new OpenAPIHono();
-
-// Type helper to relax strict type checking for handlers
-// biome-ignore lint/suspicious/noExplicitAny: OpenAPI handler type relaxation
-type AnyHandler = RouteHandler<any, any>;
 
 // IP-based rate limit for token launches (defense in depth)
 // Application-level rate limiting is also applied in deployer.ts
@@ -208,10 +206,7 @@ launch.openapi(launchTokenRoute, (async (c) => {
                 },
             });
         } catch (err) {
-            return c.json(
-                { error: err instanceof Error ? err.message : "Failed to register project" },
-                500,
-            );
+            return c.json({ error: getErrorMessage(err, "Failed to register project") }, 500);
         }
     }
 
@@ -276,10 +271,7 @@ launch.openapi(launchTokenRoute, (async (c) => {
             })),
         });
     } catch (err) {
-        return c.json(
-            { error: err instanceof Error ? err.message : "Failed to deploy token" },
-            500,
-        );
+        return c.json({ error: getErrorMessage(err, "Failed to deploy token") }, 500);
     }
 }) as AnyHandler);
 
@@ -326,10 +318,7 @@ launch.openapi(deployerStatusRoute, (async (c) => {
         return c.json({ configured: true as const, ...balance });
     } catch (err) {
         return c.json(
-            {
-                configured: true as const,
-                error: err instanceof Error ? err.message : "Failed to check balance",
-            },
+            { configured: true as const, error: getErrorMessage(err, "Failed to check balance") },
             500,
         );
     }
