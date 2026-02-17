@@ -79,7 +79,7 @@ const MOCK_HELD_TOKENS: TokenInfo[] = [
     },
 ];
 
-// ─── Fee Claim Card ──────────────────────────────────
+// ─── Fee Claim Card (with Loss Aversion framing) ──────
 
 function FeeClaimCard({
     claimableUsdc,
@@ -101,23 +101,43 @@ function FeeClaimCard({
     onRefresh: () => void;
 }) {
     const isZero = claimableUsdc === "$0.00";
+    const claimableAmount = parseFloat(claimableUsdc.replace(/[$,]/g, "")) || 0;
+
+    // Loss aversion: urgency levels based on amount
+    const isHighValue = claimableAmount >= 100;
+    const isMediumValue = claimableAmount >= 25;
+
+    // Simulate days until expiry (in production, get from contract)
+    const daysUntilExpiry = 23;
+    const isNearExpiry = daysUntilExpiry <= 7;
 
     return (
-        <div className="fee-claim-card">
+        <div className={`fee-claim-card ${isHighValue ? "fee-claim-urgent" : ""}`}>
             <div className="fee-claim-header">
                 <div>
-                    <h3 style={{ margin: 0, fontSize: "var(--text-sm)", color: "var(--text-secondary)" }}>
-                        Claimable USDC
+                    <h3 style={{ margin: 0, fontSize: "var(--text-sm)", color: isHighValue ? "var(--warning)" : "var(--text-secondary)" }}>
+                        {isZero ? "Claimable USDC" : "Unclaimed USDC"}
                     </h3>
-                    <div className="fee-claim-amount">
+                    <div className="fee-claim-amount" style={{ color: isHighValue ? "var(--warning)" : undefined }}>
                         {loading ? (
                             <span className="spinner" style={{ width: 20, height: 20 }} />
                         ) : (
                             claimableUsdc
                         )}
                     </div>
+                    {/* Loss aversion: urgency message */}
+                    {!isZero && !loading && (
+                        <p className={`fee-claim-urgency ${isNearExpiry ? "urgent" : ""}`}>
+                            {isNearExpiry
+                                ? `Claim within ${daysUntilExpiry} days or fees return to protocol`
+                                : isMediumValue
+                                    ? "Don't leave money on the table"
+                                    : `${daysUntilExpiry} days to claim`}
+                        </p>
+                    )}
                 </div>
                 <button
+                    type="button"
                     className="fee-claim-refresh"
                     onClick={onRefresh}
                     disabled={loading}
@@ -134,10 +154,18 @@ function FeeClaimCard({
                     <span className="fee-label">Lifetime Earned</span>
                     <span className="fee-value">{lifetimeUsdc}</span>
                 </div>
+                {!isZero && (
+                    <div className="fee-claim-stat">
+                        <span className="fee-label">Expiry</span>
+                        <span className={`fee-value ${isNearExpiry ? "fee-expiry-urgent" : ""}`}>
+                            {daysUntilExpiry} days
+                        </span>
+                    </div>
+                )}
             </div>
 
             <LoadingButton
-                className="fee-claim-btn"
+                className={`fee-claim-btn ${isHighValue ? "fee-claim-btn-urgent" : ""}`}
                 onClick={onClaim}
                 loading={claiming}
                 disabled={isZero || loading}
@@ -150,7 +178,7 @@ function FeeClaimCard({
                     height={16}
                     style={{ display: "inline", verticalAlign: "middle", marginRight: 6, opacity: 0.7 }}
                 />
-                {isZero ? "No USDC to Claim" : `Claim ${claimableUsdc}`}
+                {isZero ? "No USDC to Claim" : `Claim ${claimableUsdc} Now`}
             </LoadingButton>
 
             {/* Success toast */}
@@ -292,64 +320,87 @@ export default function ProfileDashboard() {
                 </div>
             </div>
 
-            {/* Fee Claim Card — LIVE on-chain data */}
-            {walletAddress && (
-                <FeeClaimCard
-                    claimableUsdc={claimableUsdc}
-                    lifetimeUsdc={lifetimeUsdc}
-                    claiming={claiming}
-                    error={error}
-                    lastTxHash={lastTxHash}
-                    loading={loading}
-                    onClaim={claimUsdc}
-                    onRefresh={refresh}
-                />
-            )}
+            {/* Miller's Law: Chunk 1 - Take Action (urgent items requiring attention) */}
+            <div className="dashboard-chunk">
+                <h2 className="chunk-title">
+                    <span className="chunk-icon">⚡</span>
+                    Take Action
+                </h2>
 
-            {/* Not connected prompt */}
-            {!walletAddress && (
-                <div className="fee-claim-card" style={{ textAlign: "center", padding: "var(--space-8)" }}>
-                    <p style={{ color: "var(--text-secondary)", margin: 0 }}>
-                        Connect your wallet to view and claim fee earnings.
-                    </p>
-                </div>
-            )}
+                {/* Fee Claim Card — LIVE on-chain data */}
+                {walletAddress && (
+                    <FeeClaimCard
+                        claimableUsdc={claimableUsdc}
+                        lifetimeUsdc={lifetimeUsdc}
+                        claiming={claiming}
+                        error={error}
+                        lastTxHash={lastTxHash}
+                        loading={loading}
+                        onClaim={claimUsdc}
+                        onRefresh={refresh}
+                    />
+                )}
 
-            {/* Portfolio Summary */}
-            <div className="profile-summary">
-                <div className="profile-summary-card">
-                    <div className="value">{devTokens.length + heldTokens.length}</div>
-                    <div className="label">Sigil Tokens</div>
-                </div>
-                <div className="profile-summary-card">
-                    <div className="value">{devTokens.length}</div>
-                    <div className="label">As Developer</div>
-                </div>
-                <div className="profile-summary-card">
-                    <div className="value" style={{ color: "var(--success)" }}>{lifetimeUsdc}</div>
-                    <div className="label">Total USDC Earned</div>
-                </div>
-                <div className="profile-summary-card">
-                    <div className="value" style={{ color: "var(--success)" }}>{claimableUsdc}</div>
-                    <div className="label">Claimable USDC</div>
+                {/* Not connected prompt */}
+                {!walletAddress && (
+                    <div className="fee-claim-card" style={{ textAlign: "center", padding: "var(--space-8)" }}>
+                        <p style={{ color: "var(--text-secondary)", margin: 0 }}>
+                            Connect your wallet to view and claim fee earnings.
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Miller's Law: Chunk 2 - At a Glance (max 4-5 key metrics) */}
+            <div className="dashboard-chunk">
+                <h2 className="chunk-title">
+                    <span className="chunk-icon">📊</span>
+                    At a Glance
+                </h2>
+                <div className="profile-summary">
+                    <div className="profile-summary-card">
+                        <div className="value">{devTokens.length + heldTokens.length}</div>
+                        <div className="label">Total Tokens</div>
+                    </div>
+                    <div className="profile-summary-card">
+                        <div className="value">{devTokens.length}</div>
+                        <div className="label">Your Projects</div>
+                    </div>
+                    <div className="profile-summary-card">
+                        <div className="value" style={{ color: "var(--success)" }}>{lifetimeUsdc}</div>
+                        <div className="label">Lifetime Earned</div>
+                    </div>
+                    <div className="profile-summary-card">
+                        <div className="value" style={{ color: "var(--success)" }}>{claimableUsdc}</div>
+                        <div className="label">Claimable Now</div>
+                    </div>
                 </div>
             </div>
 
-            {/* Filter tabs */}
-            <div className="gov-tabs" style={{ marginBottom: "var(--space-6)" }}>
-                {([
-                    ["all", `All Tokens (${allTokens.length})`],
-                    ["dev", `My Projects (${devTokens.length})`],
-                    ["held", `Holdings (${heldTokens.length})`],
-                ] as [string, string][]).map(([key, label]) => (
-                    <button
-                        key={key}
-                        className={`gov-tab ${activeSection === key ? "active" : ""}`}
-                        onClick={() => setActiveSection(key as "all" | "dev" | "held")}
-                    >
-                        {label}
-                    </button>
-                ))}
+            {/* Miller's Law: Chunk 3 - Your Portfolio */}
+            <div className="dashboard-chunk">
+                <h2 className="chunk-title">
+                    <span className="chunk-icon">💎</span>
+                    Your Portfolio
+                </h2>
+
+                {/* Filter tabs */}
+                <div className="gov-tabs" style={{ marginBottom: "var(--space-6)" }}>
+                    {([
+                        ["all", `All Tokens (${allTokens.length})`],
+                        ["dev", `My Projects (${devTokens.length})`],
+                        ["held", `Holdings (${heldTokens.length})`],
+                    ] as [string, string][]).map(([key, label]) => (
+                        <button
+                            key={key}
+                            type="button"
+                            className={`gov-tab ${activeSection === key ? "active" : ""}`}
+                            onClick={() => setActiveSection(key as "all" | "dev" | "held")}
+                        >
+                            {label}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Dev Tokens Section */}
@@ -386,14 +437,23 @@ export default function ProfileDashboard() {
                 </>
             )}
 
-            {/* Empty states */}
+            {/* Empty states with Progressive Disclosure */}
             {activeSection === "dev" && devTokens.length === 0 && (
                 <EmptyState
                     className="profile-empty-section"
                     useRawClasses
+                    stepHint="Get Started"
                     icon={<Image src="/icons/zap-fast.svg" alt="" width={40} height={40} style={{ opacity: 0.3 }} />}
                     title="You haven't launched any tokens yet"
-                    description="Verify your project to start earning fees."
+                    description="Verify your project ownership to create a Sigil token and start earning USDC fees from LP activity."
+                    action={{
+                        label: "Verify a Project",
+                        href: "/verify",
+                    }}
+                    secondaryAction={{
+                        label: "Learn how it works",
+                        href: "/developers",
+                    }}
                 />
             )}
 
@@ -401,9 +461,14 @@ export default function ProfileDashboard() {
                 <EmptyState
                     className="profile-empty-section"
                     useRawClasses
+                    stepHint="Discover"
                     icon={<Image src="/icons/coins-stacked-02.svg" alt="" width={40} height={40} style={{ opacity: 0.3 }} />}
                     title="You don't hold any Sigil-launched tokens"
-                    description="Explore projects to get started."
+                    description="Browse verified projects and back the builders shaping the agentic economy."
+                    action={{
+                        label: "Explore Projects",
+                        href: "/chat",
+                    }}
                 />
             )}
         </div>
