@@ -241,7 +241,6 @@ claim.openapi(getClaimStatusRoute, (async (c) => {
     return c.json({
         claimed: true as const,
         projectId: project.projectId,
-        ownerWallet: project.ownerWallet,
         verificationMethod: project.verificationMethod,
         attestationUid: project.attestationUid,
         verifiedAt: project.verifiedAt?.toISOString() ?? null,

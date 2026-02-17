@@ -80,15 +80,14 @@ export const ClaimAlreadyIssuedResponseSchema = z
 
 /**
  * GET /api/claim/status/:projectId response (claimed)
+ * Note: ownerWallet intentionally omitted from public endpoint.
+ * Wallet can be discovered via attestationUid lookup if needed.
  */
 export const ClaimStatusClaimedResponseSchema = z
     .object({
         claimed: z.literal(true),
         projectId: z.string().openapi({
             example: "github.com/org/repo",
-        }),
-        ownerWallet: WalletAddressSchema.openapi({
-            description: "Wallet address of the project owner",
         }),
         verificationMethod: VerificationMethodSchema.openapi({
             description: "Method used to verify ownership",
