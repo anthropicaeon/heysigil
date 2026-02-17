@@ -35,6 +35,11 @@ async function request<T>(
             ...options.headers,
         },
         ...options,
+    }).catch((err: unknown) => {
+        throw new ApiError(
+            `Network error — could not reach ${BASE_URL}. Check NEXT_PUBLIC_API_URL. (${err instanceof Error ? err.message : "fetch failed"})`,
+            0,
+        );
     });
 
     if (!res.ok) {

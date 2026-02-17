@@ -118,7 +118,12 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
             setAllBalances(feeBalances);
         } catch (err) {
             if (isMounted.current) {
-                setError(getErrorMessage(err, "Failed to read fees"));
+                setError(
+                    getErrorMessage(
+                        err,
+                        `Fee vault read failed — verify NEXT_PUBLIC_FEE_VAULT_ADDRESS is set correctly (current: ${FEE_VAULT_ADDRESS})`,
+                    ),
+                );
             }
         } finally {
             if (isMounted.current) setLoading(false);
