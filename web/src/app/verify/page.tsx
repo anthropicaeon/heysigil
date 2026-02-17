@@ -1,4 +1,5 @@
 import VerifyFlow from "@/components/VerifyFlow";
+import { SocialProof } from "@/components/VerifyFlow/components/SocialProof";
 
 export default function VerifyPage() {
   return (
@@ -10,6 +11,7 @@ export default function VerifyPage() {
         <p style={{ fontSize: "var(--text-lg)", maxWidth: 520 }}>
           Prove you own a project. Your Sigil is your on-chain seal of approval. Earn USDC fees while your native tokens remain locked until the community unlocks them.
         </p>
+        <SocialProof />
       </div>
       <VerifyFlow />
     </div>
