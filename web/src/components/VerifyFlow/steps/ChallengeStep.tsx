@@ -5,6 +5,7 @@
  */
 
 import type { ChallengeResponse } from "../types";
+import { ErrorAlert } from "@/components/common/ErrorAlert";
 
 interface ChallengeStepProps {
     challenge: ChallengeResponse;
@@ -27,11 +28,7 @@ export function ChallengeStep({ challenge, loading, error, onBack, onCheck }: Ch
                     Challenge code: <code style={{ fontFamily: "var(--font-mono)" }}>{challenge.challengeCode}</code>
                 </p>
             </div>
-            {error && (
-                <div className="result-box result-error">
-                    <p style={{ color: "var(--error)", fontSize: "var(--text-sm)" }}>{error}</p>
-                </div>
-            )}
+            {error && <ErrorAlert error={error} />}
             <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
                 <button type="button" className="btn-secondary" onClick={onBack}>
                     Back

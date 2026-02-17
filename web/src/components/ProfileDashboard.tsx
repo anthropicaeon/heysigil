@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useFeeVault } from "@/hooks/useFeeVault";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
+import { ErrorAlert } from "@/components/common/ErrorAlert";
 import type { TokenInfo } from "@/types";
 
 // ─── Mock Data (token holdings — live fee data comes from hook) ─
@@ -182,11 +183,7 @@ function FeeClaimCard({
             )}
 
             {/* Error */}
-            {error && (
-                <div className="fee-claim-error">
-                    {error}
-                </div>
-            )}
+            {error && <ErrorAlert error={error} className="fee-claim-error" />}
         </div>
     );
 }
