@@ -12,6 +12,9 @@ import { getEnv } from "../config/env.js";
 import { createPhantomUser, findUserByPlatform } from "./identity.js";
 import { checkDeployRateLimit } from "../middleware/rate-limit.js";
 import { linkPoolToProject } from "../db/repositories/index.js";
+import { loggers } from "../utils/logger.js";
+
+const log = loggers.deployer;
 
 // ─── ABI ────────────────────────────────────────────────
 // Minimal ABI for SigilFactoryV3.launch()
@@ -31,6 +34,13 @@ export interface DeployParams {
     devAddress?: string;
     isSelfLaunch?: boolean;
     devLinks?: string[]; // GitHub URLs, etc. Used to create phantom identity
+}
+
+export interface DeployOptions {
+    /** Privy user ID for authenticated rate limiting (takes priority) */
+    privyUserId?: string;
+    /** Session ID for anonymous rate limiting (fallback) */
+    sessionId?: string;
 }
 
 export interface DeployResult {
@@ -86,14 +96,23 @@ function getFactory(): ethers.Contract {
  * This is the main entry point for wallet-free launches.
  * The deployer wallet pays gas and calls factory.launch().
  *
+ * Rate limiting prioritizes authenticated users (privyUserId) over anonymous (sessionId).
+ * This prevents a single developer from bypassing limits by creating multiple sessions.
+ *
  * @param params - Token deployment parameters
- * @param sessionId - Session ID for rate limiting (optional)
+ * @param options - Rate limiting options (privyUserId takes priority over sessionId)
  * @returns Deploy result with token address, pool ID, and tx hash
  */
-export async function deployToken(params: DeployParams, sessionId?: string): Promise<DeployResult> {
-    // Rate limit check (uses shared rate-limit middleware)
-    if (sessionId) {
-        await checkDeployRateLimit(sessionId);
+export async function deployToken(
+    params: DeployParams,
+    options?: DeployOptions,
+): Promise<DeployResult> {
+    // Rate limit check — authenticated users get user-based limiting
+    // Anonymous users fall back to session-based limiting
+    const rateLimitKey = options?.privyUserId || options?.sessionId;
+    if (rateLimitKey) {
+        const prefix = options?.privyUserId ? "user" : "session";
+        await checkDeployRateLimit(`${prefix}:${rateLimitKey}`);
     }
 
     const wallet = getWallet();
@@ -117,18 +136,16 @@ export async function deployToken(params: DeployParams, sessionId?: string): Pro
             const existingUser = await findUserByPlatform("github", repoId);
             if (existingUser && existingUser.status === "claimed") {
                 devAddress = existingUser.walletAddress;
-                console.log(
-                    `[deployer] Dev already verified: ${repoId} → ${devAddress} (direct routing)`,
-                );
+                log.info({ repoId, devAddress }, "Dev already verified (direct routing)");
             } else if (existingUser && existingUser.status === "phantom") {
                 // 2. Phantom exists from a previous launch → reuse their wallet
                 devAddress = existingUser.walletAddress;
-                console.log(`[deployer] Existing phantom user: ${repoId} → ${devAddress}`);
+                log.info({ repoId, devAddress }, "Existing phantom user");
             } else {
                 // 3. Brand new — create phantom user + wallet
                 const result = await createPhantomUser("github", repoId, sessionId);
                 devAddress = result.walletAddress;
-                console.log(`[deployer] Created phantom user for ${repoId} → ${devAddress}`);
+                log.info({ repoId, devAddress }, "Created phantom user");
             }
         } else {
             // No GitHub link — fall back to address(0) → contract escrow
@@ -139,10 +156,16 @@ export async function deployToken(params: DeployParams, sessionId?: string): Pro
         devAddress = ethers.ZeroAddress;
     }
 
-    console.log(`[deployer] Deploying token: ${params.name} ($${params.symbol})`);
-    console.log(`[deployer]   projectId: ${params.projectId}`);
-    console.log(`[deployer]   dev: ${devAddress}`);
-    console.log(`[deployer]   from: ${wallet.address}`);
+    log.info(
+        {
+            name: params.name,
+            symbol: params.symbol,
+            projectId: params.projectId,
+            dev: devAddress,
+            from: wallet.address,
+        },
+        "Deploying token",
+    );
 
     // Approve USDC for seed swap (factory pulls up to 1 USDC to activate pool liquidity)
     const env = getEnv();
@@ -160,17 +183,15 @@ export async function deployToken(params: DeployParams, sessionId?: string): Pro
         const seedAmount = usdcBalance > 1_000_000n ? 1_000_000n : usdcBalance;
         const approveTx = await usdcContract.approve(env.SIGIL_FACTORY_ADDRESS, seedAmount);
         await approveTx.wait(1);
-        console.log(`[deployer] Approved ${seedAmount} USDC for seed swap`);
+        log.debug({ seedAmount: seedAmount.toString() }, "Approved USDC for seed swap");
     } else {
-        console.log(
-            `[deployer] No USDC — pool will launch without seed swap (may need manual activation)`,
-        );
+        log.debug("No USDC — pool will launch without seed swap (may need manual activation)");
     }
 
     // Call factory.launch()
     const tx = await factory.launch(params.name, params.symbol, params.projectId, devAddress);
 
-    console.log(`[deployer] Tx submitted: ${tx.hash}`);
+    log.debug({ txHash: tx.hash }, "Transaction submitted");
 
     // Wait for confirmation
     const receipt = await tx.wait(1);
@@ -195,7 +216,10 @@ export async function deployToken(params: DeployParams, sessionId?: string): Pro
 
     // Fallback: try to decode return data if event parsing failed
     if (!tokenAddress) {
-        console.warn("[deployer] Could not parse TokenLaunched event — checking return data");
+        log.warn(
+            { txHash: receipt.hash },
+            "Could not parse TokenLaunched event — checking return data",
+        );
         // The return values are the token address and poolId
         // We can get them from the transaction receipt logs
         tokenAddress = "pending"; // Will be populated by DB query later
@@ -214,22 +238,24 @@ export async function deployToken(params: DeployParams, sessionId?: string): Pro
                 : `https://basescan.org/tx/${receipt.hash}`,
     };
 
-    console.log(`[deployer] ✅ Token deployed: ${tokenAddress}`);
-    console.log(`[deployer]    Pool ID: ${poolId}`);
-    console.log(`[deployer]    Explorer: ${result.explorerUrl}`);
+    log.info(
+        { tokenAddress, poolId, explorerUrl: result.explorerUrl },
+        "Token deployed successfully",
+    );
 
     // Link fee distributions to this project (async, fire-and-forget)
     if (poolId && params.projectId) {
         linkPoolToProject(poolId, params.projectId)
             .then((count) => {
                 if (count > 0) {
-                    console.log(
-                        `[deployer] Linked ${count} fee distributions to project ${params.projectId}`,
+                    log.debug(
+                        { count, projectId: params.projectId },
+                        "Linked fee distributions to project",
                     );
                 }
             })
             .catch((err) => {
-                console.error(`[deployer] Failed to link fee distributions: ${err}`);
+                log.error({ err, projectId: params.projectId }, "Failed to link fee distributions");
             });
     }
 

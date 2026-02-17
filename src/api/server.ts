@@ -1,6 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 import { swaggerUI } from "@hono/swagger-ui";
 import { verify } from "./routes/verify.js";
@@ -13,9 +12,13 @@ import { getEnv } from "../config/env.js";
 import { DatabaseUnavailableError } from "../db/client.js";
 import { privyAuthOptional } from "../middleware/auth.js";
 import { globalRateLimit } from "../middleware/rate-limit.js";
+import { requestLogger, getRequestLogger } from "../middleware/request-logger.js";
 import { openApiInfo } from "./openapi.js";
+import { loggers } from "../utils/logger.js";
 import { z } from "@hono/zod-openapi";
 import { createRoute } from "@hono/zod-openapi";
+
+const log = loggers.server;
 
 // Allowed localhost ports for development CORS
 // 3000 = default frontend, 5173 = Vite dev server
@@ -55,9 +58,7 @@ export function createApp() {
 
     // SECURITY: Warn at startup if auth service isn't configured
     if (!env.PRIVY_APP_ID || !env.PRIVY_APP_SECRET) {
-        console.warn(
-            "[SECURITY] Privy not configured - privyAuth() will reject all requests (503)",
-        );
+        log.warn("Privy not configured - privyAuth() will reject all requests (503)");
     }
 
     const app = new OpenAPIHono();
@@ -67,15 +68,16 @@ export function createApp() {
         if (err instanceof DatabaseUnavailableError) {
             return c.json({ error: err.message }, 503);
         }
-        console.error("Unhandled error:", err);
+        const reqLog = getRequestLogger(c);
+        reqLog.error({ err }, "Unhandled error");
         return c.json({ error: err.message || "Internal server error" }, 500);
     });
 
     // Detect production environment (HTTPS in BASE_URL)
     const isProduction = env.BASE_URL.startsWith("https://");
 
-    // Middleware
-    app.use("*", logger());
+    // Middleware - Request logging with correlation IDs
+    app.use("*", requestLogger());
 
     // Global rate limit: 100 requests per minute per IP
     app.use("*", globalRateLimit());
