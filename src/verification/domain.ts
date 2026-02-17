@@ -2,10 +2,7 @@ import dns from "node:dns/promises";
 import { load } from "cheerio";
 import type { VerificationResult } from "./types.js";
 import { parseConfigFile } from "../utils/config-parser.js";
-
-function getDomainVerificationError(err: unknown): string {
-    return err instanceof Error ? err.message : "Unknown error";
-}
+import { getErrorMessage } from "../utils/errors.js";
 
 /**
  * Verify domain ownership via DNS TXT record.
@@ -47,7 +44,7 @@ export async function verifyDomainDns(
             proof: { record: expectedValue, host: lookupHost },
         };
     } catch (err) {
-        const message = getDomainVerificationError(err);
+        const message = getErrorMessage(err);
         // ENOTFOUND / ENODATA means no records exist
         if (message.includes("ENOTFOUND") || message.includes("ENODATA")) {
             return {
@@ -130,7 +127,7 @@ export async function verifyDomainFile(
             success: false,
             method: "domain_file",
             projectId,
-            error: getDomainVerificationError(err),
+            error: getErrorMessage(err),
         };
     }
 }
@@ -196,7 +193,7 @@ export async function verifyDomainMeta(
             success: false,
             method: "domain_meta",
             projectId,
-            error: getDomainVerificationError(err),
+            error: getErrorMessage(err),
         };
     }
 }
