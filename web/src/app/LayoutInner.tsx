@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import PrivyAuthProvider from "../providers/PrivyAuthProvider";
-import { usePrivy } from "@privy-io/react-auth";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 function NavLoginButton() {
     let privyReady = false;
@@ -15,6 +15,8 @@ function NavLoginButton() {
     try {
         // usePrivy only works inside PrivyProvider — if Privy isn't configured,
         // the provider renders children directly, so this will throw.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports, react-hooks/rules-of-hooks
+        const { usePrivy } = require("@privy-io/react-auth");
         // eslint-disable-next-line react-hooks/rules-of-hooks
         const privy = usePrivy();
         privyReady = privy.ready;
@@ -87,39 +89,41 @@ export default function LayoutInner({
     children: React.ReactNode;
 }) {
     return (
-        <PrivyAuthProvider>
-            <nav className="nav">
-                <div className="nav-inner">
-                    <Link href="/" className="nav-brand">
-                        <Image
-                            src="/logo-sage.png"
-                            alt="Sigil"
-                            width={28}
-                            height={28}
-                            className="nav-logo-img"
-                        />
-                        <span className="nav-wordmark">Sigil</span>
-                    </Link>
-                    <div className="nav-links">
-                        <Link href="/developers" className="nav-link">Developers</Link>
-                        <Link href="/dashboard" className="nav-link">Dashboard</Link>
-                        <Link href="/governance" className="nav-link">Governance</Link>
-                        <Link href="/chat" className="nav-link">Chat</Link>
-                        <Link href="/verify" className="nav-link">Verify</Link>
-                        <NavLoginButton />
+        <ErrorBoundary>
+            <PrivyAuthProvider>
+                <nav className="nav">
+                    <div className="nav-inner">
+                        <Link href="/" className="nav-brand">
+                            <Image
+                                src="/logo-sage.png"
+                                alt="Sigil"
+                                width={28}
+                                height={28}
+                                className="nav-logo-img"
+                            />
+                            <span className="nav-wordmark">Sigil</span>
+                        </Link>
+                        <div className="nav-links">
+                            <Link href="/developers" className="nav-link">Developers</Link>
+                            <Link href="/dashboard" className="nav-link">Dashboard</Link>
+                            <Link href="/governance" className="nav-link">Governance</Link>
+                            <Link href="/chat" className="nav-link">Chat</Link>
+                            <Link href="/verify" className="nav-link">Verify</Link>
+                            <NavLoginButton />
+                        </div>
                     </div>
-                </div>
-            </nav>
-            {children}
-            <footer className="footer">
-                <div className="footer-inner">
-                    <p>Sigil</p>
-                    <div className="footer-links">
-                        <Link href="/chat">Chat</Link>
-                        <Link href="/verify">Verify</Link>
+                </nav>
+                {children}
+                <footer className="footer">
+                    <div className="footer-inner">
+                        <p>Sigil</p>
+                        <div className="footer-links">
+                            <Link href="/chat">Chat</Link>
+                            <Link href="/verify">Verify</Link>
+                        </div>
                     </div>
-                </div>
-            </footer>
-        </PrivyAuthProvider>
+                </footer>
+            </PrivyAuthProvider>
+        </ErrorBoundary>
     );
 }
