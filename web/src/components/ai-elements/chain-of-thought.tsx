@@ -63,7 +63,7 @@ export function ChainOfThoughtContent({ children, className }: ChainOfThoughtCon
 }
 
 interface ChainOfThoughtStepProps {
-    icon: React.ElementType;
+    icon: React.ComponentType<{ className?: string }>;
     label: string;
     description: string;
     status: "complete" | "active" | "pending";
@@ -90,7 +90,7 @@ export function ChainOfThoughtStep({
                         status === "complete" && "bg-sage/30 border-sage text-primary",
                         status === "active" && "bg-primary/10 border-primary text-primary",
                         status === "pending" &&
-                            "bg-secondary/30 border-border text-muted-foreground",
+                        "bg-secondary/30 border-border text-muted-foreground",
                     )}
                 >
                     <Icon className="size-4" />

@@ -4,7 +4,7 @@ import { FC, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react
 import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
-import { type GLTF,GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { type GLTF, GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
