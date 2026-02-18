@@ -16,8 +16,6 @@ import {
     ScaleIcon,
     SearchIcon,
 } from "lucide-react";
-import Image from "next/image";
-import Link from "next/link";
 import { type FormEvent, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -45,6 +43,7 @@ import { Response } from "@/components/ai-elements/response";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import { Tool, ToolContent, ToolHeader, ToolInput } from "@/components/ai-elements/tool";
+import PortfolioSidebar from "@/components/PortfolioSidebar";
 import {
     AnalyzeView,
     DecideView,
@@ -66,13 +65,6 @@ const USE_CASES = [
     { title: "Research AI", prompt: "What are the latest trends in AI?" },
     { title: "Compare DeFi", prompt: "Compare Uniswap vs SushiSwap" },
 ] as const;
-
-// Portfolio mock data
-const portfolioTokens = [
-    { symbol: "ETH", name: "Ethereum", balance: "2.5", value: "$8,750", color: "#627EEA" },
-    { symbol: "USDC", name: "USD Coin", balance: "5,000", value: "$5,000", color: "#2775CA" },
-    { symbol: "SIGIL", name: "Sigil Token", balance: "125,000", value: "$2,340", color: "#627EEA" },
-];
 
 // Tool step extraction for Chain of Thought
 interface ToolStep {
@@ -184,6 +176,7 @@ export default function ChatPage() {
     const [input, setInput] = useState("");
     const [status, setStatus] = useState<ChatStatus>("ready");
     const [sessionId, setSessionId] = useState<string | null>(null);
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const inputRef = useRef(input);
     inputRef.current = input;
 
@@ -298,9 +291,8 @@ export default function ChatPage() {
                 {/* Header */}
                 <div className="border-border border-b bg-background">
                     <div className="flex flex-col lg:flex-row">
-                        <div className="flex-1 px-6 py-4 lg:px-12 border-border border-b lg:border-b-0 lg:border-r">
+                        <div className="flex-1 px-6 py-4 lg:px-12">
                             <div className="flex items-center gap-3">
-                                <Image src="/logo-sage.png" alt="Sigil" width={40} height={40} />
                                 <div>
                                     <h1 className="text-xl font-semibold text-foreground lowercase">
                                         talk to sigil
@@ -310,9 +302,6 @@ export default function ChatPage() {
                                     </p>
                                 </div>
                             </div>
-                        </div>
-                        <div className="hidden lg:flex w-80 px-6 py-4 items-center">
-                            <p className="text-sm text-muted-foreground">your portfolio</p>
                         </div>
                     </div>
                 </div>
@@ -593,65 +582,12 @@ export default function ChatPage() {
                     </div>
 
                     {/* Portfolio Sidebar */}
-                    <div className="hidden lg:block w-80">
-                        {portfolioTokens.map((token) => (
-                            <div
-                                key={token.symbol}
-                                className="flex items-center gap-3 px-6 py-4 border-border border-b hover:bg-secondary/20 transition-colors"
-                            >
-                                <div
-                                    className="size-10 flex items-center justify-center text-white font-bold text-sm shrink-0"
-                                    style={{ backgroundColor: token.color }}
-                                >
-                                    {token.symbol.charAt(0)}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-foreground text-sm">
-                                        {token.symbol}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">{token.name}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-medium text-foreground text-sm">
-                                        {token.balance}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">{token.value}</p>
-                                </div>
-                            </div>
-                        ))}
-
-                        <div className="px-6 py-4 border-border border-b bg-primary/5">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
-                                Total Value
-                            </p>
-                            <p className="text-2xl font-bold text-primary">$16,090</p>
-                        </div>
-
-                        <div className="px-6 py-4">
-                            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
-                                Quick Links
-                            </p>
-                            <div className="space-y-2">
-                                <Link
-                                    href="/dashboard"
-                                    className="block text-sm text-foreground hover:text-primary transition-colors"
-                                >
-                                    View Dashboard
-                                </Link>
-                                <Link
-                                    href="/verify"
-                                    className="block text-sm text-foreground hover:text-primary transition-colors"
-                                >
-                                    Add Verification
-                                </Link>
-                                <Link
-                                    href="/governance"
-                                    className="block text-sm text-foreground hover:text-primary transition-colors"
-                                >
-                                    Vote on Proposals
-                                </Link>
-                            </div>
-                        </div>
+                    <div className="hidden lg:block">
+                        <PortfolioSidebar
+                            sessionId={sessionId}
+                            collapsed={sidebarCollapsed}
+                            onToggle={() => setSidebarCollapsed((prev) => !prev)}
+                        />
                     </div>
                 </div>
             </div>
