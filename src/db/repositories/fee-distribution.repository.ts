@@ -377,6 +377,7 @@ export async function findDistributions(
         poolId?: string;
         devAddress?: string;
         tokenAddress?: string;
+        projectId?: string;
     } = {},
     pagination: PaginationParams = {},
 ): Promise<PaginatedResult<DbFeeDistribution>> {
@@ -403,6 +404,9 @@ export async function findDistributions(
             conditions.push(
                 sql`LOWER(${schema.feeDistributions.tokenAddress}) = ${filters.tokenAddress.toLowerCase()}`,
             );
+        }
+        if (filters.projectId) {
+            conditions.push(eq(schema.feeDistributions.projectId, filters.projectId));
         }
 
         let query = db
@@ -462,6 +466,9 @@ export async function findDistributions(
             if (filters.tokenAddress) {
                 const normalized = filters.tokenAddress.toLowerCase();
                 all = all.filter((d) => d.tokenAddress.toLowerCase() === normalized);
+            }
+            if (filters.projectId) {
+                all = all.filter((d) => d.projectId === filters.projectId);
             }
 
             all.sort((a, b) => b.blockNumber - a.blockNumber);
