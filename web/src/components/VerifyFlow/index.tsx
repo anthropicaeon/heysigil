@@ -96,7 +96,10 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                 if (checkData.success) {
                     setStep("result");
                 } else {
-                    setError(checkData.error || "Verification failed — you may not have admin access to this repo.");
+                    const errMsg = typeof checkData.error === "string"
+                        ? checkData.error
+                        : "Verification failed — you may not have admin access to this repo.";
+                    setError(errMsg);
                     setStep("challenge");
                 }
                 return;
