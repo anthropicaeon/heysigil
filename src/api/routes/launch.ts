@@ -347,33 +347,9 @@ launch.get(
         ];
 
         const feesByProject = new Map<string, string>();
-        const isDevEnv = process.env.NODE_ENV !== "production";
 
         if (allProjectIds.length > 0) {
             try {
-                if (isDevEnv) {
-                    loggers.server.info(
-                        { allProjectIds, count: allProjectIds.length },
-                        "Fee query: looking for projectIds",
-                    );
-
-                    const [totalCount] = await db
-                        .select({ count: sql<number>`COUNT(*)` })
-                        .from(schema.feeDistributions);
-
-                    const distinctProjectIds = await db
-                        .selectDistinct({ projectId: schema.feeDistributions.projectId })
-                        .from(schema.feeDistributions);
-
-                    loggers.server.info(
-                        {
-                            totalRecords: totalCount.count,
-                            distinctProjectIds: distinctProjectIds.map((r) => r.projectId),
-                        },
-                        "Fee query: database state",
-                    );
-                }
-
                 // Sum fees from deposit events (devAmount) and escrow events (amount)
                 const feeRows = await db
                     .select({
@@ -396,10 +372,6 @@ launch.get(
                         ),
                     )
                     .groupBy(schema.feeDistributions.projectId);
-
-                if (isDevEnv) {
-                    loggers.server.info({ feeRows }, "Fee query: results");
-                }
 
                 for (const row of feeRows) {
                     if (row.projectId) {
