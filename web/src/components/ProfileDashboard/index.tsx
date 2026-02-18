@@ -43,9 +43,32 @@ import { ProjectSection } from "./TokenSection";
 export default function ProfileDashboard() {
     const isPrivyConfigured = useIsPrivyConfigured();
 
-    // Get wallet address + access token from Privy
+    // Get auth state from Privy
     const privy = useOptionalPrivy();
-    const walletAddress = privy?.user?.wallet?.address as string | undefined;
+
+    // Fetch server-side user wallet (canonical address)
+    const [walletAddress, setWalletAddress] = useState<string | undefined>(undefined);
+    useEffect(() => {
+        if (!privy?.authenticated || !privy?.getAccessToken) return;
+        let cancelled = false;
+        (async () => {
+            const token = await privy.getAccessToken();
+            if (!token || cancelled) return;
+            try {
+                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/wallet/me`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+                const data = await res.json();
+                if (!cancelled && data.address) {
+                    setWalletAddress(data.address);
+                }
+            } catch {
+                // Silent — sidebar will show address too
+            }
+        })();
+        return () => { cancelled = true; };
+    }, [privy?.authenticated, privy?.getAccessToken]);
+
     const displayAddress = walletAddress ? truncateAddress(walletAddress) : "Not connected";
 
     // Real project data from API

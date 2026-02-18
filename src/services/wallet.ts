@@ -133,28 +133,46 @@ export async function getUserAddress(privyUserId: string): Promise<string | unde
 }
 
 /**
- * Check if a session has a wallet.
+ * Parse a wallet key to determine type and ID.
+ * Keys prefixed with "user:" resolve to user-keyed wallets.
+ * All other keys resolve to session-keyed wallets.
  */
-export async function hasWallet(sessionId: string): Promise<boolean> {
-    const wallet = await walletRepo.findWalletByKey("session", sessionId);
+function parseWalletKey(key: string): { keyType: "session" | "user"; keyId: string } {
+    if (key.startsWith("user:")) {
+        return { keyType: "user", keyId: key.slice(5) };
+    }
+    return { keyType: "session", keyId: key };
+}
+
+/**
+ * Check if a wallet key has a wallet.
+ * Accepts both session IDs and "user:<privyId>" keys.
+ */
+export async function hasWallet(walletKey: string): Promise<boolean> {
+    const { keyType, keyId } = parseWalletKey(walletKey);
+    const wallet = await walletRepo.findWalletByKey(keyType, keyId);
     return wallet !== null;
 }
 
 /**
- * Get wallet address for a session.
+ * Get wallet address for a wallet key.
+ * Accepts both session IDs and "user:<privyId>" keys.
  */
-export async function getAddress(sessionId: string): Promise<string | undefined> {
-    const wallet = await walletRepo.findWalletByKey("session", sessionId);
+export async function getAddress(walletKey: string): Promise<string | undefined> {
+    const { keyType, keyId } = parseWalletKey(walletKey);
+    const wallet = await walletRepo.findWalletByKey(keyType, keyId);
     return wallet?.address;
 }
 
 /**
- * Get the ethers.Wallet instance for a session (for signing transactions).
+ * Get the ethers.Wallet instance for signing transactions.
+ * Accepts both session IDs and "user:<privyId>" keys.
  * Supports both keystore (v2+) and legacy AES-256-GCM formats.
  * Legacy wallets are lazily migrated to keystore format on read.
  */
-export async function getSignerWallet(sessionId: string): Promise<ethers.Wallet | undefined> {
-    const stored = await walletRepo.findWalletByKey("session", sessionId);
+export async function getSignerWallet(walletKey: string): Promise<ethers.Wallet | undefined> {
+    const { keyType, keyId } = parseWalletKey(walletKey);
+    const stored = await walletRepo.findWalletByKey(keyType, keyId);
     if (!stored) return undefined;
 
     const env = getEnv();
@@ -194,11 +212,13 @@ export async function getSignerWallet(sessionId: string): Promise<ethers.Wallet 
 const BALANCE_OF_ABI = ["function balanceOf(address) view returns (uint256)"];
 
 /**
- * Get ETH and token balances for a session's wallet.
+ * Get ETH and token balances for a wallet key.
+ * Accepts both session IDs and "user:<privyId>" keys.
  * Fetches all balances in parallel for optimal performance.
  */
-export async function getBalance(sessionId: string): Promise<WalletBalance | undefined> {
-    const stored = await walletRepo.findWalletByKey("session", sessionId);
+export async function getBalance(walletKey: string): Promise<WalletBalance | undefined> {
+    const { keyType, keyId } = parseWalletKey(walletKey);
+    const stored = await walletRepo.findWalletByKey(keyType, keyId);
     if (!stored) return undefined;
 
     const env = getEnv();
@@ -243,14 +263,15 @@ export async function getBalance(sessionId: string): Promise<WalletBalance | und
  * Call this first, then call confirmExport() to actually reveal the key.
  */
 export async function requestExport(
-    sessionId: string,
+    walletKey: string,
 ): Promise<{ pending: boolean; message: string }> {
-    const wallet = await walletRepo.findWalletByKey("session", sessionId);
+    const { keyType, keyId } = parseWalletKey(walletKey);
+    const wallet = await walletRepo.findWalletByKey(keyType, keyId);
     if (!wallet) {
         return { pending: false, message: "No wallet found for this session." };
     }
 
-    exportConfirmations.set(sessionId, { requestedAt: Date.now() });
+    exportConfirmations.set(walletKey, { requestedAt: Date.now() });
 
     return {
         pending: true,
@@ -275,10 +296,10 @@ export async function requestExport(
  * Note: TTLMap auto-expires entries after 2 minutes.
  */
 export async function confirmExport(
-    sessionId: string,
+    walletKey: string,
 ): Promise<{ success: boolean; privateKey?: string; message: string }> {
     // TTLMap.get() returns undefined for expired entries
-    const pending = exportConfirmations.get(sessionId);
+    const pending = exportConfirmations.get(walletKey);
 
     if (!pending) {
         return {
@@ -288,9 +309,10 @@ export async function confirmExport(
         };
     }
 
-    const stored = await walletRepo.findWalletByKey("session", sessionId);
+    const { keyType, keyId } = parseWalletKey(walletKey);
+    const stored = await walletRepo.findWalletByKey(keyType, keyId);
     if (!stored) {
-        exportConfirmations.delete(sessionId);
+        exportConfirmations.delete(walletKey);
         return { success: false, message: "No wallet found." };
     }
 
@@ -320,11 +342,11 @@ export async function confirmExport(
             );
         }
     } else {
-        exportConfirmations.delete(sessionId);
+        exportConfirmations.delete(walletKey);
         return { success: false, message: "Wallet encryption data is corrupted." };
     }
 
-    exportConfirmations.delete(sessionId);
+    exportConfirmations.delete(walletKey);
 
     return {
         success: true,

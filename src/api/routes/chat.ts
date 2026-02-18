@@ -8,6 +8,7 @@ import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { getBody, getParams } from "../helpers/request.js";
 import { createSession, getSession, processMessage } from "../../agent/engine.js";
 import { chatRateLimit, sessionEnumerationRateLimit } from "../../middleware/rate-limit.js";
+import { privyAuthOptional, getUserId } from "../../middleware/auth.js";
 import {
     ErrorResponseSchema,
     NotFoundResponseSchema,
@@ -26,6 +27,7 @@ const chat = new OpenAPIHono();
 
 // Rate limit chat messages (20 per minute per IP - LLM calls are expensive)
 chat.use("/", chatRateLimit());
+chat.use("/", privyAuthOptional());
 
 // Rate limit session lookups to prevent enumeration
 chat.use("/:sessionId", sessionEnumerationRateLimit());
@@ -104,7 +106,11 @@ chat.openapi(
         }
 
         try {
-            const response = await processMessage(sid, body.message, body.walletAddress);
+            // Pass Privy user ID so engine uses persistent user wallet
+            const privyUserId = getUserId(c) || undefined;
+            const response = await processMessage(sid, body.message, body.walletAddress, {
+                privyUserId,
+            });
 
             return c.json({
                 sessionId: sid,
