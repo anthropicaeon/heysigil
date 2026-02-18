@@ -186,9 +186,13 @@ export async function checkRepoPermission(
 // ─── Privy-based verification (no OAuth redirect) ───────
 
 /**
- * Verify GitHub repo admin access using a known GitHub username.
+ * Verify GitHub repo ownership/contribution using a known GitHub username.
  * Skips OAuth code exchange — uses unauthenticated GitHub API.
  * Works for public repos only.
+ *
+ * Checks two things (in order):
+ * 1. Is the user the repo owner? (via /repos/:owner/:repo)
+ * 2. Is the user a contributor? (via /repos/:owner/:repo/contributors)
  */
 export async function verifyGitHubViaPrivy(
     githubUsername: string,
@@ -203,42 +207,66 @@ export async function verifyGitHubViaPrivy(
         );
     }
     const [owner, repo] = parts;
+    const usernameLower = githubUsername.toLowerCase();
 
     try {
-        // Use unauthenticated GitHub API to check collaborator permission
-        const response = await fetch(
-            `https://api.github.com/repos/${owner}/${repo}/collaborators/${githubUsername}/permission`,
-            { headers: GITHUB_API_HEADERS },
-        );
+        // 1. Check if repo exists and if user is the owner
+        const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+            headers: GITHUB_API_HEADERS,
+        });
 
-        if (!response.ok) {
-            if (response.status === 404) {
+        if (!repoResponse.ok) {
+            if (repoResponse.status === 404) {
                 return buildFailure(
                     "github_oauth",
                     projectId,
                     `Repository ${projectId} not found or is private. Privy-based verification only works for public repos.`,
                 );
             }
-            return buildFailure("github_oauth", projectId, `GitHub API error: ${response.status}`);
-        }
-
-        const permission = (await response.json()) as { permission: string; role_name: string };
-        const isAdmin = permission.permission === "admin";
-
-        if (!isAdmin) {
             return buildFailure(
                 "github_oauth",
                 projectId,
-                `User ${githubUsername} has '${permission.permission}' permission, needs 'admin'`,
-                { platformUsername: githubUsername },
+                `GitHub API error: ${repoResponse.status}`,
             );
         }
 
-        return buildSuccess("github_oauth", projectId, githubUsername, {
-            permission: permission.permission,
-            roleName: permission.role_name,
-            verifiedVia: "privy_identity",
-        });
+        const repoData = (await repoResponse.json()) as { owner: { login: string } };
+
+        // Direct owner match — strongest signal
+        if (repoData.owner.login.toLowerCase() === usernameLower) {
+            return buildSuccess("github_oauth", projectId, githubUsername, {
+                permission: "admin",
+                roleName: "owner",
+                verifiedVia: "privy_identity",
+            });
+        }
+
+        // 2. Check if user is a contributor (paginated, check first 100)
+        const contribResponse = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/contributors?per_page=100`,
+            { headers: GITHUB_API_HEADERS },
+        );
+
+        if (contribResponse.ok) {
+            const contributors = (await contribResponse.json()) as { login: string }[];
+            const isContributor = contributors.some((c) => c.login.toLowerCase() === usernameLower);
+
+            if (isContributor) {
+                return buildSuccess("github_oauth", projectId, githubUsername, {
+                    permission: "write",
+                    roleName: "contributor",
+                    verifiedVia: "privy_identity",
+                });
+            }
+        }
+
+        // User is neither owner nor contributor
+        return buildFailure(
+            "github_oauth",
+            projectId,
+            `User ${githubUsername} is not an owner or contributor of ${projectId}`,
+            { platformUsername: githubUsername },
+        );
     } catch (err) {
         return buildFailure("github_oauth", projectId, getErrorMessage(err));
     }
