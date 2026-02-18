@@ -344,7 +344,7 @@ launch.get(
                     .where(
                         and(
                             sql`${schema.feeDistributions.eventType} IN ('deposit', 'escrow')`,
-                            sql`${schema.feeDistributions.projectId} = ANY(${allProjectIds})`,
+                            inArray(schema.feeDistributions.projectId, allProjectIds),
                         ),
                     )
                     .groupBy(schema.feeDistributions.projectId);
