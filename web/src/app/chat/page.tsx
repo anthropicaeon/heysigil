@@ -30,10 +30,11 @@ import {
     ChainOfThoughtStep,
 } from "@/components/ai-elements/chain-of-thought";
 import { Conversation, ConversationContent } from "@/components/ai-elements/conversation";
-import { Loader } from "@/components/ai-elements/loader";
+import { ThinkingMessage } from "@/components/ai-elements/thinking-message";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import {
     PromptInput,
+    PromptInputStatus,
     PromptInputSubmit,
     PromptInputTextarea,
     PromptInputToolbar,
@@ -176,10 +177,13 @@ export default function ChatPage() {
     ]);
     const [input, setInput] = useState("");
     const [status, setStatus] = useState<ChatStatus>("ready");
+    const [showThinking, setShowThinking] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const inputRef = useRef(input);
     inputRef.current = input;
+    const loadingStartTimeRef = useRef<number>(0);
+    const pendingResponseRef = useRef<MultiStepToolUIMessage | null>(null);
 
     const privy = useOptionalPrivy();
 
@@ -211,6 +215,8 @@ export default function ChatPage() {
             setMessages((prev) => [...prev, userMessage]);
             setInput("");
             setStatus("submitted");
+            setShowThinking(true);
+            loadingStartTimeRef.current = Date.now();
 
             try {
                 const headers: Record<string, string> = {
@@ -244,12 +250,11 @@ export default function ChatPage() {
 
                 // Handle multi-part response (rich AI features)
                 if (data.parts && Array.isArray(data.parts)) {
-                    const assistantMessage: MultiStepToolUIMessage = {
+                    pendingResponseRef.current = {
                         id: (Date.now() + 1).toString(),
                         role: "assistant",
                         parts: data.parts,
                     };
-                    setMessages((prev) => [...prev, assistantMessage]);
                 }
                 // Handle response with embedded tools/reasoning (parse from structured response)
                 else if (data.response && typeof data.response === "object") {
@@ -281,16 +286,15 @@ export default function ChatPage() {
                         parts.push({ type: "text", text: data.response.text || data.response.answer });
                     }
 
-                    const assistantMessage: MultiStepToolUIMessage = {
+                    pendingResponseRef.current = {
                         id: (Date.now() + 1).toString(),
                         role: "assistant",
                         parts: parts.length > 0 ? parts : [{ type: "text", text: JSON.stringify(data.response) }],
                     };
-                    setMessages((prev) => [...prev, assistantMessage]);
                 }
                 // Handle simple text response (fallback)
                 else if (data.response) {
-                    const assistantMessage: MultiStepToolUIMessage = {
+                    pendingResponseRef.current = {
                         id: (Date.now() + 1).toString(),
                         role: "assistant",
                         parts: [
@@ -300,11 +304,10 @@ export default function ChatPage() {
                             },
                         ],
                     };
-                    setMessages((prev) => [...prev, assistantMessage]);
                 }
                 // Handle error
                 else {
-                    const errorMessage: MultiStepToolUIMessage = {
+                    pendingResponseRef.current = {
                         id: (Date.now() + 1).toString(),
                         role: "assistant",
                         parts: [
@@ -314,10 +317,9 @@ export default function ChatPage() {
                             },
                         ],
                     };
-                    setMessages((prev) => [...prev, errorMessage]);
                 }
             } catch {
-                const errorMessage: MultiStepToolUIMessage = {
+                pendingResponseRef.current = {
                     id: (Date.now() + 1).toString(),
                     role: "assistant",
                     parts: [
@@ -327,9 +329,24 @@ export default function ChatPage() {
                         },
                     ],
                 };
-                setMessages((prev) => [...prev, errorMessage]);
             } finally {
-                setStatus("ready");
+                // Ensure minimum 2 seconds display time for thinking indicator
+                const elapsed = Date.now() - loadingStartTimeRef.current;
+                const minDisplayTime = 2000;
+                const remainingTime = Math.max(0, minDisplayTime - elapsed);
+
+                // Capture pending response before timeout
+                const pendingResponse = pendingResponseRef.current;
+                pendingResponseRef.current = null;
+
+                setTimeout(() => {
+                    // Add the pending response after thinking indicator hides
+                    if (pendingResponse) {
+                        setMessages((prev) => [...prev, pendingResponse]);
+                    }
+                    setShowThinking(false);
+                    setStatus("ready");
+                }, remainingTime);
             }
         },
         [status, sessionId, privy],
@@ -593,11 +610,11 @@ export default function ChatPage() {
                                     </div>
                                 ))}
 
-                                {/* Loading indicator */}
-                                {status === "submitted" && (
-                                    <div className="px-6 py-8 lg:px-12 flex items-center justify-center">
-                                        <Loader />
-                                    </div>
+                                {/* Loading/Thinking indicator */}
+                                {showThinking && (
+                                    <ThinkingMessage
+                                        status={status === "streaming" ? "streaming" : "submitted"}
+                                    />
                                 )}
                             </ConversationContent>
                         </Conversation>
@@ -625,15 +642,26 @@ export default function ChatPage() {
                         )}
 
                         {/* Input */}
-                        <div className="shrink-0 border-border border-t">
+                        <div
+                            className={`shrink-0 border-border border-t transition-colors ${
+                                status !== "ready" ? "bg-lavender/10" : ""
+                            }`}
+                        >
                             <PromptInput onSubmit={handleSubmit}>
                                 <PromptInputTextarea
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
-                                    placeholder="Ask Sigil anything..."
+                                    placeholder={
+                                        status === "ready"
+                                            ? "Ask Sigil anything..."
+                                            : status === "submitted"
+                                              ? "Connecting to Sigil..."
+                                              : "Sigil is thinking..."
+                                    }
                                     disabled={status !== "ready"}
                                 />
                                 <PromptInputToolbar>
+                                    <PromptInputStatus status={status} />
                                     <PromptInputTools className="ml-auto">
                                         <PromptInputSubmit disabled={!input.trim()} status={status} />
                                     </PromptInputTools>

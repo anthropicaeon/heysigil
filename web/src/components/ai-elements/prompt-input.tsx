@@ -6,12 +6,10 @@
  * Chat input with suggestions and submit button, border-centric design.
  */
 
-import { ArrowUp } from "lucide-react";
+import { ArrowUp, Loader2, StopCircle } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
-
-import { Loader } from "./loader";
 
 interface PromptInputProps {
     children: ReactNode;
@@ -101,22 +99,68 @@ export function PromptInputTools({ children, className }: PromptInputToolsProps)
 interface PromptInputSubmitProps {
     disabled?: boolean;
     status?: "ready" | "streaming" | "submitted";
+    onStop?: () => void;
     className?: string;
 }
 
-export function PromptInputSubmit({ disabled, status, className }: PromptInputSubmitProps) {
+export function PromptInputSubmit({ disabled, status, onStop, className }: PromptInputSubmitProps) {
     const isLoading = status === "streaming" || status === "submitted";
+
+    // When loading with stop handler, show stop button
+    if (isLoading && onStop) {
+        return (
+            <button
+                type="button"
+                onClick={onStop}
+                className={cn(
+                    "size-10 flex items-center justify-center border border-border bg-destructive text-destructive-foreground transition-colors hover:bg-destructive/90",
+                    className,
+                )}
+            >
+                <StopCircle className="size-5" />
+            </button>
+        );
+    }
 
     return (
         <button
             type="submit"
             disabled={disabled || isLoading}
             className={cn(
-                "size-10 flex items-center justify-center border border-border bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed",
+                "size-10 flex items-center justify-center border border-border transition-all",
+                isLoading
+                    ? "bg-lavender/50 text-primary cursor-wait"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90",
+                (disabled || isLoading) && "opacity-50 cursor-not-allowed",
                 className,
             )}
         >
-            {isLoading ? <Loader className="size-4" /> : <ArrowUp className="size-5" />}
+            {isLoading ? (
+                <Loader2 className="size-5 animate-spin" />
+            ) : (
+                <ArrowUp className="size-5" />
+            )}
         </button>
+    );
+}
+
+/**
+ * Status indicator to show processing state inline
+ */
+interface PromptInputStatusProps {
+    status: "ready" | "streaming" | "submitted";
+    className?: string;
+}
+
+export function PromptInputStatus({ status, className }: PromptInputStatusProps) {
+    if (status === "ready") return null;
+
+    const statusText = status === "submitted" ? "connecting..." : "thinking...";
+
+    return (
+        <div className={cn("flex items-center gap-2 text-xs text-muted-foreground", className)}>
+            <Loader2 className="size-3 animate-spin" />
+            <span>{statusText}</span>
+        </div>
     );
 }
