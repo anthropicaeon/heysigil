@@ -43,8 +43,8 @@ const formFields = [
 
 export default function ContactForm() {
     return (
-        <section className="bg-obsidian relative overflow-hidden px-2.5 lg:px-0">
-            <div className="container px-0">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="container px-0 bg-obsidian">
                 <div className="border-b-dark-gray border-r-dark-gray border-l-dark-gray border-r border-b border-l">
                     <div className="md:grid md:grid-cols-[80px_minmax(0,1fr)_80px]">
                         <div className="border-r-dark-gray hidden w-[80px] border-r md:block"></div>

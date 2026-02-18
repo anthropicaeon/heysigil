@@ -25,8 +25,8 @@ const problems = [
 
 export default function SigilContext() {
     return (
-        <section className="bg-rose relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r border-b px-0">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r border-b px-0 bg-rose">
                 {/* Header */}
                 <div className="border-border border-b px-6 py-8 lg:px-12 lg:py-10">
                     <div className="max-w-3xl">

@@ -128,8 +128,8 @@ const faqItems: FAQItem[] = [
 
 export const FAQPage = () => {
     return (
-        <section className="bg-obsidian relative overflow-hidden px-2.5 lg:px-0">
-            <div className="container px-0">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="container px-0 bg-obsidian">
                 <div className="bg-jet border-dark-gray border border-t-0">
                     <div className="px-6 py-12 text-center md:py-32">
                         <h1 className="text-foreground text-4xl font-medium tracking-tight sm:text-5xl">

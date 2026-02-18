@@ -71,8 +71,8 @@ const ITEMS = [
 
 export default function Logos() {
     return (
-        <section className="bg-obsidian overflow-hidden px-2.5 lg:px-0">
-            <div className="border-dark-gray bg-jet container overflow-hidden border py-12 text-center md:py-20">
+        <section className="bg-background overflow-hidden px-2.5 lg:px-0">
+            <div className="border-dark-gray bg-jet container overflow-hidden border py-12 text-center md:py-20 bg-obsidian">
                 <h2 className="text-foreground text-2xl tracking-tight text-balance md:text-4xl lg:text-5xl">
                     Powering the world&apos;s best.
                 </h2>

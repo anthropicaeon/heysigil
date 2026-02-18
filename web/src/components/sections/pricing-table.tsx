@@ -134,8 +134,8 @@ export default function PricingTable() {
     const [selectedPlan, setSelectedPlan] = useState(1);
 
     return (
-        <section className="bg-obsidian px-2.5 lg:px-0">
-            <div className="border-dark-gray container border border-t-0 px-0">
+        <section className="bg-background px-2.5 lg:px-0">
+            <div className="border-dark-gray container border border-t-0 px-0 bg-obsidian">
                 <Header selectedPlan={selectedPlan} onPlanChange={setSelectedPlan} />
                 <div>
                     {featureSections.map((sec, i) => (

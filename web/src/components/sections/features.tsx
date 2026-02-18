@@ -48,8 +48,8 @@ const ITEMS: ItemType[] = [
 ];
 
 export const Features = () => (
-    <section className="bg-obsidian overflow-hidden px-2.5 md:px-0">
-        <div className="border-dark-gray relative container border border-t-0 border-b-0 px-0">
+    <section className="bg-background overflow-hidden px-2.5 md:px-0">
+        <div className="border-dark-gray relative container border border-t-0 border-b-0 px-0 bg-obsidian">
             <div className="grid grid-cols-1 md:grid-cols-3">
                 {ITEMS.map((item, i) => (
                     <Item key={i} {...item} index={i} />

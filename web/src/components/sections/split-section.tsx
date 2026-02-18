@@ -22,8 +22,8 @@ export default function SplitSection({
         side === "R" ? "md:border-l md:border-l-dark-gray" : "md:border-r md:border-r-dark-gray";
 
     return (
-        <section className="bg-obsidian px-2.5 lg:px-0">
-            <div className="bg-jet border-dark-gray container border border-t-0 p-0">
+        <section className="bg-background px-2.5 lg:px-0">
+            <div className="bg-obsidian border-dark-gray container border border-t-0 p-0">
                 <div className={cn("flex flex-col items-center", order)}>
                     <div
                         className={cn(

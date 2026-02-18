@@ -93,8 +93,8 @@ export default function TeamCarousel() {
     }, [api]);
 
     return (
-        <section className="bg-obsidian overflow-hidden px-2.5 lg:px-0">
-            <div className="container p-0">
+        <section className="bg-background overflow-hidden px-2.5 lg:px-0">
+            <div className="container p-0 bg-obsidian">
                 <Carousel
                     opts={{
                         align: "start",

@@ -36,7 +36,7 @@ export function ConversationContent({ children, className }: ConversationContent
     });
 
     return (
-        <div ref={ref} className={cn("flex-1 overflow-y-auto divide-y divide-border", className)}>
+        <div ref={ref} className={cn("flex-1 overflow-y-auto scrollbar-hide divide-y divide-border", className)}>
             {children}
         </div>
     );

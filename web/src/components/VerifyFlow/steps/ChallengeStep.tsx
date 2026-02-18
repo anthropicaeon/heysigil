@@ -2,12 +2,16 @@
  * ChallengeStep Component
  *
  * Step 3: Display challenge instructions and verify.
- * Updated with pastel design system.
+ * Border-centric design with proper section headers and divided lists.
  */
 
-import { ArrowLeft } from "lucide-react";
+"use client";
+
+import { ArrowLeft, Copy, Check } from "lucide-react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 import type { ChallengeResponse } from "../types";
 
@@ -20,46 +24,83 @@ interface ChallengeStepProps {
 }
 
 export function ChallengeStep({ challenge, loading, error, onBack, onCheck }: ChallengeStepProps) {
+    const [copied, setCopied] = useState(false);
+
+    const copyCode = async () => {
+        await navigator.clipboard.writeText(challenge.challengeCode);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
     return (
         <div className="bg-background">
-            <div className="border-border border-b px-6 py-6 lg:px-12">
-                <h2 className="text-lg font-semibold text-foreground lowercase">
-                    complete verification
+            {/* Section Header */}
+            <div className="px-6 py-3 lg:px-12 border-b border-border bg-secondary/30">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Step 3 — Complete Verification
+                </span>
+            </div>
+
+            {/* Title Section */}
+            <div className="px-6 py-6 lg:px-12 border-b border-border">
+                <h2 className="text-lg font-semibold text-foreground lowercase mb-1">
+                    follow the instructions
                 </h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                    Follow these instructions, then click &quot;Check Verification&quot;
+                <p className="text-sm text-muted-foreground">
+                    Complete the steps below, then click &quot;Check Verification&quot;
                 </p>
             </div>
 
-            <div className="border-border border-b">
-                <div className="px-6 py-3 lg:px-12 border-border border-b bg-lavender/30">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                        Instructions
-                    </span>
-                </div>
-                <div className="px-6 py-6 lg:px-12">
-                    <p className="text-foreground leading-relaxed whitespace-pre-wrap">
-                        {challenge.instructions}
-                    </p>
-                </div>
+            {/* Instructions Section */}
+            <div className="px-6 py-2 lg:px-12 border-b border-border bg-lavender/30">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Instructions
+                </span>
+            </div>
+            <div className="px-6 py-6 lg:px-12 border-b border-border">
+                <p className="text-foreground leading-relaxed whitespace-pre-wrap">
+                    {challenge.instructions}
+                </p>
             </div>
 
-            <div className="px-6 py-4 lg:px-12 border-border border-b bg-secondary/30">
-                <p className="text-sm text-muted-foreground">
-                    Challenge code:{" "}
-                    <code className="font-mono bg-background border border-border px-2 py-1">
+            {/* Challenge Code Section */}
+            <div className="px-6 py-2 lg:px-12 border-b border-border bg-sage/20">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Challenge Code
+                </span>
+            </div>
+            <div className="px-6 py-4 lg:px-12 border-b border-border">
+                <div className="flex items-center gap-3">
+                    <code className="flex-1 font-mono bg-cream/30 border border-border px-4 py-3 text-foreground">
                         {challenge.challengeCode}
                     </code>
-                </p>
+                    <button
+                        type="button"
+                        onClick={copyCode}
+                        className={cn(
+                            "size-10 flex items-center justify-center border border-border transition-colors",
+                            copied ? "bg-sage/50 text-primary" : "bg-secondary/30 hover:bg-secondary/50 text-muted-foreground"
+                        )}
+                        title="Copy code"
+                    >
+                        {copied ? (
+                            <Check className="size-4" />
+                        ) : (
+                            <Copy className="size-4" />
+                        )}
+                    </button>
+                </div>
             </div>
 
+            {/* Error State */}
             {error && (
-                <div className="px-6 py-4 lg:px-12 bg-rose/30 border-border border-t border-b">
+                <div className="px-6 py-4 lg:px-12 bg-red-50 border-b border-border">
                     <p className="text-sm text-red-700">{error}</p>
                 </div>
             )}
 
-            <div className="border-border border-t px-6 py-6 lg:px-12 flex gap-3">
+            {/* Actions */}
+            <div className="px-6 py-6 lg:px-12 bg-sage/10 flex gap-3">
                 <Button variant="outline" onClick={onBack}>
                     <ArrowLeft className="size-4 mr-2" />
                     Back

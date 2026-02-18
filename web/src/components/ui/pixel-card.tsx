@@ -165,6 +165,10 @@ interface PixelCardProps {
     speed?: number;
     colors?: string;
     noFocus?: boolean;
+    /** Keep pixels always visible (for selected states) */
+    active?: boolean;
+    /** Apply radial fade towards center */
+    centerFade?: boolean;
     className?: string;
     children?: React.ReactNode;
 }
@@ -183,6 +187,8 @@ export function PixelCard({
     speed,
     colors,
     noFocus,
+    active = false,
+    centerFade = false,
     className = "",
     children,
 }: PixelCardProps) {
@@ -192,6 +198,7 @@ export function PixelCard({
     const animationRef = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
     const timePreviousRef = useRef(0);
     const reducedMotionRef = useRef(false);
+    const isActiveRef = useRef(false);
 
     const variantCfg: VariantConfig = VARIANTS[variant] || VARIANTS.default;
     const finalGap = gap ?? variantCfg.gap;
@@ -279,7 +286,10 @@ export function PixelCard({
     };
 
     const onMouseEnter = () => handleAnimation("appear");
-    const onMouseLeave = () => handleAnimation("disappear");
+    const onMouseLeave = () => {
+        // Don't disappear if active prop is set
+        if (!active) handleAnimation("disappear");
+    };
     const onFocus: React.FocusEventHandler<HTMLDivElement> = (e) => {
         if (e.currentTarget.contains(e.relatedTarget)) return;
         handleAnimation("appear");
@@ -291,8 +301,24 @@ export function PixelCard({
 
     useEffect(() => {
         initPixels();
+
+        // If active, trigger appear animation after pixels are initialized
+        if (active) {
+            isActiveRef.current = true;
+            // Use requestAnimationFrame to ensure pixels are ready
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    handleAnimation("appear");
+                });
+            });
+        }
+
         const observer = new ResizeObserver(() => {
             initPixels();
+            // Re-trigger appear if active after resize
+            if (active) {
+                requestAnimationFrame(() => handleAnimation("appear"));
+            }
         });
         if (containerRef.current) {
             observer.observe(containerRef.current);
@@ -304,7 +330,22 @@ export function PixelCard({
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [finalGap, finalSpeed, finalColors, finalNoFocus]);
+    }, [finalGap, finalSpeed, finalColors, finalNoFocus, active]);
+
+    // Handle active prop changes after initial mount
+    useEffect(() => {
+        // Skip initial mount (handled above)
+        if (!pixelsRef.current.length) return;
+
+        if (active && !isActiveRef.current) {
+            isActiveRef.current = true;
+            handleAnimation("appear");
+        } else if (!active && isActiveRef.current) {
+            isActiveRef.current = false;
+            handleAnimation("disappear");
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [active]);
 
     return (
         <div
@@ -319,7 +360,20 @@ export function PixelCard({
             onBlur={finalNoFocus ? undefined : onBlur}
             tabIndex={finalNoFocus ? -1 : 0}
         >
-            <canvas className="absolute inset-0 w-full h-full pointer-events-none" ref={canvasRef} />
+            {/* Pixel canvas - behind everything */}
+            <canvas
+                className="absolute inset-0 w-full h-full pointer-events-none opacity-60 -z-10"
+                ref={canvasRef}
+            />
+            {/* Radial fade overlay - fades pixels towards center, behind content */}
+            {centerFade && (
+                <div
+                    className="absolute inset-0 pointer-events-none -z-10"
+                    style={{
+                        background: "radial-gradient(ellipse at center, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.5) 50%, transparent 80%)",
+                    }}
+                />
+            )}
             {children}
         </div>
     );

@@ -1,10 +1,19 @@
 import Image from "next/image";
 
+import { PixelCard } from "@/components/ui/pixel-card";
+
 export default function SigilInfrastructure() {
     return (
-        <section className="bg-lavender relative overflow-hidden px-2.5 lg:px-0">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r border-b px-0">
-                <div className="flex flex-col lg:flex-row">
+                <PixelCard
+                    variant="lavender"
+                    active
+                    centerFade
+                    noFocus
+                    className="bg-lavender/30"
+                >
+                    <div className="flex flex-col lg:flex-row">
                     {/* Text */}
                     <div className="flex-1 border-border border-b lg:border-b-0 lg:border-r p-8 lg:p-12">
                         <Image
@@ -44,7 +53,8 @@ export default function SigilInfrastructure() {
                             </video>
                         </div>
                     </div>
-                </div>
+                    </div>
+                </PixelCard>
             </div>
         </section>
     );

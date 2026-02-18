@@ -65,8 +65,8 @@ export default function GovernanceDashboard() {
 
     if (selectedProposal) {
         return (
-            <section className="min-h-screen bg-sage relative overflow-hidden px-2.5 lg:px-0">
-                <div className="border-border relative container border-l border-r min-h-screen px-0">
+            <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
+                <div className="border-border relative container border-l border-r min-h-screen px-0 bg-sage">
                     <ProposalDetail
                         proposal={selectedProposal}
                         onBack={() => setSelectedProposal(null)}
@@ -77,8 +77,8 @@ export default function GovernanceDashboard() {
     }
 
     return (
-        <section className="min-h-screen bg-sage relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0">
+        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-screen px-0 bg-sage">
                 <GovernanceHeader proposals={proposals} escrowBalance="0" />
                 <ProposalFilter
                     activeTab={activeTab}

@@ -149,8 +149,8 @@ export default function StatusPage() {
     const allOperational = systems.every((s) => s.status === "operational");
 
     return (
-        <section className="min-h-screen bg-cream relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0">
+        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-screen px-0 bg-cream">
                 {/* Header with Overall Status */}
                 <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 bg-background">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">

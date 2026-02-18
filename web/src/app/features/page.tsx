@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PixelCard } from "@/components/ui/pixel-card";
 import { cn } from "@/lib/utils";
 
 const features = [
@@ -66,10 +67,16 @@ const channels = [
 
 export default function FeaturesPage() {
     return (
-        <section className="min-h-screen bg-lavender relative overflow-hidden px-2.5 lg:px-0">
+        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r min-h-screen px-0">
                 {/* Hero */}
-                <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-20">
+                <PixelCard
+                    variant="lavender"
+                    active
+                    centerFade
+                    noFocus
+                    className="border-border border-b px-6 py-12 lg:px-12 lg:py-20 bg-lavender/30"
+                >
                     <div className="max-w-3xl mx-auto text-center">
                         <p className="text-primary text-sm font-medium uppercase tracking-wider mb-4">
                             features
@@ -90,7 +97,7 @@ export default function FeaturesPage() {
                             </Button>
                         </Link>
                     </div>
-                </div>
+                </PixelCard>
 
                 {/* Channels Row */}
                 <div className="flex flex-col sm:flex-row border-border border-b bg-background">

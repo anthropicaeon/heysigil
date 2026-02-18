@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 
 export default function SigilAudience() {
     return (
-        <section className="bg-cream relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r border-b px-0">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r border-b px-0 bg-cream">
                 {/* Header */}
                 <div className="border-border border-b px-6 py-12 lg:px-12 text-center">
                     <p className="text-primary text-sm font-medium uppercase tracking-wider">

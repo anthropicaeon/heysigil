@@ -2,7 +2,7 @@
  * DetailsStep Component
  *
  * Step 2: Enter project ID and wallet address.
- * Updated with pastel design system.
+ * Border-centric design with proper section headers and divided lists.
  */
 
 import { ArrowLeft } from "lucide-react";
@@ -50,16 +50,26 @@ export function DetailsStep({
 
     return (
         <div className="bg-background">
-            <div className="border-border border-b px-6 py-6 lg:px-12">
-                <h2 className="text-lg font-semibold text-foreground lowercase">project details</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                    Enter your project information and fee routing address
+            {/* Section Header */}
+            <div className="px-6 py-3 lg:px-12 border-b border-border bg-secondary/30">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Step 2 — Project Details
+                </span>
+            </div>
+
+            {/* Title Section */}
+            <div className="px-6 py-6 lg:px-12 border-b border-border">
+                <h2 className="text-lg font-semibold text-foreground lowercase mb-1">
+                    enter project information
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                    Provide your project identifier and fee routing address
                 </p>
             </div>
 
             {/* GitHub Verified Badge */}
             {hasPrivyGithub && (
-                <div className="border-border border-b px-6 py-3 lg:px-12 bg-sage/50">
+                <div className="px-6 py-3 lg:px-12 border-b border-border bg-sage/30">
                     <div className="flex items-center gap-2 text-sm">
                         <span className="text-primary font-medium">✓</span>
                         <span className="text-foreground">
@@ -70,81 +80,79 @@ export function DetailsStep({
                 </div>
             )}
 
-            {/* Project Identifier */}
-            <div className="border-border border-b">
-                <div className="px-6 py-3 lg:px-12 border-border border-b bg-secondary/30">
-                    <label
-                        htmlFor="project"
-                        className="text-xs text-muted-foreground uppercase tracking-wider"
-                    >
-                        Project Identifier
-                    </label>
-                </div>
-                <div className="px-6 py-4 lg:px-12">
-                    <Input
-                        id="project"
-                        placeholder={method.projectIdFormat}
-                        value={projectId}
-                        onChange={(e) => {
-                            let val = e.target.value.trim();
-                            // Auto-fix GitHub URLs → owner/repo
-                            if (method.id === "github_oauth" || method.id === "github_file") {
-                                val = val
-                                    .replace(/^https?:\/\/(www\.)?github\.com\//, "")
-                                    .replace(/\.git$/, "")
-                                    .replace(/\/+$/, "");
-                            }
-                            onProjectIdChange(val);
-                        }}
-                    />
-                    <p className="text-xs text-muted-foreground mt-2">
-                        Format: {method.projectIdFormat}
-                    </p>
-                </div>
+            {/* Project Identifier Section */}
+            <div className="px-6 py-2 lg:px-12 border-b border-border bg-sage/20">
+                <label
+                    htmlFor="project"
+                    className="text-xs text-muted-foreground uppercase tracking-wider"
+                >
+                    Project Identifier
+                </label>
+            </div>
+            <div className="px-6 py-4 lg:px-12 border-b border-border">
+                <Input
+                    id="project"
+                    placeholder={method.projectIdFormat}
+                    value={projectId}
+                    onChange={(e) => {
+                        let val = e.target.value.trim();
+                        // Auto-fix GitHub URLs → owner/repo
+                        if (method.id === "github_oauth" || method.id === "github_file") {
+                            val = val
+                                .replace(/^https?:\/\/(www\.)?github\.com\//, "")
+                                .replace(/\.git$/, "")
+                                .replace(/\/+$/, "");
+                        }
+                        onProjectIdChange(val);
+                    }}
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                    Format: <code className="bg-secondary/50 px-1.5 py-0.5">{method.projectIdFormat}</code>
+                </p>
             </div>
 
-            {/* Wallet Address */}
-            <div className="border-border border-b">
-                <div className="px-6 py-3 lg:px-12 border-border border-b bg-secondary/30">
-                    <label
-                        htmlFor="wallet"
-                        className="text-xs text-muted-foreground uppercase tracking-wider"
-                    >
-                        Wallet Address
-                    </label>
-                </div>
-                <div className="px-6 py-4 lg:px-12">
-                    {isConnected && connectedAddress ? (
-                        <div className="py-2.5 px-3 border border-border bg-sage/30 font-mono text-sm text-foreground">
-                            {connectedAddress}
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            <Input
-                                id="wallet"
-                                placeholder="0x..."
-                                value={walletAddress}
-                                onChange={(e) => onWalletAddressChange(e.target.value)}
-                                className="font-mono"
-                            />
-                            {privy && !privy.authenticated && (
-                                <Button variant="outline" size="sm" onClick={() => privy.login?.()}>
-                                    Sign In to Auto-fill
-                                </Button>
-                            )}
-                        </div>
-                    )}
-                </div>
+            {/* Wallet Address Section */}
+            <div className="px-6 py-2 lg:px-12 border-b border-border bg-sage/20">
+                <label
+                    htmlFor="wallet"
+                    className="text-xs text-muted-foreground uppercase tracking-wider"
+                >
+                    Wallet Address
+                </label>
+            </div>
+            <div className="px-6 py-4 lg:px-12 border-b border-border">
+                {isConnected && connectedAddress ? (
+                    <div className="py-2.5 px-3 border border-border bg-sage/30 font-mono text-sm text-foreground">
+                        {connectedAddress}
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        <Input
+                            id="wallet"
+                            placeholder="0x..."
+                            value={walletAddress}
+                            onChange={(e) => onWalletAddressChange(e.target.value)}
+                            className="font-mono"
+                        />
+                        {privy && !privy.authenticated && (
+                            <Button variant="outline" size="sm" onClick={() => privy.login?.()}>
+                                Sign In to Auto-fill
+                            </Button>
+                        )}
+                    </div>
+                )}
             </div>
 
-            <div className="px-6 py-4 lg:px-12 bg-sage/30 border-border border-b">
+            {/* Info Note */}
+            <div className="px-6 py-3 lg:px-12 bg-cream/30 border-b border-border">
                 <p className="text-xs text-muted-foreground">
                     Your wallet address is where USDC fees will be routed after verification
                 </p>
             </div>
 
+            {/* Error State */}
             {error && (
-                <div className="px-6 py-4 lg:px-12 bg-rose/30 border-border border-t">
+                <div className="px-6 py-4 lg:px-12 bg-red-50 border-b border-border">
                     <div className="flex items-start justify-between">
                         <p className="text-sm text-red-700">{error}</p>
                         <button
@@ -158,7 +166,8 @@ export function DetailsStep({
                 </div>
             )}
 
-            <div className="border-border border-t px-6 py-6 lg:px-12 flex gap-3">
+            {/* Actions */}
+            <div className="px-6 py-6 lg:px-12 bg-sage/10 flex gap-3">
                 <Button variant="outline" onClick={onBack}>
                     <ArrowLeft className="size-4 mr-2" />
                     Back

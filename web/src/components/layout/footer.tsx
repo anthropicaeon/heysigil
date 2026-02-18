@@ -36,7 +36,7 @@ const legal = [
 
 export const Footer = () => {
     return (
-        <footer className="bg-background text-foreground px-2.5 lg:px-0">
+        <footer id="site-footer" className="bg-background text-foreground px-2.5 lg:px-0">
             <div className="container p-0">
                 <div className="bg-secondary/30 border-dark-gray grid border-r border-l p-0 lg:grid-cols-3">
                     {navigation.map((section) => (

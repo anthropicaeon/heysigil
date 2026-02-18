@@ -63,8 +63,8 @@ const ITEMS = [
 
 export default function Testimonials() {
     return (
-        <section className="bg-obsidian overflow-hidden px-2.5 lg:px-0">
-            <div className="border-dark-gray container flex flex-col items-center justify-center gap-8 overflow-hidden border border-t-0 py-12 text-center md:py-20">
+        <section className="bg-background overflow-hidden px-2.5 lg:px-0">
+            <div className="bg-obsidian border-dark-gray container flex flex-col items-center justify-center gap-8 overflow-hidden border border-t-0 py-12 text-center md:py-20">
                 <h2 className="text-foreground text-2xl tracking-tight text-balance md:text-4xl lg:text-5xl">
                     What Our Customers Are Saying
                 </h2>

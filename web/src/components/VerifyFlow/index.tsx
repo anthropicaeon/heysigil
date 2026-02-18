@@ -7,20 +7,40 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
+import { PixelCard } from "@/components/ui/pixel-card";
 import { useOptionalPrivy, useOptionalWallets } from "@/hooks/useOptionalPrivy";
 import { ApiError } from "@/lib/api-client";
 import { getErrorMessage } from "@/lib/errors";
 import { cn } from "@/lib/utils";
 
+import { RECOMMENDED_METHODS } from "./constants";
 import { type IVerificationService, useVerificationService } from "./hooks/useVerificationService";
 import { ChallengeStep } from "./steps/ChallengeStep";
 import { DetailsStep } from "./steps/DetailsStep";
 import { MethodStep } from "./steps/MethodStep";
 import { ResultStep } from "./steps/ResultStep";
 import type { ChallengeResponse, CheckResult, Method, Step } from "./types";
+
+// Mock data for dev mode
+const MOCK_CHALLENGE: ChallengeResponse = {
+    verificationId: "dev-mock-123",
+    projectId: "heysigil/example-repo",
+    challengeCode: "sigil-verify-abc123xyz",
+    instructions: "1. Go to your repository settings\n2. Add the challenge code to your README.md\n3. Click 'Check Verification' below",
+    method: "github_oauth",
+    walletAddress: "0x1234567890123456789012345678901234567890",
+    expiresAt: new Date(Date.now() + 3600000).toISOString(),
+};
+
+const MOCK_CHECK_RESULT: CheckResult = {
+    verificationId: "dev-mock-123",
+    status: "verified",
+    success: true,
+    attestationUid: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+};
 
 const CHANNELS = [
     { name: "GitHub", method: "OAuth" },
@@ -87,6 +107,46 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
     }, [address]);
 
     const stepIndex = ["method", "details", "challenge", "result"].indexOf(step);
+    const steps: Step[] = ["method", "details", "challenge", "result"];
+
+    // Dev mode: Shift+D to cycle through steps
+    const cycleDevStep = useCallback(() => {
+        const currentIndex = steps.indexOf(step);
+        const nextIndex = (currentIndex + 1) % steps.length;
+        const nextStep = steps[nextIndex];
+
+        // Set up mock data for each step
+        if (nextStep === "details" && !selectedMethod) {
+            setSelectedMethod(RECOMMENDED_METHODS[0]);
+        }
+        if (nextStep === "details" || nextStep === "challenge" || nextStep === "result") {
+            if (!projectId) setProjectId("heysigil/example-repo");
+            if (!walletAddress) setWalletAddress("0x1234567890123456789012345678901234567890");
+        }
+        if (nextStep === "challenge" && !challenge) {
+            setChallenge(MOCK_CHALLENGE);
+        }
+        if (nextStep === "result") {
+            if (!challenge) setChallenge(MOCK_CHALLENGE);
+            if (!checkResult) setCheckResult(MOCK_CHECK_RESULT);
+        }
+
+        setStep(nextStep);
+    }, [step, selectedMethod, projectId, walletAddress, challenge, checkResult, steps]);
+
+    useEffect(() => {
+        if (process.env.NODE_ENV !== "development") return;
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.shiftKey && e.key === "D") {
+                e.preventDefault();
+                cycleDevStep();
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [cycleDevStep]);
 
     async function handleCreateChallenge() {
         if (!selectedMethod || !projectId || !walletAddress) return;
@@ -184,11 +244,26 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
         }
     }
 
+    const isDev = process.env.NODE_ENV === "development";
+
     return (
-        <section className="min-h-screen bg-lavender relative overflow-hidden px-2.5 lg:px-0">
+        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r min-h-screen px-0">
+                {/* Dev Mode Indicator */}
+                {isDev && (
+                    <div className="absolute top-2 right-2 z-50 px-2 py-1 bg-primary/90 text-primary-foreground text-xs font-mono">
+                        Shift+D: cycle steps
+                    </div>
+                )}
+
                 {/* Channels Bar */}
-                <div className="flex flex-col sm:flex-row bg-background border-border border-b">
+                <PixelCard
+                    variant="lavender"
+                    active
+                    centerFade
+                    noFocus
+                    className="flex flex-col sm:flex-row bg-lavender/30 border-border border-b"
+                >
                     {CHANNELS.map((channel) => (
                         <div
                             key={channel.name}
@@ -205,7 +280,7 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                             </Badge>
                         </div>
                     ))}
-                </div>
+                </PixelCard>
 
                 {/* Flow Visualization */}
                 <div className="border-border border-b px-6 py-8 lg:px-12 lg:py-12 bg-background">
