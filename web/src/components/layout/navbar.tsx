@@ -25,8 +25,8 @@ import {
     NavigationMenuList,
     NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
-import { cn } from "@/lib/utils";
 import { getUserDisplay, useOptionalPrivy } from "@/hooks/useOptionalPrivy";
+import { cn } from "@/lib/utils";
 
 const Navbar = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);

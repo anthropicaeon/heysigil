@@ -1,3 +1,15 @@
+import {
+    ArrowLeft,
+    Calendar,
+    CheckCircle,
+    Clock,
+    Github,
+    Globe,
+    Instagram,
+    Shield,
+    Twitter,
+    User,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -5,23 +17,43 @@ export default function VerificationGuidePage() {
     return (
         <article className="min-h-screen bg-cream relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r min-h-screen px-0">
+                {/* Back Navigation */}
+                <div className="border-border border-b px-6 py-4 lg:px-12 bg-lavender/30">
+                    <Link
+                        href="/blog"
+                        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <ArrowLeft className="size-4" />
+                        Back to Blog
+                    </Link>
+                </div>
+
                 {/* Header */}
-                <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16">
+                <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 bg-background">
                     <p className="text-primary text-sm font-medium uppercase tracking-wider mb-4">
                         Guide
                     </p>
-                    <h1 className="text-3xl lg:text-4xl font-semibold text-foreground mb-4">
-                        Complete Guide to Multi-Channel Verification
+                    <h1 className="text-3xl lg:text-4xl font-semibold text-foreground mb-4 lowercase">
+                        complete guide to multi-channel verification
                     </h1>
                     <p className="text-muted-foreground max-w-3xl mb-6">
                         A step-by-step walkthrough of verifying your identity across all 5 Sigil
                         channels, earning your onchain attestation, and maximizing your verification
                         score.
                     </p>
-                    <div className="flex gap-6 text-sm text-muted-foreground">
-                        <span>Sigil Team</span>
-                        <span>Feb 10, 2026</span>
-                        <span>8-10 min read</span>
+                    <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1.5">
+                            <User className="size-4" />
+                            Sigil Team
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                            <Calendar className="size-4" />
+                            Feb 10, 2026
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                            <Clock className="size-4" />
+                            8-10 min read
+                        </span>
                     </div>
                 </div>
 
@@ -37,183 +69,355 @@ export default function VerificationGuidePage() {
                 </div>
 
                 {/* Content */}
-                <div className="px-6 py-12 lg:px-12 lg:py-16 max-w-3xl">
-                    <div className="prose prose-lg prose-neutral dark:prose-invert">
-                        <h2>Understanding Verification Score</h2>
-                        <p>
-                            Your verification score (1-5) represents the number of channels
-                            you&apos;ve successfully verified. Higher scores unlock:
-                        </p>
-                        <ul>
-                            <li>Greater fee routing allocations</li>
-                            <li>More governance weight</li>
-                            <li>Priority access to new features</li>
-                            <li>Enhanced credibility with communities</li>
-                        </ul>
+                <div className="border-border border-b bg-background">
+                    <div className="px-6 py-12 lg:px-12 lg:py-16 max-w-3xl">
+                        {/* Section: Understanding Score */}
+                        <section className="mb-12">
+                            <h2 className="text-2xl font-semibold text-foreground mb-4 lowercase">
+                                understanding verification score
+                            </h2>
+                            <p className="text-muted-foreground mb-4">
+                                Your verification score (1-5) represents the number of channels
+                                you&apos;ve successfully verified. Higher scores unlock:
+                            </p>
+                            <div className="grid sm:grid-cols-2 gap-3">
+                                <div className="border border-border px-4 py-3 bg-sage/10 flex items-center gap-3">
+                                    <CheckCircle className="size-5 text-primary shrink-0" />
+                                    <span className="text-sm text-foreground">
+                                        Greater fee routing allocations
+                                    </span>
+                                </div>
+                                <div className="border border-border px-4 py-3 bg-sage/10 flex items-center gap-3">
+                                    <CheckCircle className="size-5 text-primary shrink-0" />
+                                    <span className="text-sm text-foreground">
+                                        More governance weight
+                                    </span>
+                                </div>
+                                <div className="border border-border px-4 py-3 bg-sage/10 flex items-center gap-3">
+                                    <CheckCircle className="size-5 text-primary shrink-0" />
+                                    <span className="text-sm text-foreground">
+                                        Priority access to new features
+                                    </span>
+                                </div>
+                                <div className="border border-border px-4 py-3 bg-sage/10 flex items-center gap-3">
+                                    <CheckCircle className="size-5 text-primary shrink-0" />
+                                    <span className="text-sm text-foreground">
+                                        Enhanced credibility
+                                    </span>
+                                </div>
+                            </div>
+                        </section>
 
-                        <h2>Channel 1: GitHub Verification</h2>
-                        <p>
-                            <strong>What it proves:</strong> Your code contributions and developer
-                            identity
-                        </p>
-                        <p>
-                            <strong>How it works:</strong>
-                        </p>
-                        <ol>
-                            <li>Click &quot;Verify GitHub&quot; on the verification page</li>
-                            <li>Authorize Sigil&apos;s OAuth app (read-only access)</li>
-                            <li>We verify account ownership and extract your username</li>
-                            <li>Attestation is created with your verified GitHub handle</li>
-                        </ol>
-                        <p>
-                            <strong>Tips:</strong>
-                        </p>
-                        <ul>
-                            <li>Use your primary development account</li>
-                            <li>Account age and contributions are visible onchain</li>
-                            <li>You can unlink OAuth access after verification</li>
-                        </ul>
+                        {/* Channel Cards */}
+                        <section className="mb-12">
+                            <h2 className="text-2xl font-semibold text-foreground mb-6 lowercase">
+                                verification channels
+                            </h2>
 
-                        <h2>Channel 2: X (Twitter) Verification via zkTLS</h2>
-                        <p>
-                            <strong>What it proves:</strong> Your social presence without OAuth
-                        </p>
-                        <p>
-                            <strong>How it works:</strong>
-                        </p>
-                        <ol>
-                            <li>Click &quot;Verify X&quot;</li>
-                            <li>Install the browser extension (one-time)</li>
-                            <li>Navigate to your X profile</li>
-                            <li>Extension generates a zkTLS proof of your handle</li>
-                            <li>Proof is verified and attestation created</li>
-                        </ol>
-                        <p>
-                            <strong>Why zkTLS?</strong>
-                        </p>
-                        <ul>
-                            <li>No OAuth required—X doesn&apos;t need to approve us</li>
-                            <li>Cryptographic proof of your actual profile</li>
-                            <li>Privacy-preserving: we only see what you choose to prove</li>
-                        </ul>
+                            {/* Channel 1: GitHub */}
+                            <div className="border border-border mb-4">
+                                <div className="px-4 py-3 bg-sage/20 border-b border-border flex items-center gap-3">
+                                    <div className="size-10 bg-background border border-border flex items-center justify-center">
+                                        <Github className="size-5 text-foreground" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-medium text-foreground">
+                                            Channel 1: GitHub
+                                        </h3>
+                                        <p className="text-xs text-muted-foreground">
+                                            Proves your code contributions
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="p-4">
+                                    <p className="text-sm text-muted-foreground mb-3">
+                                        How it works:
+                                    </p>
+                                    <div className="border border-border divide-y divide-border mb-4">
+                                        <div className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                                            <span className="size-5 bg-primary/10 text-primary text-xs flex items-center justify-center">
+                                                1
+                                            </span>
+                                            Click &quot;Verify GitHub&quot; on the verification page
+                                        </div>
+                                        <div className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                                            <span className="size-5 bg-primary/10 text-primary text-xs flex items-center justify-center">
+                                                2
+                                            </span>
+                                            Authorize Sigil&apos;s OAuth app (read-only)
+                                        </div>
+                                        <div className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                                            <span className="size-5 bg-primary/10 text-primary text-xs flex items-center justify-center">
+                                                3
+                                            </span>
+                                            Attestation created with your verified handle
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        <strong>Tip:</strong> Use your primary development account.
+                                        You can unlink OAuth access after verification.
+                                    </p>
+                                </div>
+                            </div>
 
-                        <h2>Channel 3: Facebook Verification</h2>
-                        <p>
-                            <strong>What it proves:</strong> Your real-world identity
-                        </p>
-                        <p>
-                            <strong>How it works:</strong>
-                        </p>
-                        <ol>
-                            <li>Click &quot;Verify Facebook&quot;</li>
-                            <li>Log in via Facebook OAuth</li>
-                            <li>We verify account ownership (read-only)</li>
-                            <li>Attestation links your wallet to your Facebook identity</li>
-                        </ol>
-                        <p>
-                            <strong>Privacy note:</strong>
-                        </p>
-                        <ul>
-                            <li>We don&apos;t store or post to your Facebook</li>
-                            <li>Only profile ownership is verified</li>
-                            <li>You control what&apos;s public via Facebook settings</li>
-                        </ul>
+                            {/* Channel 2: X/Twitter */}
+                            <div className="border border-border mb-4">
+                                <div className="px-4 py-3 bg-lavender/20 border-b border-border flex items-center gap-3">
+                                    <div className="size-10 bg-background border border-border flex items-center justify-center">
+                                        <Twitter className="size-5 text-foreground" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-medium text-foreground">
+                                            Channel 2: X (Twitter) via zkTLS
+                                        </h3>
+                                        <p className="text-xs text-muted-foreground">
+                                            Proves social presence without OAuth
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="p-4">
+                                    <p className="text-sm text-muted-foreground mb-3">
+                                        How it works:
+                                    </p>
+                                    <div className="border border-border divide-y divide-border mb-4">
+                                        <div className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                                            <span className="size-5 bg-primary/10 text-primary text-xs flex items-center justify-center">
+                                                1
+                                            </span>
+                                            Install browser extension (one-time)
+                                        </div>
+                                        <div className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                                            <span className="size-5 bg-primary/10 text-primary text-xs flex items-center justify-center">
+                                                2
+                                            </span>
+                                            Navigate to your X profile
+                                        </div>
+                                        <div className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                                            <span className="size-5 bg-primary/10 text-primary text-xs flex items-center justify-center">
+                                                3
+                                            </span>
+                                            Extension generates zkTLS proof
+                                        </div>
+                                        <div className="px-3 py-2 text-sm text-muted-foreground flex items-center gap-2">
+                                            <span className="size-5 bg-primary/10 text-primary text-xs flex items-center justify-center">
+                                                4
+                                            </span>
+                                            Proof verified, attestation created
+                                        </div>
+                                    </div>
+                                    <div className="bg-lavender/10 border border-border p-3">
+                                        <p className="text-xs text-foreground font-medium mb-1">
+                                            Why zkTLS?
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            No OAuth required—cryptographic proof of your actual
+                                            profile. Privacy-preserving: we only see what you prove.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
 
-                        <h2>Channel 4: Instagram Verification</h2>
-                        <p>
-                            <strong>What it proves:</strong> Your creative and professional work
-                        </p>
-                        <p>
-                            <strong>How it works:</strong>
-                        </p>
-                        <ol>
-                            <li>Click &quot;Verify Instagram&quot;</li>
-                            <li>Connect via Instagram OAuth</li>
-                            <li>Account ownership is verified</li>
-                            <li>Attestation includes your Instagram handle</li>
-                        </ol>
-                        <p>
-                            <strong>Best for:</strong>
-                        </p>
-                        <ul>
-                            <li>Creators with established audiences</li>
-                            <li>Projects with visual portfolios</li>
-                            <li>Influencers and content creators</li>
-                        </ul>
+                            {/* Channel 3: Facebook */}
+                            <div className="border border-border mb-4">
+                                <div className="px-4 py-3 bg-sage/20 border-b border-border flex items-center gap-3">
+                                    <div className="size-10 bg-background border border-border flex items-center justify-center">
+                                        <Shield className="size-5 text-foreground" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-medium text-foreground">
+                                            Channel 3: Facebook
+                                        </h3>
+                                        <p className="text-xs text-muted-foreground">
+                                            Proves real-world identity
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="p-4">
+                                    <p className="text-sm text-muted-foreground mb-3">
+                                        Log in via Facebook OAuth. We verify account ownership
+                                        (read-only) and create attestation linking your wallet to
+                                        your Facebook identity.
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        <strong>Privacy:</strong> We don&apos;t store or post to
+                                        your Facebook. Only profile ownership is verified.
+                                    </p>
+                                </div>
+                            </div>
 
-                        <h2>Channel 5: Domain Verification</h2>
-                        <p>
-                            <strong>What it proves:</strong> You control your project&apos;s web
-                            presence
-                        </p>
-                        <p>
-                            <strong>How it works:</strong>
-                        </p>
-                        <ol>
-                            <li>Enter your domain (e.g., myproject.com)</li>
-                            <li>Add a DNS TXT record with your wallet address</li>
-                            <li>We verify the record exists</li>
-                            <li>Attestation links your wallet to the domain</li>
-                        </ol>
-                        <p>
-                            <strong>Example DNS record:</strong>
-                        </p>
-                        <pre>
-                            <code>sigil-verify=0x1234...abcd</code>
-                        </pre>
-                        <p>
-                            <strong>Verification time:</strong> Usually instant, up to 24 hours for
-                            DNS propagation
-                        </p>
+                            {/* Channel 4: Instagram */}
+                            <div className="border border-border mb-4">
+                                <div className="px-4 py-3 bg-lavender/20 border-b border-border flex items-center gap-3">
+                                    <div className="size-10 bg-background border border-border flex items-center justify-center">
+                                        <Instagram className="size-5 text-foreground" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-medium text-foreground">
+                                            Channel 4: Instagram
+                                        </h3>
+                                        <p className="text-xs text-muted-foreground">
+                                            Proves creative work
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="p-4">
+                                    <p className="text-sm text-muted-foreground mb-3">
+                                        Connect via Instagram OAuth. Account ownership verified,
+                                        attestation includes your Instagram handle.
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        <strong>Best for:</strong> Creators with established
+                                        audiences, projects with visual portfolios, influencers.
+                                    </p>
+                                </div>
+                            </div>
 
-                        <h2>After Verification</h2>
-                        <p>Once verified, your attestation is:</p>
-                        <ul>
-                            <li>
-                                <strong>Permanent</strong> - Stored onchain via EAS on Base
-                            </li>
-                            <li>
-                                <strong>Queryable</strong> - Anyone can verify your credentials
-                            </li>
-                            <li>
-                                <strong>Composable</strong> - Other protocols can integrate your
-                                verification
-                            </li>
-                        </ul>
+                            {/* Channel 5: Domain */}
+                            <div className="border border-border">
+                                <div className="px-4 py-3 bg-sage/20 border-b border-border flex items-center gap-3">
+                                    <div className="size-10 bg-background border border-border flex items-center justify-center">
+                                        <Globe className="size-5 text-foreground" />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-medium text-foreground">
+                                            Channel 5: Domain
+                                        </h3>
+                                        <p className="text-xs text-muted-foreground">
+                                            Proves website control
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="p-4">
+                                    <p className="text-sm text-muted-foreground mb-3">
+                                        Add a DNS TXT record with your wallet address. We verify the
+                                        record and create attestation linking your wallet to the
+                                        domain.
+                                    </p>
+                                    <div className="bg-background border border-border p-3 font-mono text-sm mb-3">
+                                        <span className="text-muted-foreground">sigil-verify=</span>
+                                        <span className="text-primary">0x1234...abcd</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        <strong>Verification time:</strong> Usually instant, up to
+                                        24 hours for DNS propagation.
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
 
-                        <h2>Common Questions</h2>
-                        <p>
-                            <strong>Can I update my verification?</strong>
-                            <br />
-                            Yes, you can re-verify channels if your accounts change. New
-                            attestations are created; old ones remain for history.
-                        </p>
-                        <p>
-                            <strong>What if I don&apos;t have all 5 channels?</strong>
-                            <br />
-                            Verify what you have. Even 2-3 channels significantly increases your
-                            credibility and fee allocation.
-                        </p>
-                        <p>
-                            <strong>Is verification free?</strong>
-                            <br />
-                            Yes—you only pay network gas fees on Base (typically under $0.01).
-                        </p>
-                        <p>
-                            <strong>Can I verify multiple wallets?</strong>
-                            <br />
-                            Each wallet verifies independently. We recommend verifying your primary
-                            address.
-                        </p>
+                        {/* After Verification */}
+                        <section className="mb-12">
+                            <h2 className="text-2xl font-semibold text-foreground mb-4 lowercase">
+                                after verification
+                            </h2>
+                            <p className="text-muted-foreground mb-4">
+                                Once verified, your attestation is:
+                            </p>
+                            <div className="border border-border divide-y divide-border">
+                                <div className="px-4 py-3 flex items-start gap-3">
+                                    <CheckCircle className="size-5 text-primary shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="font-medium text-foreground">Permanent</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Stored onchain via EAS on Base
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="px-4 py-3 flex items-start gap-3">
+                                    <CheckCircle className="size-5 text-primary shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="font-medium text-foreground">Queryable</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Anyone can verify your credentials
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="px-4 py-3 flex items-start gap-3">
+                                    <CheckCircle className="size-5 text-primary shrink-0 mt-0.5" />
+                                    <div>
+                                        <p className="font-medium text-foreground">Composable</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Other protocols can integrate your verification
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
 
-                        <hr />
-                        <p>
-                            Ready to get started?{" "}
-                            <Link href="/verify" className="text-primary font-medium">
-                                Begin Verification →
+                        {/* FAQ */}
+                        <section className="mb-12">
+                            <h2 className="text-2xl font-semibold text-foreground mb-4 lowercase">
+                                common questions
+                            </h2>
+                            <div className="border border-border divide-y divide-border">
+                                <div className="px-4 py-4">
+                                    <p className="font-medium text-foreground mb-1">
+                                        Can I update my verification?
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Yes, you can re-verify channels if your accounts change. New
+                                        attestations are created; old ones remain for history.
+                                    </p>
+                                </div>
+                                <div className="px-4 py-4">
+                                    <p className="font-medium text-foreground mb-1">
+                                        What if I don&apos;t have all 5 channels?
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Verify what you have. Even 2-3 channels significantly
+                                        increases your credibility and fee allocation.
+                                    </p>
+                                </div>
+                                <div className="px-4 py-4">
+                                    <p className="font-medium text-foreground mb-1">
+                                        Is verification free?
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Yes—you only pay network gas fees on Base (typically under
+                                        $0.01).
+                                    </p>
+                                </div>
+                                <div className="px-4 py-4">
+                                    <p className="font-medium text-foreground mb-1">
+                                        Can I verify multiple wallets?
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Each wallet verifies independently. We recommend verifying
+                                        your primary address.
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* CTA */}
+                        <section>
+                            <Link
+                                href="/verify"
+                                className="inline-flex items-center gap-2 border border-primary bg-primary px-6 py-3 text-primary-foreground font-medium hover:bg-primary/90 transition-colors"
+                            >
+                                Begin Verification
+                                <ArrowLeft className="size-4 rotate-180" />
                             </Link>
-                        </p>
+                        </section>
                     </div>
+                </div>
+
+                {/* Footer Navigation */}
+                <div className="px-6 py-6 lg:px-12 bg-lavender/30 flex items-center justify-between">
+                    <Link
+                        href="/blog/introducing-sigil-protocol"
+                        className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <ArrowLeft className="size-4" />
+                        Prev: Introducing Sigil
+                    </Link>
+                    <Link
+                        href="/blog/governance-deep-dive"
+                        className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                        Next: Governance Deep Dive
+                        <ArrowLeft className="size-4 rotate-180" />
+                    </Link>
                 </div>
             </div>
         </article>

@@ -4,6 +4,146 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
+// Official brand logos as SVG components
+function BaseLogo({ className }: { className?: string }) {
+    return (
+        <svg
+            viewBox="0 0 111 111"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className={className}
+        >
+            <path
+                d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z"
+                fill="#0052FF"
+            />
+        </svg>
+    );
+}
+
+function EASLogo({ className }: { className?: string }) {
+    return (
+        <svg
+            viewBox="0 0 100 100"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className={className}
+        >
+            <circle cx="50" cy="50" r="45" stroke="#10B981" strokeWidth="6" fill="none" />
+            <path
+                d="M30 52L45 67L72 35"
+                stroke="#10B981"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+            />
+        </svg>
+    );
+}
+
+function PrivyLogo({ className }: { className?: string }) {
+    return (
+        <svg
+            viewBox="0 0 100 100"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className={className}
+        >
+            <rect width="100" height="100" rx="12" fill="#8B5CF6" />
+            <path
+                d="M30 75V25H50C55.304 25 60.391 27.107 64.142 30.858C67.893 34.609 70 39.696 70 45C70 50.304 67.893 55.391 64.142 59.142C60.391 62.893 55.304 65 50 65H30"
+                stroke="white"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+            />
+            <line x1="30" y1="45" x2="50" y2="45" stroke="white" strokeWidth="8" />
+        </svg>
+    );
+}
+
+function UniswapLogo({ className }: { className?: string }) {
+    return (
+        <svg
+            viewBox="0 0 100 100"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className={className}
+        >
+            <circle cx="50" cy="50" r="50" fill="#FF007A" />
+            <path
+                d="M35 30C35 30 32 40 35 50C38 60 45 65 50 65C55 65 60 60 60 50C60 40 55 35 50 35C45 35 42 38 40 42"
+                stroke="white"
+                strokeWidth="4"
+                strokeLinecap="round"
+                fill="none"
+            />
+            <circle cx="42" cy="38" r="3" fill="white" />
+            <path
+                d="M50 65C50 65 55 70 65 70C75 70 78 62 78 55C78 48 72 45 65 48"
+                stroke="white"
+                strokeWidth="4"
+                strokeLinecap="round"
+                fill="none"
+            />
+            <path d="M55 25L60 20L65 28L55 25Z" fill="white" />
+        </svg>
+    );
+}
+
+function TheGraphLogo({ className }: { className?: string }) {
+    return (
+        <svg
+            viewBox="0 0 100 100"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className={className}
+        >
+            <circle cx="50" cy="50" r="45" fill="#6747ED" />
+            <circle cx="50" cy="35" r="8" fill="white" />
+            <circle cx="35" cy="60" r="6" fill="white" />
+            <circle cx="65" cy="60" r="6" fill="white" />
+            <line x1="50" y1="43" x2="38" y2="55" stroke="white" strokeWidth="3" />
+            <line x1="50" y1="43" x2="62" y2="55" stroke="white" strokeWidth="3" />
+        </svg>
+    );
+}
+
+function ChainlinkLogo({ className }: { className?: string }) {
+    return (
+        <svg
+            viewBox="0 0 100 100"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className={className}
+        >
+            <polygon
+                points="50,10 90,30 90,70 50,90 10,70 10,30"
+                fill="#375BD2"
+            />
+            <polygon
+                points="50,25 75,38 75,62 50,75 25,62 25,38"
+                fill="white"
+            />
+            <polygon
+                points="50,35 65,43 65,57 50,65 35,57 35,43"
+                fill="#375BD2"
+            />
+        </svg>
+    );
+}
+
+const logoComponents: Record<string, React.FC<{ className?: string }>> = {
+    Base: BaseLogo,
+    EAS: EASLogo,
+    Privy: PrivyLogo,
+    "Uniswap V4": UniswapLogo,
+    "The Graph": TheGraphLogo,
+    Chainlink: ChainlinkLogo,
+};
+
 const sdks = [
     {
         name: "JavaScript/TypeScript",
@@ -33,37 +173,31 @@ const integrations = [
         name: "Privy",
         description: "Embedded wallets and authentication",
         status: "live",
-        logo: "P",
     },
     {
         name: "EAS",
         description: "Ethereum Attestation Service",
         status: "live",
-        logo: "E",
     },
     {
         name: "Base",
         description: "L2 deployment and transactions",
         status: "live",
-        logo: "B",
     },
     {
         name: "Uniswap V4",
         description: "LP hooks and fee routing",
         status: "live",
-        logo: "U",
     },
     {
         name: "The Graph",
         description: "Indexing and querying",
         status: "coming",
-        logo: "G",
     },
     {
         name: "Chainlink",
         description: "Price feeds and automation",
         status: "coming",
-        logo: "C",
     },
 ];
 
@@ -295,20 +429,27 @@ interface Integration {
     name: string;
     description: string;
     status: string;
-    logo: string;
 }
 
 function IntegrationBriefingCard({ integration }: { integration: Integration }) {
     const isLive = integration.status === "live";
+    const LogoComponent = logoComponents[integration.name];
+
     return (
         <div className="flex items-start gap-4">
             <div
                 className={cn(
-                    "size-12 flex items-center justify-center font-bold text-lg",
-                    isLive ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground",
+                    "size-12 flex items-center justify-center overflow-hidden",
+                    isLive ? "bg-white" : "bg-secondary",
                 )}
             >
-                {integration.logo}
+                {LogoComponent ? (
+                    <LogoComponent className={cn("size-10", !isLive && "opacity-50 grayscale")} />
+                ) : (
+                    <span className="font-bold text-lg text-muted-foreground">
+                        {integration.name.charAt(0)}
+                    </span>
+                )}
             </div>
             <div className="flex-1">
                 <div className="flex items-center gap-2">
