@@ -4,7 +4,7 @@
  * Profile Dashboard
  *
  * Main dashboard showing claimable tokens, verified projects, and portfolio metrics.
- * Memorable border-centric design with PixelCard heroes and visual flows.
+ * Pastel aesthetic matching PortfolioSidebar - muted colors, consistent borders.
  */
 
 import {
@@ -106,38 +106,30 @@ export default function ProfileDashboard() {
             label: "Your Projects",
             value: projects.length.toString(),
             icon: FolderGit2,
-            color: "text-blue-600",
-            bg: "bg-blue-50",
         },
         {
             label: "Tokens Deployed",
             value: tokensDeployed.toString(),
             icon: Rocket,
-            color: "text-purple-600",
-            bg: "bg-purple-50",
         },
         {
             label: "Fees Accrued",
             value: totalFeesUsdc,
             icon: TrendingUp,
-            color: "text-green-600",
-            bg: "bg-green-50",
         },
         {
             label: "Claimable Now",
             value: claimableUsdc,
             icon: DollarSign,
-            color: "text-primary",
-            bg: "bg-primary/10",
             highlight: true,
         },
     ];
 
     const flowSteps = [
-        { label: "Verify", icon: Shield, color: "bg-lavender/50" },
-        { label: "Deploy", icon: Rocket, color: "bg-blue-50" },
-        { label: "Earn", icon: CircleDollarSign, color: "bg-green-50" },
-        { label: "Claim", icon: Wallet, color: "bg-primary/10" },
+        { label: "Verify", icon: Shield },
+        { label: "Deploy", icon: Rocket },
+        { label: "Earn", icon: CircleDollarSign },
+        { label: "Claim", icon: Wallet },
     ];
 
     return (
@@ -154,15 +146,15 @@ export default function ProfileDashboard() {
                     <div className="flex flex-col lg:flex-row">
                         {/* Avatar Cell */}
                         <div className="lg:w-32 px-6 py-8 lg:px-0 lg:py-0 flex items-center justify-center border-border border-b lg:border-b-0 lg:border-r">
-                            <div className="size-20 bg-lavender/60 border-2 border-border flex items-center justify-center">
+                            <div className="size-20 bg-lavender/60 border border-border flex items-center justify-center">
                                 <span className="text-3xl font-bold text-primary">
                                     {walletAddress ? walletAddress.charAt(2).toUpperCase() : "?"}
                                 </span>
                             </div>
                         </div>
 
-                        {/* Title Section with Accent */}
-                        <div className="flex-1 px-6 py-8 lg:px-10 lg:py-10 border-l-4 border-l-primary">
+                        {/* Title Section */}
+                        <div className="flex-1 px-6 py-8 lg:px-10 lg:py-10">
                             <div className="flex items-center gap-3 mb-2">
                                 <p className="text-primary text-sm font-medium uppercase tracking-wider">
                                     builder dashboard
@@ -193,25 +185,20 @@ export default function ProfileDashboard() {
                     </div>
                 </PixelCard>
 
-                {/* Stats Row - Dramatic Bordered Cells */}
+                {/* Stats Row - Muted Pastel Cells */}
                 <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border border-border border-b bg-background">
                     {stats.map((stat) => (
                         <div
                             key={stat.label}
                             className={cn(
                                 "flex-1 px-6 py-6 lg:px-8 text-center",
-                                stat.highlight && "bg-primary/5",
+                                stat.highlight && "bg-sage/10",
                             )}
                         >
-                            <div
-                                className={cn(
-                                    "inline-flex items-center justify-center size-10 mb-3 border border-border",
-                                    stat.bg,
-                                )}
-                            >
-                                <stat.icon className={cn("size-5", stat.color)} />
+                            <div className="inline-flex items-center justify-center size-10 mb-3 border border-border bg-cream/30">
+                                <stat.icon className="size-5 text-muted-foreground" />
                             </div>
-                            <div className={cn("text-3xl font-bold mb-1", stat.color)}>
+                            <div className="text-3xl font-bold text-foreground mb-1">
                                 {stat.value}
                             </div>
                             <p className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -232,21 +219,18 @@ export default function ProfileDashboard() {
                         {flowSteps.map((step, index) => (
                             <div
                                 key={step.label}
-                                className={cn(
-                                    "flex-1 flex items-center justify-center gap-2 px-4 py-4 lg:py-5",
-                                    step.color,
-                                )}
+                                className="flex-1 flex items-center justify-center gap-2 px-4 py-4 lg:py-5 bg-cream/20 hover:bg-cream/40 transition-colors"
                             >
                                 <div className="flex items-center gap-2">
                                     <div className="size-8 border border-border bg-background flex items-center justify-center">
-                                        <step.icon className="size-4 text-foreground" />
+                                        <step.icon className="size-4 text-muted-foreground" />
                                     </div>
                                     <span className="text-sm font-medium text-foreground hidden sm:inline">
                                         {step.label}
                                     </span>
                                 </div>
                                 {index < flowSteps.length - 1 && (
-                                    <ArrowRight className="size-4 text-muted-foreground/50 hidden lg:block ml-2" />
+                                    <ArrowRight className="size-4 text-muted-foreground/40 hidden lg:block ml-2" />
                                 )}
                             </div>
                         ))}
@@ -258,7 +242,7 @@ export default function ProfileDashboard() {
                     <div className="border-border border-b">
                         <div className="px-6 py-3 lg:px-8 border-border border-b bg-rose/20">
                             <div className="flex items-center gap-2">
-                                <CircleDollarSign className="size-4 text-primary" />
+                                <CircleDollarSign className="size-4 text-muted-foreground" />
                                 <span className="text-xs text-muted-foreground uppercase tracking-wider">
                                     Fee Earnings
                                 </span>
@@ -282,10 +266,10 @@ export default function ProfileDashboard() {
                 {!walletAddress && (
                     <div className="border-border border-b">
                         <div className="flex flex-col lg:flex-row">
-                            <div className="lg:w-16 flex items-center justify-center px-4 py-4 lg:py-0 border-border border-b lg:border-b-0 lg:border-r bg-orange-50">
-                                <AlertCircle className="size-6 text-orange-600" />
+                            <div className="lg:w-16 flex items-center justify-center px-4 py-4 lg:py-0 border-border border-b lg:border-b-0 lg:border-r bg-cream/50">
+                                <AlertCircle className="size-6 text-muted-foreground" />
                             </div>
-                            <div className="flex-1 px-6 py-6 lg:px-8 bg-orange-50/50">
+                            <div className="flex-1 px-6 py-6 lg:px-8 bg-cream/30">
                                 <h3 className="font-semibold text-foreground mb-1">
                                     Connect Wallet
                                 </h3>
@@ -311,10 +295,10 @@ export default function ProfileDashboard() {
                 {projectsError && (
                     <div className="border-border border-b">
                         <div className="flex flex-col lg:flex-row">
-                            <div className="lg:w-16 flex items-center justify-center px-4 py-4 lg:py-0 border-border border-b lg:border-b-0 lg:border-r bg-red-50">
-                                <AlertCircle className="size-6 text-red-600" />
+                            <div className="lg:w-16 flex items-center justify-center px-4 py-4 lg:py-0 border-border border-b lg:border-b-0 lg:border-r bg-rose/20">
+                                <AlertCircle className="size-6 text-muted-foreground" />
                             </div>
-                            <div className="flex-1 px-6 py-6 lg:px-8 bg-red-50/50">
+                            <div className="flex-1 px-6 py-6 lg:px-8 bg-rose/10">
                                 <p className="text-destructive">{projectsError}</p>
                             </div>
                         </div>
@@ -324,10 +308,10 @@ export default function ProfileDashboard() {
                 {/* Claimable Tokens Section */}
                 {!projectsLoading && !projectsError && claimableProjects.length > 0 && (
                     <div className="bg-background">
-                        <div className="border-border border-b bg-orange-50">
+                        <div className="border-border border-b bg-cream/30">
                             <div className="flex items-center gap-3 px-6 py-4 lg:px-8">
-                                <div className="size-10 bg-orange-100 border border-orange-200 flex items-center justify-center">
-                                    <Gift className="size-5 text-orange-600" />
+                                <div className="size-10 bg-cream/50 border border-border flex items-center justify-center">
+                                    <Gift className="size-5 text-muted-foreground" />
                                 </div>
                                 <div>
                                     <h2 className="text-lg font-semibold text-foreground lowercase">
@@ -349,7 +333,7 @@ export default function ProfileDashboard() {
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className="size-10 bg-sage/40 border border-border flex items-center justify-center">
-                                    <FolderGit2 className="size-5 text-green-600" />
+                                    <FolderGit2 className="size-5 text-muted-foreground" />
                                 </div>
                                 <div>
                                     <h2 className="text-lg font-semibold text-foreground lowercase">
@@ -384,7 +368,7 @@ export default function ProfileDashboard() {
                                 className="flex-1 flex flex-col border-border border-b"
                             >
                                 <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 lg:px-12 text-center">
-                                    <div className="size-20 bg-sage/40 border-2 border-border flex items-center justify-center mb-6">
+                                    <div className="size-20 bg-sage/40 border border-border flex items-center justify-center mb-6">
                                         <FolderGit2 className="size-10 text-muted-foreground/60" />
                                     </div>
                                     <h3 className="text-2xl font-semibold text-foreground mb-3 lowercase">
@@ -422,10 +406,10 @@ export default function ProfileDashboard() {
                     </div>
                     <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-border">
                         {/* View Attestation */}
-                        <div className="flex-1 px-6 py-5 lg:px-8 bg-sage/20">
+                        <div className="flex-1 px-6 py-5 lg:px-8 bg-sage/10">
                             <div className="flex items-start gap-3">
-                                <div className="size-10 bg-sage/40 border border-border flex items-center justify-center shrink-0">
-                                    <Shield className="size-5 text-green-600" />
+                                <div className="size-10 bg-sage/30 border border-border flex items-center justify-center shrink-0">
+                                    <Shield className="size-5 text-muted-foreground" />
                                 </div>
                                 <div className="flex-1">
                                     <h3 className="font-semibold text-foreground mb-1">
@@ -449,10 +433,10 @@ export default function ProfileDashboard() {
                         </div>
 
                         {/* Governance */}
-                        <div className="flex-1 px-6 py-5 lg:px-8 bg-lavender/20">
+                        <div className="flex-1 px-6 py-5 lg:px-8 bg-lavender/10">
                             <div className="flex items-start gap-3">
-                                <div className="size-10 bg-lavender/40 border border-border flex items-center justify-center shrink-0">
-                                    <Landmark className="size-5 text-primary" />
+                                <div className="size-10 bg-lavender/30 border border-border flex items-center justify-center shrink-0">
+                                    <Landmark className="size-5 text-muted-foreground" />
                                 </div>
                                 <div className="flex-1">
                                     <h3 className="font-semibold text-foreground mb-1">
@@ -472,10 +456,10 @@ export default function ProfileDashboard() {
                         </div>
 
                         {/* Add Verification */}
-                        <div className="flex-1 px-6 py-5 lg:px-8 bg-cream/30">
+                        <div className="flex-1 px-6 py-5 lg:px-8 bg-cream/20">
                             <div className="flex items-start gap-3">
-                                <div className="size-10 bg-cream/60 border border-border flex items-center justify-center shrink-0">
-                                    <Zap className="size-5 text-amber-600" />
+                                <div className="size-10 bg-cream/50 border border-border flex items-center justify-center shrink-0">
+                                    <Zap className="size-5 text-muted-foreground" />
                                 </div>
                                 <div className="flex-1">
                                     <h3 className="font-semibold text-foreground mb-1">

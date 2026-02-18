@@ -2,7 +2,7 @@
  * ProposalListView
  *
  * Renders proposal list with section header.
- * Border-centric design with memorable empty state.
+ * Pastel aesthetic with memorable empty state.
  */
 
 import { ArrowRight, FileCheck, Lightbulb, Rocket, Users } from "lucide-react";
@@ -50,7 +50,7 @@ export function ProposalListView({
         );
     }
 
-    // Empty State - Memorable Design
+    // Empty State - Pastel Design
     return (
         <div className="flex-1 flex flex-col bg-background">
             {/* Section Header */}
@@ -70,7 +70,7 @@ export function ProposalListView({
             >
                 <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 lg:px-12 text-center">
                     {/* Large Icon */}
-                    <div className="size-20 bg-sage/40 border-2 border-border flex items-center justify-center mb-6">
+                    <div className="size-20 bg-sage/40 border border-border flex items-center justify-center mb-6">
                         <FileCheck className="size-10 text-muted-foreground/60" />
                     </div>
 
@@ -104,12 +104,12 @@ export function ProposalListView({
                         {/* Step 1 */}
                         <div className="flex-1 px-6 py-5 lg:px-8">
                             <div className="flex items-start gap-3">
-                                <div className="size-10 bg-primary/10 border border-border flex items-center justify-center shrink-0">
-                                    <span className="text-sm font-bold text-primary">1</span>
+                                <div className="size-10 bg-sage/30 border border-border flex items-center justify-center shrink-0">
+                                    <span className="text-sm font-bold text-foreground">1</span>
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
-                                        <Lightbulb className="size-4 text-amber-500" />
+                                        <Lightbulb className="size-4 text-muted-foreground" />
                                         Define Your Milestone
                                     </h3>
                                     <p className="text-xs text-muted-foreground">
@@ -122,12 +122,12 @@ export function ProposalListView({
                         {/* Step 2 */}
                         <div className="flex-1 px-6 py-5 lg:px-8">
                             <div className="flex items-start gap-3">
-                                <div className="size-10 bg-primary/10 border border-border flex items-center justify-center shrink-0">
-                                    <span className="text-sm font-bold text-primary">2</span>
+                                <div className="size-10 bg-sage/30 border border-border flex items-center justify-center shrink-0">
+                                    <span className="text-sm font-bold text-foreground">2</span>
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
-                                        <Users className="size-4 text-blue-500" />
+                                        <Users className="size-4 text-muted-foreground" />
                                         Community Votes
                                     </h3>
                                     <p className="text-xs text-muted-foreground">
@@ -140,12 +140,12 @@ export function ProposalListView({
                         {/* Step 3 */}
                         <div className="flex-1 px-6 py-5 lg:px-8">
                             <div className="flex items-start gap-3">
-                                <div className="size-10 bg-primary/10 border border-border flex items-center justify-center shrink-0">
-                                    <span className="text-sm font-bold text-primary">3</span>
+                                <div className="size-10 bg-sage/30 border border-border flex items-center justify-center shrink-0">
+                                    <span className="text-sm font-bold text-foreground">3</span>
                                 </div>
                                 <div>
                                     <h3 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
-                                        <Rocket className="size-4 text-green-500" />
+                                        <Rocket className="size-4 text-muted-foreground" />
                                         Deliver & Earn
                                     </h3>
                                     <p className="text-xs text-muted-foreground">

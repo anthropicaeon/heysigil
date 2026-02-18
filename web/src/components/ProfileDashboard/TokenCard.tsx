@@ -4,7 +4,7 @@
  * Project Card
  *
  * Displays a single project with token info, fees accrued, and actions.
- * Border-centric design with visual hierarchy.
+ * Pastel aesthetic with consistent borders.
  */
 
 import {
@@ -32,7 +32,7 @@ function hashColor(str: string): string {
         hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
     const hue = Math.abs(hash) % 360;
-    return `hsl(${hue}, 55%, 50%)`;
+    return `hsl(${hue}, 35%, 65%)`;
 }
 
 /** Get a friendly display name from projectId like "github:org/repo" */
@@ -68,7 +68,7 @@ export const ProjectCard = memo(function ProjectCard({
         <div
             className={cn(
                 "bg-background hover:bg-secondary/20 transition-colors",
-                claimable && "border-l-4 border-l-orange-400",
+                claimable && "bg-cream/30",
             )}
         >
             {/* Header Row */}
@@ -76,7 +76,7 @@ export const ProjectCard = memo(function ProjectCard({
                 <div className="flex items-center gap-4">
                     {/* Avatar */}
                     <div
-                        className="size-12 flex items-center justify-center text-white font-bold text-lg border-2 border-border"
+                        className="size-12 flex items-center justify-center text-white font-bold text-lg border border-border"
                         style={{ backgroundColor: color }}
                     >
                         {displayName.charAt(0).toUpperCase()}
@@ -90,10 +90,7 @@ export const ProjectCard = memo(function ProjectCard({
                 {/* Status Badge */}
                 <div className="flex items-center gap-2">
                     {claimable ? (
-                        <Badge
-                            variant="outline"
-                            className="border-orange-300 text-orange-600 bg-orange-50"
-                        >
+                        <Badge variant="outline" className="border-border">
                             <Gift className="size-3 mr-1" />
                             Claimable
                         </Badge>
@@ -111,7 +108,7 @@ export const ProjectCard = memo(function ProjectCard({
                 {/* Fees */}
                 <div className="flex-1 px-6 py-4 lg:px-8">
                     <div className="flex items-center gap-2 mb-1">
-                        <Coins className="size-4 text-green-600" />
+                        <Coins className="size-4 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground uppercase tracking-wider">
                             Fees Accrued
                         </span>
@@ -119,7 +116,7 @@ export const ProjectCard = memo(function ProjectCard({
                     <p
                         className={cn(
                             "text-xl font-bold",
-                            hasFees ? "text-green-600" : "text-muted-foreground",
+                            hasFees ? "text-foreground" : "text-muted-foreground",
                         )}
                     >
                         {project.feesAccruedUsdc}
@@ -159,12 +156,12 @@ export const ProjectCard = memo(function ProjectCard({
                     <div className="flex items-center gap-2">
                         {project.attestationUid ? (
                             <>
-                                <CheckCircle className="size-4 text-green-600" />
-                                <span className="text-sm font-medium text-green-600">Verified</span>
+                                <CheckCircle className="size-4 text-primary" />
+                                <span className="text-sm font-medium text-foreground">Verified</span>
                             </>
                         ) : (
                             <>
-                                <Clock className="size-4 text-orange-500" />
+                                <Clock className="size-4 text-muted-foreground" />
                                 <span className="text-sm text-muted-foreground">Pending</span>
                             </>
                         )}
@@ -192,7 +189,7 @@ export const ProjectCard = memo(function ProjectCard({
                 <div className="flex items-center gap-2">
                     {claimable ? (
                         <Link href={`/verify?project=${encodeURIComponent(project.projectId)}`}>
-                            <Button size="sm" className="gap-1 bg-orange-500 hover:bg-orange-600">
+                            <Button size="sm" className="gap-1">
                                 Verify & Claim
                                 <ChevronRight className="size-4" />
                             </Button>

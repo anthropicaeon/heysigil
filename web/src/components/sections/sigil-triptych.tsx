@@ -10,8 +10,7 @@ const cards = [
         label: "verify",
         title: "multi-channel trust",
         body: "builder identity verified across 5 independent channels. no single platform controls legitimacy. the attestation is onchain and portable.",
-        color: "text-green-600",
-        bg: "bg-green-50",
+        bg: "bg-sage/20",
         href: "/verify",
         cta: "Get Verified",
     },
@@ -20,8 +19,7 @@ const cards = [
         label: "fund",
         title: "capital routed to builders",
         body: "communities back projects with conviction. USDC fees route directly to verified builders. capital follows verification, not promises.",
-        color: "text-blue-600",
-        bg: "bg-blue-50",
+        bg: "bg-lavender/20",
         href: "/chat",
         cta: "Fund a Project",
     },
@@ -30,8 +28,7 @@ const cards = [
         label: "govern",
         title: "milestone accountability",
         body: "tokens stay locked. the community validates milestones to unlock them. accountability is structural — not optional.",
-        color: "text-amber-600",
-        bg: "bg-amber-50",
+        bg: "bg-cream/30",
         href: "/governance",
         cta: "View Governance",
     },
@@ -59,9 +56,9 @@ export default function SigilTriptych() {
                             )}
                         >
                             {/* Card Header */}
-                            <div className="px-6 py-4 lg:px-8 border-border border-b bg-secondary/20 flex items-center gap-3">
-                                <div className={cn("size-10 flex items-center justify-center border border-border", card.bg)}>
-                                    <card.icon className={cn("size-5", card.color)} />
+                            <div className={cn("px-6 py-4 lg:px-8 border-border border-b flex items-center gap-3", card.bg)}>
+                                <div className="size-10 flex items-center justify-center border border-border bg-background">
+                                    <card.icon className="size-5 text-muted-foreground" />
                                 </div>
                                 <p className="text-primary text-sm font-medium uppercase tracking-wider">
                                     {card.label}

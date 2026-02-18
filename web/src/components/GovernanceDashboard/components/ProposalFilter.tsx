@@ -2,7 +2,7 @@
  * ProposalFilter
  *
  * Tab filter for proposals with "New Proposal" button.
- * Refined border-centric design with visual polish.
+ * Pastel aesthetic with consistent borders.
  */
 
 import { Filter, Plus } from "lucide-react";
@@ -46,17 +46,12 @@ export function ProposalFilter({ activeTab, onTabChange, onCreateClick }: Propos
                                 title={tab.description}
                                 className={cn(
                                     "px-5 py-4 lg:px-6 text-sm font-medium transition-all whitespace-nowrap",
-                                    "relative group",
                                     activeTab === tab.value
-                                        ? "bg-primary/10 text-primary"
+                                        ? "bg-sage/30 text-foreground"
                                         : "text-muted-foreground hover:text-foreground hover:bg-lavender/40",
                                 )}
                             >
                                 {tab.label}
-                                {/* Active indicator */}
-                                {activeTab === tab.value && (
-                                    <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
-                                )}
                             </button>
                         ))}
                     </div>

@@ -11,16 +11,14 @@ const channels = [
         name: "GitHub",
         method: "OAuth",
         icon: "/icons/git-branch-01.svg",
-        color: "text-gray-700",
-        bg: "bg-gray-50",
+        bg: "bg-sage/20",
     },
     {
         abbr: "X",
         name: "X / Twitter",
         method: "zkTLS",
         icon: "/icons/at-sign.svg",
-        color: "text-blue-600",
-        bg: "bg-blue-50",
+        bg: "bg-lavender/30",
         highlight: true,
     },
     {
@@ -28,24 +26,21 @@ const channels = [
         name: "Facebook",
         method: "OAuth",
         icon: "/icons/users-01.svg",
-        color: "text-blue-700",
-        bg: "bg-blue-50",
+        bg: "bg-cream/30",
     },
     {
         abbr: "IG",
         name: "Instagram",
         method: "OAuth",
         icon: "/icons/fingerprint-04.svg",
-        color: "text-pink-600",
-        bg: "bg-pink-50",
+        bg: "bg-rose/20",
     },
     {
         abbr: "◎",
         name: "Domain",
         method: "DNS / File",
         icon: "/icons/browser.svg",
-        color: "text-green-600",
-        bg: "bg-green-50",
+        bg: "bg-sage/30",
     },
 ];
 
@@ -80,19 +75,19 @@ export default function SigilTrustLayer() {
                     </div>
                 </PixelCard>
 
-                {/* Channels Grid - Enhanced */}
+                {/* Channels Grid - Pastel */}
                 <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border">
                     {channels.map((channel) => (
                         <div
                             key={channel.abbr}
                             className={cn(
                                 "flex-1 flex flex-col",
-                                channel.highlight && "bg-blue-50/30",
+                                channel.highlight && "bg-lavender/10",
                             )}
                         >
                             {/* Channel Header */}
-                            <div className="px-6 py-4 lg:px-8 border-border border-b flex items-center justify-center gap-2">
-                                <div className={cn("size-8 flex items-center justify-center border border-border", channel.bg)}>
+                            <div className={cn("px-6 py-4 lg:px-8 border-border border-b flex items-center justify-center gap-2", channel.bg)}>
+                                <div className="size-8 flex items-center justify-center border border-border bg-background">
                                     <Image
                                         src={channel.icon}
                                         alt=""
@@ -100,7 +95,7 @@ export default function SigilTrustLayer() {
                                         height={16}
                                     />
                                 </div>
-                                <CheckCircle className="size-4 text-green-500" />
+                                <CheckCircle className="size-4 text-primary" />
                             </div>
 
                             {/* Channel Content */}
@@ -110,10 +105,7 @@ export default function SigilTrustLayer() {
                                 </p>
                                 <Badge
                                     variant={channel.highlight ? "default" : "outline"}
-                                    className={cn(
-                                        "text-xs",
-                                        channel.highlight && "bg-primary",
-                                    )}
+                                    className="text-xs"
                                 >
                                     {channel.method}
                                 </Badge>
@@ -122,11 +114,11 @@ export default function SigilTrustLayer() {
                     ))}
                 </div>
 
-                {/* Footer Note - Enhanced */}
-                <div className="border-border border-t bg-lavender/10">
+                {/* Footer Note - Pastel */}
+                <div className="border-border border-t bg-cream/20">
                     <div className="px-6 py-6 lg:px-12 flex items-start gap-3 max-w-2xl mx-auto">
-                        <div className="size-8 bg-amber-50 border border-border flex items-center justify-center shrink-0">
-                            <Info className="size-4 text-amber-600" />
+                        <div className="size-8 bg-cream/50 border border-border flex items-center justify-center shrink-0">
+                            <Info className="size-4 text-muted-foreground" />
                         </div>
                         <p className="text-muted-foreground text-sm">
                             <strong className="text-foreground">X verification via zkTLS</strong> — cryptographic proof of account ownership without
