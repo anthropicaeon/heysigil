@@ -26,9 +26,9 @@ export default function UnderstandingZkTLSPage() {
                 </div>
 
                 {/* Cover Image */}
-                <div className="border-border border-b aspect-video relative">
+                <div className="border-border border-b aspect-video relative bg-cream">
                     <Image
-                        src="/images/blog/understanding-zktls.jpg"
+                        src="https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200&q=80"
                         alt="Understanding zkTLS"
                         fill
                         className="object-cover"

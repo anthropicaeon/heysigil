@@ -26,9 +26,9 @@ export default function VerificationGuidePage() {
                 </div>
 
                 {/* Cover Image */}
-                <div className="border-border border-b aspect-video relative">
+                <div className="border-border border-b aspect-video relative bg-lavender/20">
                     <Image
-                        src="/images/blog/verification-guide.jpg"
+                        src="https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1200&q=80"
                         alt="Verification Guide"
                         fill
                         className="object-cover"

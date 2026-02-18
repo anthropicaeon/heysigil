@@ -26,9 +26,9 @@ export default function GovernanceDeepDivePage() {
                 </div>
 
                 {/* Cover Image */}
-                <div className="border-border border-b aspect-video relative">
+                <div className="border-border border-b aspect-video relative bg-sage/20">
                     <Image
-                        src="/images/blog/governance-deep-dive.jpg"
+                        src="https://images.unsplash.com/photo-1557683316-973673baf926?w=1200&q=80"
                         alt="Governance Deep Dive"
                         fill
                         className="object-cover"
