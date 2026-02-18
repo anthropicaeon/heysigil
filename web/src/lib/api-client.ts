@@ -29,12 +29,13 @@ async function request<T>(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<T> {
+    const { headers: optionHeaders, ...restOptions } = options;
     const res = await fetch(`${BASE_URL}${endpoint}`, {
+        ...restOptions,
         headers: {
             "Content-Type": "application/json",
-            ...options.headers,
+            ...(optionHeaders as Record<string, string>),
         },
-        ...options,
     });
 
     if (!res.ok) {
