@@ -8,11 +8,16 @@
 
 import { z } from "zod";
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
-import { eq, sql, isNull, and } from "drizzle-orm";
+import { eq, sql, isNull, and, inArray } from "drizzle-orm";
 import { getBody, getParams } from "../helpers/request.js";
 import { getDb, schema } from "../../db/client.js";
 import { rateLimit } from "../../middleware/rate-limit.js";
-import { getUserId, privyAuth, getPrivyGithubUsername } from "../../middleware/auth.js";
+import {
+    getUserId,
+    privyAuth,
+    getPrivyGithubUsername,
+    getPrivyWalletAddress,
+} from "../../middleware/auth.js";
 import { loggers } from "../../utils/logger.js";
 import { handler } from "../helpers/route.js";
 import { getErrorMessage } from "../../utils/errors.js";
@@ -235,30 +240,40 @@ launch.get(
         const db = getDb();
 
         // Find user by Privy user ID to get their wallet address.
-        // Try the users table first, then fall back to the custodial
-        // wallet service (wallets table keyed by privy user ID).
+        // Collect ALL possible wallet addresses: users table, custodial
+        // wallet service, and Privy embedded wallet.
         const [user] = await db
             .select()
             .from(schema.users)
             .where(eq(schema.users.privyUserId, privyUserId))
             .limit(1);
 
-        let walletAddress: string | null = user?.walletAddress ?? null;
-        if (!walletAddress) {
-            try {
-                walletAddress = (await getUserAddress(privyUserId)) ?? null;
-            } catch {
-                // No custodial wallet either — that's fine
+        const walletAddresses: string[] = [];
+        if (user?.walletAddress) walletAddresses.push(user.walletAddress);
+
+        // Custodial wallet from our wallet service
+        try {
+            const custodialAddr = await getUserAddress(privyUserId);
+            if (custodialAddr && !walletAddresses.includes(custodialAddr)) {
+                walletAddresses.push(custodialAddr);
             }
+        } catch {
+            // No custodial wallet — that's fine
         }
 
-        // ── Claimed projects (ownerWallet matches user's wallet) ──
+        // Privy embedded wallet (this is what the user verified with)
+        const privyWallet = await getPrivyWalletAddress(privyUserId);
+        if (privyWallet && !walletAddresses.includes(privyWallet)) {
+            walletAddresses.push(privyWallet);
+        }
+
+        // ── Claimed projects (ownerWallet matches any of user's wallets) ──
         let claimedProjects: (typeof schema.projects.$inferSelect)[] = [];
-        if (walletAddress) {
+        if (walletAddresses.length > 0) {
             claimedProjects = await db
                 .select()
                 .from(schema.projects)
-                .where(eq(schema.projects.ownerWallet, walletAddress));
+                .where(inArray(schema.projects.ownerWallet, walletAddresses));
         }
 
         // ── Claimable projects (unclaimed, GitHub username matches devLinks) ──

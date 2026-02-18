@@ -130,3 +130,22 @@ export async function getPrivyGithubUsername(userId: string): Promise<string | n
         return null;
     }
 }
+
+/**
+ * Get a Privy user's embedded wallet address (if any).
+ * This is the wallet that Privy creates for the user, NOT our custodial wallet.
+ */
+export async function getPrivyWalletAddress(userId: string): Promise<string | null> {
+    const client = getPrivyClient();
+    if (!client) return null;
+
+    try {
+        const user = await client.getUser(userId);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const wallet = (user as any).wallet;
+        return wallet?.address ?? null;
+    } catch (err) {
+        loggers.auth.warn({ userId, error: err }, "Failed to fetch Privy user wallet");
+        return null;
+    }
+}
