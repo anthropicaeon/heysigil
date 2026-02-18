@@ -9,6 +9,7 @@ import { launch } from "./routes/launch.js";
 import { wallet } from "./routes/wallet.js";
 import { fees } from "./routes/fees.js";
 import { claimGas } from "./routes/claim-gas.js";
+import { mcp } from "./routes/mcp.js";
 import { getEnv } from "../config/env.js";
 import { DatabaseUnavailableError } from "../db/client.js";
 import { privyAuthOptional } from "../middleware/auth.js";
@@ -234,6 +235,7 @@ export function createApp() {
     app.route("/api/wallet", wallet);
     app.route("/api/fees", fees);
     app.route("/api/fees", claimGas);
+    app.route("/api/mcp", mcp);
 
     // ─── Methods Endpoint ───────────────────────────────────
 
