@@ -14,6 +14,7 @@
  */
 
 import { ethers } from "ethers";
+import { and, eq, isNull } from "drizzle-orm";
 import { getEnv } from "../config/env.js";
 import { getErrorMessage } from "../utils/errors.js";
 import { loggers } from "../utils/logger.js";
@@ -247,6 +248,9 @@ export class FeeIndexer {
         // Refresh the poolId → projectId cache from the projects table
         await this.refreshPoolToProjectCache();
 
+        // Backfill projectId on any existing records that have NULL projectId
+        await this.backfillProjectIds();
+
         let lastProcessed = await getLastProcessedBlock();
 
         // If no state, start from configured block or current
@@ -288,6 +292,43 @@ export class FeeIndexer {
                 return;
             }
             log.warn({ err }, "Failed to refresh pool→project cache");
+        }
+    }
+
+    /**
+     * Backfill projectId on feeDistributions records where it's NULL.
+     * Uses the poolToProject cache to update records by matching poolId.
+     * Runs on startup to repair any records indexed before the projectId fix.
+     */
+    private async backfillProjectIds(): Promise<void> {
+        if (this.poolToProject.size === 0) return;
+
+        try {
+            const db = getDb();
+
+            // Update all feeDistributions with NULL projectId using the cache
+            let updated = 0;
+            for (const [poolId, projectId] of this.poolToProject) {
+                const result = await db
+                    .update(schema.feeDistributions)
+                    .set({ projectId })
+                    .where(
+                        and(
+                            eq(schema.feeDistributions.poolId, poolId),
+                            isNull(schema.feeDistributions.projectId),
+                        ),
+                    );
+                // Drizzle doesn't return affected rows directly, so just count the update calls
+                updated++;
+            }
+
+            log.info(
+                { poolMappings: this.poolToProject.size },
+                "Backfilled projectId on fee distributions",
+            );
+        } catch (err) {
+            if (err instanceof DatabaseUnavailableError) return;
+            log.warn({ err }, "Failed to backfill projectIds");
         }
     }
 
