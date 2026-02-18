@@ -3,12 +3,13 @@
 /**
  * Profile Dashboard
  *
- * Main dashboard showing fee claims, verified projects, and portfolio metrics.
+ * Main dashboard showing claimable tokens, verified projects, and portfolio metrics.
  * Fetches real project data from the backend API.
  */
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useFeeVault } from "@/hooks/useFeeVault";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import { useIsPrivyConfigured } from "@/providers/PrivyAuthProvider";
@@ -29,6 +30,7 @@ export default function ProfileDashboard() {
 
     // Real project data from API
     const [projects, setProjects] = useState<ProjectInfo[]>([]);
+    const [claimableProjects, setClaimableProjects] = useState<ProjectInfo[]>([]);
     const [projectsLoading, setProjectsLoading] = useState(false);
     const [projectsError, setProjectsError] = useState<string | null>(null);
 
@@ -61,6 +63,7 @@ export default function ProfileDashboard() {
                 const data = await apiClient.launch.myProjects(token);
                 if (!cancelled) {
                     setProjects(data.projects);
+                    setClaimableProjects(data.claimableProjects);
                 }
             } catch (err) {
                 if (!cancelled) {
@@ -76,6 +79,13 @@ export default function ProfileDashboard() {
         loadProjects();
         return () => { cancelled = true; };
     }, [privy?.authenticated, privy?.getAccessToken]);
+
+    const totalFees = [...projects, ...claimableProjects].reduce((sum, p) => {
+        return sum + Number(p.feesAccruedWei || "0");
+    }, 0);
+    const totalFeesUsdc = totalFees > 0
+        ? `$${(totalFees / 1e6).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : "$0.00";
 
     return (
         <div className="container" style={{ padding: "var(--space-12) var(--space-6)" }}>
@@ -138,44 +148,71 @@ export default function ProfileDashboard() {
                         <div className="label">Your Projects</div>
                     </div>
                     <div className="profile-summary-card">
-                        <div className="value">{projects.filter((p) => p.poolTokenAddress).length}</div>
-                        <div className="label">Tokens Deployed</div>
+                        <div className="value" style={{ color: "var(--warning)" }}>
+                            {claimableProjects.length}
+                        </div>
+                        <div className="label">Claimable</div>
                     </div>
                     <div className="profile-summary-card">
                         <div className="value" style={{ color: "var(--success)" }}>
-                            {lifetimeUsdc}
+                            {totalFeesUsdc}
                         </div>
-                        <div className="label">Lifetime Earned</div>
+                        <div className="label">Fees Accrued</div>
                     </div>
                     <div className="profile-summary-card">
                         <div className="value" style={{ color: "var(--success)" }}>
                             {claimableUsdc}
                         </div>
-                        <div className="label">Claimable Now</div>
+                        <div className="label">Claimable USDC</div>
                     </div>
                 </div>
             </div>
 
-            {/* Miller's Law: Chunk 3 - Your Projects */}
+            {/* Loading state */}
+            {projectsLoading && (
+                <div style={{ textAlign: "center", padding: "var(--space-8)", color: "var(--text-secondary)" }}>
+                    Loading your projects…
+                </div>
+            )}
+
+            {/* Error state */}
+            {projectsError && (
+                <div style={{ textAlign: "center", padding: "var(--space-8)", color: "var(--danger)" }}>
+                    {projectsError}
+                </div>
+            )}
+
+            {/* Miller's Law: Chunk 3 - Claimable Tokens */}
+            {!projectsLoading && !projectsError && claimableProjects.length > 0 && (
+                <div className="dashboard-chunk">
+                    <h2 className="chunk-title">
+                        <span className="chunk-icon">🎁</span>
+                        Claimable Tokens
+                    </h2>
+                    <p style={{
+                        color: "var(--text-secondary)",
+                        fontSize: "var(--text-sm)",
+                        margin: "0 0 var(--space-4) 0",
+                    }}>
+                        These tokens are linked to your GitHub repos but haven&apos;t been claimed yet.
+                        Verify ownership to claim them.
+                    </p>
+                    <ProjectSection
+                        projects={claimableProjects}
+                        title="Claimable Tokens"
+                        icon="/icons/zap-fast.svg"
+                        showHeader={false}
+                        claimable
+                    />
+                </div>
+            )}
+
+            {/* Miller's Law: Chunk 4 - Your Projects */}
             <div className="dashboard-chunk">
                 <h2 className="chunk-title">
                     <span className="chunk-icon">💎</span>
                     Your Projects
                 </h2>
-
-                {/* Loading state */}
-                {projectsLoading && (
-                    <div style={{ textAlign: "center", padding: "var(--space-8)", color: "var(--text-secondary)" }}>
-                        Loading your projects…
-                    </div>
-                )}
-
-                {/* Error state */}
-                {projectsError && (
-                    <div style={{ textAlign: "center", padding: "var(--space-8)", color: "var(--danger)" }}>
-                        {projectsError}
-                    </div>
-                )}
 
                 {/* Real projects */}
                 {!projectsLoading && !projectsError && projects.length > 0 && (
@@ -188,7 +225,7 @@ export default function ProfileDashboard() {
                 )}
 
                 {/* Empty state */}
-                {!projectsLoading && !projectsError && projects.length === 0 && (
+                {!projectsLoading && !projectsError && projects.length === 0 && claimableProjects.length === 0 && (
                     <EmptyState
                         className="profile-empty-section"
                         useRawClasses
@@ -202,8 +239,8 @@ export default function ProfileDashboard() {
                                 style={{ opacity: 0.3 }}
                             />
                         }
-                        title="No verified projects yet"
-                        description="Verify your project ownership to see your tokens here and start earning USDC fees from LP activity."
+                        title="No projects found"
+                        description="No tokens are linked to your GitHub account yet. Launch a token or verify your ownership of an existing project."
                         action={{
                             label: "Verify a Project",
                             href: "/verify",

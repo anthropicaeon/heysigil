@@ -93,7 +93,7 @@ export const apiClient = {
 
     launch: {
         myProjects: (accessToken: string) =>
-            request<{ projects: ProjectInfo[] }>("/api/launch/my-projects", {
+            request<{ projects: ProjectInfo[]; claimableProjects: ProjectInfo[] }>("/api/launch/my-projects", {
                 headers: { Authorization: `Bearer ${accessToken}` },
             }),
     },

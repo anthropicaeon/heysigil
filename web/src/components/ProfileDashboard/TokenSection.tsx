@@ -15,9 +15,11 @@ interface ProjectSectionProps {
     title?: string;
     icon?: string;
     showHeader?: boolean;
+    /** When true, cards show a "Claim" CTA */
+    claimable?: boolean;
 }
 
-export function ProjectSection({ projects, title, icon, showHeader = true }: ProjectSectionProps) {
+export function ProjectSection({ projects, title, icon, showHeader = true, claimable = false }: ProjectSectionProps) {
     if (projects.length === 0) return null;
 
     return (
@@ -46,7 +48,7 @@ export function ProjectSection({ projects, title, icon, showHeader = true }: Pro
             )}
             <div className="token-grid">
                 {projects.map((p) => (
-                    <ProjectCard key={p.projectId} project={p} />
+                    <ProjectCard key={p.projectId} project={p} claimable={claimable} />
                 ))}
             </div>
         </>
