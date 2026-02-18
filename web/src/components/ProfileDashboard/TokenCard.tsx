@@ -3,16 +3,26 @@
 /**
  * Project Card
  *
- * Displays a single project with token info, fees accrued, and claim action.
- * Border-centric pastel design system.
+ * Displays a single project with token info, fees accrued, and actions.
+ * Border-centric design with visual hierarchy.
  */
 
-import { CheckCircle, ChevronRight, Clock, Gift, Zap } from "lucide-react";
+import {
+    ArrowUpRight,
+    CheckCircle,
+    ChevronRight,
+    Clock,
+    Coins,
+    ExternalLink,
+    Gift,
+    Zap,
+} from "lucide-react";
 import Link from "next/link";
 import { memo } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { ProjectInfo } from "@/types";
 
 /** Generate a deterministic color from a string */
@@ -52,67 +62,105 @@ export const ProjectCard = memo(function ProjectCard({
     const shortId = getShortId(project);
     const color = hashColor(project.projectId);
 
+    const hasFees = Number(project.feesAccruedWei || "0") > 0;
+
     return (
         <div
-            className={`border-border border-b last:border-b-0 bg-background hover:bg-secondary/30 transition-colors ${claimable ? "ring-1 ring-orange-300" : ""}`}
+            className={cn(
+                "bg-background hover:bg-secondary/20 transition-colors",
+                claimable && "border-l-4 border-l-orange-400",
+            )}
         >
             {/* Header Row */}
             <div className="flex items-center justify-between px-6 py-4 lg:px-8 border-border border-b">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
+                    {/* Avatar */}
                     <div
-                        className="size-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                        className="size-12 flex items-center justify-center text-white font-bold text-lg border-2 border-border"
                         style={{ backgroundColor: color }}
                     >
                         {displayName.charAt(0).toUpperCase()}
                     </div>
+                    {/* Info */}
                     <div>
-                        <h3 className="font-medium text-foreground">{displayName}</h3>
-                        <span className="text-sm text-muted-foreground">{shortId}</span>
+                        <h3 className="font-semibold text-foreground text-lg">{displayName}</h3>
+                        <p className="text-sm text-muted-foreground font-mono">{shortId}</p>
                     </div>
                 </div>
-                {claimable ? (
-                    <Badge variant="outline" className="text-xs border-orange-300 text-orange-600">
-                        <Gift className="size-3 mr-1" />
-                        Claimable
-                    </Badge>
-                ) : (
-                    <Badge variant="default" className="text-xs">
-                        <Zap className="size-3 mr-1" />
-                        Verified
-                    </Badge>
-                )}
+                {/* Status Badge */}
+                <div className="flex items-center gap-2">
+                    {claimable ? (
+                        <Badge
+                            variant="outline"
+                            className="border-orange-300 text-orange-600 bg-orange-50"
+                        >
+                            <Gift className="size-3 mr-1" />
+                            Claimable
+                        </Badge>
+                    ) : (
+                        <Badge variant="sage">
+                            <Zap className="size-3 mr-1" />
+                            Verified
+                        </Badge>
+                    )}
+                </div>
             </div>
 
             {/* Stats Row */}
-            <div className="flex border-border border-b">
-                <div className="flex-1 px-6 py-4 lg:px-8 border-border border-r">
-                    <p className="text-lg font-semibold text-green-600">
+            <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border border-border border-b">
+                {/* Fees */}
+                <div className="flex-1 px-6 py-4 lg:px-8">
+                    <div className="flex items-center gap-2 mb-1">
+                        <Coins className="size-4 text-green-600" />
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                            Fees Accrued
+                        </span>
+                    </div>
+                    <p
+                        className={cn(
+                            "text-xl font-bold",
+                            hasFees ? "text-green-600" : "text-muted-foreground",
+                        )}
+                    >
                         {project.feesAccruedUsdc}
                     </p>
-                    <p className="text-xs text-muted-foreground">Fees Accrued</p>
                 </div>
-                <div className="flex-1 px-6 py-4 lg:px-8 border-border border-r">
+
+                {/* Token Contract */}
+                <div className="flex-1 px-6 py-4 lg:px-8">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                            Token Contract
+                        </span>
+                    </div>
                     {project.poolTokenAddress ? (
-                        <>
-                            <p className="text-sm font-mono text-foreground truncate">
-                                {project.poolTokenAddress.slice(0, 6)}…
-                                {project.poolTokenAddress.slice(-4)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Token Contract</p>
-                        </>
+                        <a
+                            href={`https://basescan.org/address/${project.poolTokenAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-mono text-foreground hover:text-primary flex items-center gap-1 group"
+                        >
+                            {project.poolTokenAddress.slice(0, 6)}…
+                            {project.poolTokenAddress.slice(-4)}
+                            <ArrowUpRight className="size-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </a>
                     ) : (
-                        <>
-                            <p className="text-sm text-muted-foreground">—</p>
-                            <p className="text-xs text-muted-foreground">No Token Yet</p>
-                        </>
+                        <p className="text-sm text-muted-foreground">No token deployed</p>
                     )}
                 </div>
+
+                {/* Attestation */}
                 <div className="flex-1 px-6 py-4 lg:px-8">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                            Attestation
+                        </span>
+                    </div>
                     <div className="flex items-center gap-2">
                         {project.attestationUid ? (
                             <>
                                 <CheckCircle className="size-4 text-green-600" />
-                                <span className="text-sm text-foreground">Verified</span>
+                                <span className="text-sm font-medium text-green-600">Verified</span>
                             </>
                         ) : (
                             <>
@@ -121,20 +169,19 @@ export const ProjectCard = memo(function ProjectCard({
                             </>
                         )}
                     </div>
-                    <p className="text-xs text-muted-foreground">Attestation</p>
                 </div>
             </div>
 
             {/* Actions Row */}
-            <div className="flex items-center justify-between px-6 py-3 lg:px-8">
-                <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between px-6 py-3 lg:px-8 bg-secondary/10">
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
                     {project.devLinks && project.devLinks.length > 0 && (
-                        <span className="text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
                             {project.devLinks.map((l) => l.platform).join(", ")}
                         </span>
                     )}
                     {(project.verifiedAt || project.createdAt) && (
-                        <span className="text-xs text-muted-foreground">
+                        <span>
                             {project.verifiedAt ? "Verified" : "Created"}{" "}
                             {new Date(
                                 project.verifiedAt || project.createdAt || "",
@@ -142,23 +189,39 @@ export const ProjectCard = memo(function ProjectCard({
                         </span>
                     )}
                 </div>
-                {claimable ? (
-                    <Link href={`/verify?project=${encodeURIComponent(project.projectId)}`}>
-                        <Button size="sm" className="gap-1 bg-orange-500 hover:bg-orange-600">
-                            Verify & Claim
-                            <ChevronRight className="size-4" />
-                        </Button>
-                    </Link>
-                ) : (
-                    project.poolTokenAddress && (
-                        <Link href={`/governance?token=${project.poolTokenAddress}`}>
-                            <Button variant="ghost" size="sm" className="gap-1">
-                                Governance
+                <div className="flex items-center gap-2">
+                    {claimable ? (
+                        <Link href={`/verify?project=${encodeURIComponent(project.projectId)}`}>
+                            <Button size="sm" className="gap-1 bg-orange-500 hover:bg-orange-600">
+                                Verify & Claim
                                 <ChevronRight className="size-4" />
                             </Button>
                         </Link>
-                    )
-                )}
+                    ) : (
+                        <>
+                            {project.attestationUid && (
+                                <a
+                                    href={`https://base.easscan.org/attestation/view/${project.attestationUid}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <Button variant="ghost" size="sm" className="gap-1">
+                                        <ExternalLink className="size-4" />
+                                        EAS
+                                    </Button>
+                                </a>
+                            )}
+                            {project.poolTokenAddress && (
+                                <Link href={`/governance?token=${project.poolTokenAddress}`}>
+                                    <Button variant="outline" size="sm" className="gap-1">
+                                        Governance
+                                        <ChevronRight className="size-4" />
+                                    </Button>
+                                </Link>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
         </div>
     );
