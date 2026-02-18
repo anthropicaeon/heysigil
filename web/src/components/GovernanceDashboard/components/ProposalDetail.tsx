@@ -2,7 +2,7 @@
  * ProposalDetail Component
  *
  * Full proposal view with voting interface.
- * Updated with pastel design system.
+ * Border-centric design with proper screen height adherence.
  */
 
 "use client";
@@ -47,9 +47,9 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
     const canVote = isVotingPhase || isCompletionPhase;
 
     return (
-        <div className="bg-background">
+        <div className="flex-1 flex flex-col bg-background">
             {/* Back button */}
-            <div className="border-border border-b px-6 py-4 lg:px-12">
+            <div className="border-border border-b px-6 py-4 lg:px-12 bg-sage/10">
                 <button
                     type="button"
                     onClick={onBack}
@@ -61,9 +61,9 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
             </div>
 
             {/* Proposal Header */}
-            <div className="border-border border-b px-6 py-6 lg:px-12 lg:py-8">
-                <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
-                    <div>
+            <div className="border-border border-b">
+                <div className="flex flex-col lg:flex-row">
+                    <div className="lg:w-2/3 px-6 py-6 lg:px-12 lg:py-8 border-border border-b lg:border-b-0 lg:border-r">
                         <div className="flex items-center gap-3 mb-3">
                             <span className="text-xs text-muted-foreground font-mono">
                                 Proposal #{proposal.id}
@@ -74,7 +74,7 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
                         </div>
                         <h1 className="text-2xl font-semibold text-foreground">{proposal.title}</h1>
                     </div>
-                    <div className="text-left lg:text-right">
+                    <div className="lg:w-1/3 px-6 py-6 lg:px-8 flex flex-col justify-center">
                         <p className="text-3xl font-bold text-foreground">
                             {formatTokens(proposal.tokenAmount)}
                         </p>
@@ -84,8 +84,8 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
             </div>
 
             {/* Metadata */}
-            <div className="flex flex-col sm:flex-row border-border border-b">
-                <div className="flex-1 px-6 py-4 lg:px-12 border-border border-b sm:border-b-0 sm:border-r">
+            <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border border-border border-b">
+                <div className="flex-1 px-6 py-4 lg:px-12">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground uppercase tracking-wider mb-1">
                         <Target className="size-3" />
                         Target Date
@@ -94,7 +94,7 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
                         {new Date(proposal.targetDate * 1000).toLocaleDateString()}
                     </p>
                 </div>
-                <div className="flex-1 px-6 py-4 lg:px-12 border-border border-b sm:border-b-0 sm:border-r">
+                <div className="flex-1 px-6 py-4 lg:px-12">
                     <div className="flex items-center gap-1 text-xs text-muted-foreground uppercase tracking-wider mb-1">
                         <Users className="size-3" />
                         Proposer
@@ -122,16 +122,16 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
             </div>
 
             {/* Timeline */}
-            <div className="border-border border-b">
+            <div className="border-border border-b bg-lavender/10">
                 <div className="px-6 py-4 lg:px-12 border-border border-b">
                     <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider">
                         Timeline
                     </h3>
                 </div>
-                <div className="flex flex-col sm:flex-row">
+                <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border">
                     <div
                         className={cn(
-                            "flex-1 px-6 py-4 lg:px-8 border-border border-b sm:border-b-0 sm:border-r",
+                            "flex-1 px-6 py-4 lg:px-8",
                             "bg-sage/30 border-l-4 border-l-green-500",
                         )}
                     >
@@ -140,7 +140,7 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
                     </div>
                     <div
                         className={cn(
-                            "flex-1 px-6 py-4 lg:px-8 border-border border-b sm:border-b-0 sm:border-r",
+                            "flex-1 px-6 py-4 lg:px-8",
                             isVotingPhase
                                 ? "bg-lavender/50 border-l-4 border-l-primary"
                                 : isPostVoting(proposal.status)
@@ -163,7 +163,7 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
                         <>
                             <div
                                 className={cn(
-                                    "flex-1 px-6 py-4 lg:px-8 border-border border-b sm:border-b-0 sm:border-r",
+                                    "flex-1 px-6 py-4 lg:px-8",
                                     proposal.status === "Approved"
                                         ? "bg-lavender/50 border-l-4 border-l-primary"
                                         : isCompletionVoting(proposal.status)
@@ -216,7 +216,7 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
 
             {/* Proof Section */}
             {proposal.proofUri && (
-                <div className="border-border border-b px-6 py-6 lg:px-12">
+                <div className="border-border border-b px-6 py-6 lg:px-12 bg-sage/10">
                     <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
                         <Link2 className="size-4" />
                         Completion Proof
@@ -262,11 +262,11 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
                             rows={3}
                         />
                     </div>
-                    <div className="flex flex-col sm:flex-row">
+                    <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border border-border border-b">
                         <button
                             type="button"
                             onClick={() => handleVote(true)}
-                            className="flex-1 px-6 py-6 flex items-center justify-center gap-2 bg-green-50 hover:bg-green-100 transition-colors border-border border-b sm:border-b-0 sm:border-r text-green-700 font-medium"
+                            className="flex-1 px-6 py-6 flex items-center justify-center gap-2 bg-green-50 hover:bg-green-100 transition-colors text-green-700 font-medium"
                         >
                             <Check className="size-5" />
                             Vote Yes
@@ -284,18 +284,28 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
             )}
 
             {voted && (
-                <div className="px-6 py-8 lg:px-12 text-center bg-sage/30">
+                <div className="px-6 py-8 lg:px-12 text-center bg-sage/30 border-border border-b">
                     <p className="font-semibold text-green-700">✓ Your vote has been recorded</p>
                 </div>
             )}
 
             {!canVote && !voted && (
-                <div className="px-6 py-8 lg:px-12 text-center">
+                <div className="px-6 py-8 lg:px-12 text-center border-border border-b">
                     <p className="text-muted-foreground">
                         Voting has ended. This proposal was {proposal.status.toLowerCase()}.
                     </p>
                 </div>
             )}
+
+            {/* Spacer to push footer down */}
+            <div className="flex-1" />
+
+            {/* Footer */}
+            <div className="border-border border-t px-6 py-4 lg:px-12 bg-sage/20">
+                <p className="text-xs text-muted-foreground text-center">
+                    All votes are recorded permanently onchain via Base.
+                </p>
+            </div>
         </div>
     );
 }

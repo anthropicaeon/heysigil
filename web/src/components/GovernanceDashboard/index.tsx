@@ -2,13 +2,11 @@
  * GovernanceDashboard
  *
  * Main governance dashboard component for viewing and creating proposals.
- * Currently shows an empty state — proposals will come from on-chain
- * contract reads when milestone governance is live.
+ * Border-centric design with proper screen height adherence.
  */
 
 "use client";
 
-import { FileCheck } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 
 import { CreateProposalModal } from "./components/CreateProposalModal";
@@ -66,7 +64,7 @@ export default function GovernanceDashboard() {
     if (selectedProposal) {
         return (
             <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
-                <div className="border-border relative container border-l border-r min-h-[calc(100vh-5rem)] px-0 bg-sage flex flex-col">
+                <div className="border-border relative container border-l border-r min-h-[calc(100vh-5rem)] px-0 bg-cream flex flex-col">
                     <ProposalDetail
                         proposal={selectedProposal}
                         onBack={() => setSelectedProposal(null)}
@@ -78,7 +76,7 @@ export default function GovernanceDashboard() {
 
     return (
         <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-[calc(100vh-5rem)] px-0 bg-sage flex flex-col">
+            <div className="border-border relative container border-l border-r min-h-[calc(100vh-5rem)] px-0 bg-cream flex flex-col">
                 <GovernanceHeader proposals={proposals} escrowBalance="0" />
                 <ProposalFilter
                     activeTab={activeTab}
@@ -86,29 +84,14 @@ export default function GovernanceDashboard() {
                     onCreateClick={() => setShowCreate(true)}
                 />
 
-                {proposals.length === 0 ? (
-                    <div className="flex-1 flex flex-col border-border border-b bg-background">
-                        <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 lg:px-12 text-center">
-                            <FileCheck className="size-12 mb-4 text-muted-foreground/30" />
-                            <h3 className="text-lg font-semibold text-foreground mb-2">
-                                No proposals yet
-                            </h3>
-                            <p className="text-muted-foreground max-w-md">
-                                Governance launches when the first milestone proposal is created. Token
-                                holders can propose milestones and the community votes to unlock funds.
-                            </p>
-                        </div>
-                    </div>
-                ) : (
-                    <ProposalListView
-                        proposals={filteredProposals}
-                        activeTab={activeTab}
-                        onSelectProposal={setSelectedProposal}
-                    />
-                )}
+                <ProposalListView
+                    proposals={filteredProposals}
+                    activeTab={activeTab}
+                    onSelectProposal={setSelectedProposal}
+                />
 
                 {/* Footer */}
-                <div className="border-border border-t px-6 py-4 lg:px-12 bg-sage/30">
+                <div className="border-border border-t px-6 py-4 lg:px-12 bg-sage/20">
                     <p className="text-xs text-muted-foreground text-center">
                         Governance is onchain. All votes are recorded permanently on Base.
                     </p>
