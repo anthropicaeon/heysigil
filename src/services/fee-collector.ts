@@ -180,17 +180,17 @@ export class FeeCollector {
                 );
 
                 try {
-                    const isAssigned = await this.vault.poolAssigned(project.poolId);
-                    if (isAssigned) {
-                        skipped++;
-                        continue;
-                    }
+                    // Wait before RPC calls to avoid rate limiting
+                    await new Promise((r) => setTimeout(r, 2000));
 
-                    // Call assignDev
+                    // Call assignDev directly — contract reverts are handled below
                     const nonce = await this.provider.getTransactionCount(
                         this.wallet.address,
                         "latest",
                     );
+
+                    await new Promise((r) => setTimeout(r, 1000));
+
                     const tx = await this.vault.assignDev(
                         project.poolId,
                         verification.walletAddress,
@@ -212,13 +212,21 @@ export class FeeCollector {
                     );
                 } catch (err) {
                     const msg = err instanceof Error ? err.message : String(err);
-                    // NoUnclaimedFees or PoolAlreadyAssigned are expected
-                    if (msg.includes("revert") || msg.includes("execution reverted")) {
+                    // PoolAlreadyAssigned or NoUnclaimedFees are expected reverts — skip silently
+                    if (
+                        msg.includes("PoolAlreadyAssigned") ||
+                        msg.includes("NoUnclaimedFees") ||
+                        msg.includes("execution reverted")
+                    ) {
+                        log.info(
+                            { project: project.name },
+                            "assignDev: already assigned or no fees",
+                        );
                         skipped++;
                     } else {
                         log.warn(
-                            { project: project.name, err: msg.slice(0, 120) },
-                            "Failed to assign dev",
+                            { project: project.name, err: msg.slice(0, 200) },
+                            "assignDev: failed",
                         );
                     }
                 }
