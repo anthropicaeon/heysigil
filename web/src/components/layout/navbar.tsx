@@ -115,13 +115,9 @@ const Navbar = () => {
         },
     ];
 
-    const bgColor = "bg-background";
-
     return (
-        <header
-            className={cn("border-b-dark-gray relative z-50 h-20 border-b px-2.5 lg:px-0", bgColor)}
-        >
-            <div className="border-r-dark-gray border-l-dark-gray container flex h-20 items-center border-x">
+        <header className="relative z-50 h-20 border-b border-border bg-background px-2.5 lg:px-0">
+            <div className="container flex h-20 items-center border-x border-border">
                 <div className="flex w-full items-center justify-between py-3">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2">
@@ -145,35 +141,40 @@ const Navbar = () => {
                                             <NavigationMenuTrigger
                                                 className={cn(
                                                     "text-foreground bg-transparent text-sm font-normal",
-                                                    "hover:bg-transparent focus:bg-transparent active:bg-transparent",
-                                                    "hover:text-primary focus:text-primary",
-                                                    "data-[state=open]:text-primary data-[state=open]:bg-transparent",
-                                                    "transition-none",
+                                                    "hover:bg-sage/30 focus:bg-sage/30 active:bg-sage/30",
+                                                    "hover:text-foreground focus:text-foreground",
+                                                    "data-[state=open]:text-foreground data-[state=open]:bg-sage/40",
+                                                    "transition-colors",
                                                 )}
                                             >
                                                 {link.label}
                                             </NavigationMenuTrigger>
-                                            <NavigationMenuContent className="bg-background border border-border shadow-lg">
+                                            <NavigationMenuContent>
+                                                {/* Dropdown Header */}
+                                                <div className="px-4 py-2 border-b border-border bg-sage/20">
+                                                    <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                                        Resources
+                                                    </span>
+                                                </div>
+                                                {/* Dropdown Items */}
                                                 <ul className="w-[420px] divide-y divide-border">
                                                     {link.dropdownItems.map((item) => (
                                                         <li key={item.title}>
                                                             <NavigationMenuLink asChild>
                                                                 <Link
                                                                     href={item.href}
-                                                                    className="group flex items-center px-4 py-3 leading-none no-underline outline-none transition-all duration-200 select-none hover:bg-lavender/50 focus:bg-lavender/50"
+                                                                    className="group flex items-center gap-3 px-4 py-3 leading-none no-underline outline-none transition-colors select-none hover:bg-sage/20 focus:bg-sage/20"
                                                                 >
-                                                                    <div className="flex gap-3">
-                                                                        <div className="flex size-10 shrink-0 items-center justify-center bg-lavender/60 transition-colors group-hover:bg-primary/10">
-                                                                            <item.icon className="text-primary size-5" />
+                                                                    <div className="size-9 shrink-0 flex items-center justify-center bg-sage/30 border border-border transition-colors group-hover:bg-lavender/30">
+                                                                        <item.icon className="size-4 text-muted-foreground" />
+                                                                    </div>
+                                                                    <div className="space-y-0.5">
+                                                                        <div className="text-sm leading-none font-medium text-foreground">
+                                                                            {item.title}
                                                                         </div>
-                                                                        <div className="space-y-1">
-                                                                            <div className="text-foreground text-sm leading-none font-medium group-hover:text-primary transition-colors">
-                                                                                {item.title}
-                                                                            </div>
-                                                                            <p className="text-muted-foreground line-clamp-2 text-sm leading-relaxed">
-                                                                                {item.description}
-                                                                            </p>
-                                                                        </div>
+                                                                        <p className="text-xs text-muted-foreground line-clamp-1">
+                                                                            {item.description}
+                                                                        </p>
                                                                     </div>
                                                                 </Link>
                                                             </NavigationMenuLink>
@@ -188,8 +189,7 @@ const Navbar = () => {
                                                 href={link.href}
                                                 className={cn(
                                                     "text-foreground hover:text-primary p-2 text-sm transition-colors",
-                                                    pathname === link.href &&
-                                                    "text-primary font-medium",
+                                                    pathname === link.href && "text-primary font-medium",
                                                     link.primary && "font-medium",
                                                 )}
                                             >
@@ -208,8 +208,8 @@ const Navbar = () => {
                             >
                                 {privy.authenticated ? (
                                     <div className="flex items-center gap-2">
-                                        <div className="flex items-center gap-1.5 border border-border px-2.5 py-1">
-                                            <div className="flex size-6 items-center justify-center bg-primary text-[10px] font-semibold text-primary-foreground">
+                                        <div className="flex items-center gap-1.5 border border-border px-2.5 py-1 bg-sage/20">
+                                            <div className="flex size-6 items-center justify-center bg-lavender/50 text-[10px] font-semibold text-foreground border border-border">
                                                 {displayName ? displayName.charAt(0).toUpperCase() : "U"}
                                             </div>
                                             <span className="text-sm font-medium text-foreground max-w-[100px] truncate">
@@ -267,16 +267,16 @@ const Navbar = () => {
             {/* Mobile Menu Overlay */}
             <div
                 className={cn(
-                    "border-t-dark-gray absolute inset-x-0 top-full container flex h-[calc(100vh-80px)] flex-col border-t px-2.5 lg:px-0",
+                    "absolute inset-x-0 top-full container flex h-[calc(100vh-80px)] flex-col border-t border-border px-2.5 lg:px-0",
                     "transition duration-300 ease-in-out lg:hidden",
                     isMenuOpen
                         ? "pointer-events-auto translate-y-0 opacity-100"
                         : "pointer-events-none -translate-y-full opacity-0",
-                    bgColor,
+                    "bg-background",
                 )}
             >
-                <div className="border-dark-gray h-[calc(100vh-80px)] border-x px-5">
-                    <nav className="mt-6 flex flex-1 flex-col gap-6">
+                <div className="h-[calc(100vh-80px)] border-x border-border">
+                    <nav className="flex flex-col divide-y divide-border">
                         {ITEMS.map((link) =>
                             link.dropdownItems ? (
                                 <div key={link.label}>
@@ -287,14 +287,17 @@ const Navbar = () => {
                                                 openDropdown === link.label ? null : link.label,
                                             )
                                         }
-                                        className="text-foreground flex w-full items-center justify-between text-lg tracking-[-0.36px]"
+                                        className={cn(
+                                            "w-full flex items-center justify-between px-6 py-4 text-foreground text-base",
+                                            openDropdown === link.label && "bg-sage/20",
+                                        )}
                                         aria-label={`${link.label} menu`}
                                         aria-expanded={openDropdown === link.label}
                                     >
                                         {link.label}
                                         <ChevronRight
                                             className={cn(
-                                                "h-4 w-4 transition-transform",
+                                                "size-4 transition-transform text-muted-foreground",
                                                 openDropdown === link.label ? "rotate-90" : "",
                                             )}
                                             aria-hidden="true"
@@ -302,35 +305,44 @@ const Navbar = () => {
                                     </button>
                                     <div
                                         className={cn(
-                                            "border-b-dark-gray ml-1 space-y-3 overflow-hidden border-b transition-all",
+                                            "overflow-hidden transition-all bg-background",
                                             openDropdown === link.label
-                                                ? "mt-3 max-h-[1000px] pb-6 opacity-100"
+                                                ? "max-h-[1000px] opacity-100"
                                                 : "max-h-0 opacity-0",
                                         )}
                                     >
-                                        {link.dropdownItems.map((item) => (
-                                            <Link
-                                                key={item.title}
-                                                href={item.href}
-                                                onClick={() => {
-                                                    setIsMenuOpen(false);
-                                                    setOpenDropdown(null);
-                                                }}
-                                                className="group flex items-start gap-3 p-3 transition-all duration-200 hover:bg-lavender/50 border-border border-b last:border-b-0"
-                                            >
-                                                <div className="flex size-10 shrink-0 items-center justify-center bg-lavender/60 transition-colors group-hover:bg-primary/10">
-                                                    <item.icon className="text-primary size-5" />
-                                                </div>
-                                                <div>
-                                                    <div className="text-foreground font-medium group-hover:text-primary transition-colors">
-                                                        {item.title}
+                                        {/* Section Header */}
+                                        <div className="px-6 py-2 border-b border-border bg-sage/10">
+                                            <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                                Resources
+                                            </span>
+                                        </div>
+                                        {/* Items */}
+                                        <div className="divide-y divide-border">
+                                            {link.dropdownItems.map((item) => (
+                                                <Link
+                                                    key={item.title}
+                                                    href={item.href}
+                                                    onClick={() => {
+                                                        setIsMenuOpen(false);
+                                                        setOpenDropdown(null);
+                                                    }}
+                                                    className="group flex items-center gap-3 px-6 py-3 transition-colors hover:bg-sage/20"
+                                                >
+                                                    <div className="size-9 shrink-0 flex items-center justify-center bg-cream/50 border border-border">
+                                                        <item.icon className="size-4 text-muted-foreground" />
                                                     </div>
-                                                    <p className="text-muted-foreground text-sm">
-                                                        {item.description}
-                                                    </p>
-                                                </div>
-                                            </Link>
-                                        ))}
+                                                    <div>
+                                                        <div className="text-sm font-medium text-foreground">
+                                                            {item.title}
+                                                        </div>
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {item.description}
+                                                        </p>
+                                                    </div>
+                                                </Link>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
@@ -338,8 +350,9 @@ const Navbar = () => {
                                     key={link.label}
                                     href={link.href}
                                     className={cn(
-                                        "text-foreground text-lg tracking-[-0.36px]",
-                                        pathname === link.href && "text-primary font-medium",
+                                        "px-6 py-4 text-foreground text-base",
+                                        pathname === link.href && "text-primary font-medium bg-primary/5",
+                                        "hover:bg-sage/20 transition-colors",
                                     )}
                                     onClick={() => setIsMenuOpen(false)}
                                 >
@@ -348,6 +361,8 @@ const Navbar = () => {
                             ),
                         )}
                     </nav>
+                    {/* Mobile Footer */}
+                    <div className="flex-1 bg-sage/10" />
                 </div>
             </div>
         </header>

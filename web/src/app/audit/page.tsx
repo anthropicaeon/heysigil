@@ -1,6 +1,7 @@
-import { AlertTriangle, CheckCircle, Info, Shield } from "lucide-react";
+import { AlertTriangle, CheckCircle, FileSearch, Info, Shield } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { PixelCard } from "@/components/ui/pixel-card";
 import { cn } from "@/lib/utils";
 
 const findings = [
@@ -37,12 +38,12 @@ const contracts = [
     { name: "PoolReward.sol", loc: 194, description: "EAS-based reward claims" },
 ];
 
-const severityBorders = {
-    critical: "border-l-4 border-l-red-500",
-    high: "border-l-4 border-l-orange-500",
-    medium: "border-l-4 border-l-yellow-500",
-    low: "border-l-4 border-l-blue-500",
-    info: "border-l-4 border-l-gray-400",
+const severityBackgrounds = {
+    critical: "bg-rose/30",
+    high: "bg-rose/20",
+    medium: "bg-cream/50",
+    low: "bg-lavender/20",
+    info: "bg-sage/10",
 };
 
 const severityIcons = {
@@ -53,46 +54,65 @@ const severityIcons = {
     info: Info,
 };
 
-const severityIconColors = {
-    critical: "text-red-500",
-    high: "text-orange-500",
-    medium: "text-yellow-500",
-    low: "text-blue-500",
-    info: "text-gray-500",
-};
+const stats = [
+    { count: "0", label: "Critical" },
+    { count: "0", label: "High" },
+    { count: "1", label: "Low" },
+    { count: "2", label: "Informational" },
+];
+
+const securityPatterns = [
+    "OpenZeppelin ReentrancyGuard on all external functions handling value",
+    "Ownable2Step for two-step ownership transfers",
+    "SafeERC20 for token transfers",
+    "Proper access control with role-based permissions",
+    "Event emission for all state changes",
+    "Input validation on public functions",
+];
 
 export default function AuditPage() {
     return (
-        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0 bg-cream">
-                {/* Header */}
-                <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16">
-                    <div className="max-w-3xl">
-                        <p className="text-primary text-sm font-medium uppercase tracking-wider mb-4">
-                            security audit
-                        </p>
-                        <h1 className="text-3xl lg:text-4xl font-semibold text-foreground mb-4 lowercase">
-                            sigil protocol audit report
-                        </h1>
-                        <p className="text-muted-foreground">
-                            Conducted by Claude Opus 4.6 [1m] | February 2026
-                        </p>
-                    </div>
-                </div>
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-[calc(100vh-5rem)] px-0 bg-cream flex flex-col">
+                {/* Hero Header with PixelCard */}
+                <PixelCard
+                    variant="lavender"
+                    active
+                    centerFade
+                    noFocus
+                    className="border-border border-b bg-lavender/20"
+                >
+                    <div className="flex flex-col lg:flex-row">
+                        {/* Icon Cell */}
+                        <div className="lg:w-32 px-6 py-8 lg:px-0 lg:py-0 flex items-center justify-center border-border border-b lg:border-b-0 lg:border-r">
+                            <div className="size-20 bg-lavender/40 border border-border flex items-center justify-center">
+                                <Shield className="size-10 text-primary" />
+                            </div>
+                        </div>
 
-                {/* Summary Stats */}
-                <div className="border-border border-b flex flex-col sm:flex-row">
-                    {[
-                        { count: "0", label: "Critical", color: "text-red-500" },
-                        { count: "0", label: "High", color: "text-orange-500" },
-                        { count: "1", label: "Low", color: "text-blue-500" },
-                        { count: "2", label: "Informational", color: "text-muted-foreground" },
-                    ].map((stat) => (
+                        {/* Title Section */}
+                        <div className="flex-1 px-6 py-8 lg:px-10 lg:py-10">
+                            <p className="text-primary text-sm font-medium uppercase tracking-wider mb-2">
+                                security audit
+                            </p>
+                            <h1 className="text-3xl lg:text-4xl font-semibold text-foreground lowercase mb-3">
+                                sigil protocol audit report
+                            </h1>
+                            <p className="text-muted-foreground">
+                                Conducted by Claude Opus 4.6 [1m] | February 2026
+                            </p>
+                        </div>
+                    </div>
+                </PixelCard>
+
+                {/* Summary Stats - Muted */}
+                <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border border-border border-b bg-background">
+                    {stats.map((stat) => (
                         <div
                             key={stat.label}
-                            className="flex-1 px-6 py-6 lg:px-8 text-center border-border border-b sm:border-b-0 sm:border-r sm:last:border-r-0"
+                            className="flex-1 px-6 py-6 lg:px-8 text-center"
                         >
-                            <p className={cn("text-3xl font-bold mb-1", stat.color)}>
+                            <p className="text-3xl font-bold text-foreground mb-1">
                                 {stat.count}
                             </p>
                             <p className="text-sm text-muted-foreground">{stat.label}</p>
@@ -101,14 +121,19 @@ export default function AuditPage() {
                 </div>
 
                 {/* Executive Summary */}
-                <div className="bg-background">
+                <div className="bg-background border-border border-b">
                     <div className="flex flex-col lg:flex-row">
-                        <div className="lg:w-1/3 px-6 py-6 lg:px-12 border-border border-b lg:border-b-0 lg:border-r">
-                            <h2 className="text-lg font-semibold text-foreground lowercase">
-                                executive summary
-                            </h2>
+                        <div className="lg:w-1/3 px-6 py-4 lg:px-8 border-border border-b lg:border-b-0 lg:border-r bg-sage/20">
+                            <div className="flex items-center gap-3">
+                                <div className="size-10 bg-sage/40 border border-border flex items-center justify-center">
+                                    <FileSearch className="size-5 text-muted-foreground" />
+                                </div>
+                                <h2 className="text-lg font-semibold text-foreground lowercase">
+                                    executive summary
+                                </h2>
+                            </div>
                         </div>
-                        <div className="lg:w-2/3 px-6 py-6 lg:px-12 border-border border-b">
+                        <div className="lg:w-2/3 px-6 py-6 lg:px-8">
                             <p className="text-muted-foreground">
                                 This audit covers the core Sigil Protocol smart contracts deployed
                                 on Base. The codebase demonstrates strong security practices with
@@ -120,17 +145,17 @@ export default function AuditPage() {
                 </div>
 
                 {/* Audit Scope */}
-                <div className="bg-sage/30">
-                    <div className="px-6 py-4 lg:px-12 border-border border-b">
-                        <h2 className="text-lg font-semibold text-foreground lowercase">
-                            audit scope
-                        </h2>
+                <div className="bg-sage/10">
+                    <div className="px-6 py-3 lg:px-8 border-border border-b">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                            Audit Scope
+                        </span>
                     </div>
                     <div className="divide-y divide-border border-border border-b">
                         {contracts.map((contract) => (
                             <div
                                 key={contract.name}
-                                className="flex items-center justify-between px-6 py-4 lg:px-12"
+                                className="flex items-center justify-between px-6 py-4 lg:px-8 hover:bg-sage/20 transition-colors"
                             >
                                 <div>
                                     <p className="font-mono text-sm font-medium text-foreground">
@@ -144,7 +169,7 @@ export default function AuditPage() {
                             </div>
                         ))}
                     </div>
-                    <div className="px-6 py-3 lg:px-12 border-border border-b">
+                    <div className="px-6 py-3 lg:px-8 border-border border-b bg-sage/20">
                         <p className="text-sm text-muted-foreground">
                             Total: ~1,635 lines of Solidity code
                         </p>
@@ -153,28 +178,26 @@ export default function AuditPage() {
 
                 {/* Findings */}
                 <div className="bg-background">
-                    <div className="px-6 py-4 lg:px-12 border-border border-b">
-                        <h2 className="text-lg font-semibold text-foreground lowercase">
-                            findings
-                        </h2>
+                    <div className="px-6 py-3 lg:px-8 border-border border-b bg-lavender/20">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                            Findings
+                        </span>
                     </div>
                     <div className="divide-y divide-border border-border border-b">
                         {findings.map((finding, index) => {
                             const Icon =
                                 severityIcons[finding.severity as keyof typeof severityIcons];
-                            const iconColor =
-                                severityIconColors[
-                                    finding.severity as keyof typeof severityIconColors
-                                ];
-                            const borderStyle =
-                                severityBorders[finding.severity as keyof typeof severityBorders];
+                            const bgStyle =
+                                severityBackgrounds[finding.severity as keyof typeof severityBackgrounds];
                             return (
                                 <div
                                     key={`finding-${finding.title.slice(0, 10)}-${index}`}
-                                    className={cn("px-6 py-5 lg:px-12", borderStyle)}
+                                    className={cn("px-6 py-5 lg:px-8", bgStyle)}
                                 >
                                     <div className="flex items-start gap-3">
-                                        <Icon className={cn("size-5 mt-0.5 shrink-0", iconColor)} />
+                                        <div className="size-8 bg-background border border-border flex items-center justify-center shrink-0 mt-0.5">
+                                            <Icon className="size-4 text-muted-foreground" />
+                                        </div>
                                         <div className="flex-1">
                                             <div className="flex items-center justify-between mb-2">
                                                 <h3 className="font-medium text-foreground">
@@ -206,26 +229,21 @@ export default function AuditPage() {
                 </div>
 
                 {/* Security Patterns */}
-                <div className="bg-sage/30">
-                    <div className="px-6 py-4 lg:px-12 border-border border-b">
-                        <h2 className="text-lg font-semibold text-foreground lowercase">
-                            security patterns used
-                        </h2>
+                <div className="bg-sage/10">
+                    <div className="px-6 py-3 lg:px-8 border-border border-b">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                            Security Patterns Used
+                        </span>
                     </div>
                     <div className="divide-y divide-border border-border border-b">
-                        {[
-                            "OpenZeppelin ReentrancyGuard on all external functions handling value",
-                            "Ownable2Step for two-step ownership transfers",
-                            "SafeERC20 for token transfers",
-                            "Proper access control with role-based permissions",
-                            "Event emission for all state changes",
-                            "Input validation on public functions",
-                        ].map((pattern) => (
+                        {securityPatterns.map((pattern) => (
                             <div
                                 key={pattern}
-                                className="flex items-center gap-3 px-6 py-3 lg:px-12"
+                                className="flex items-center gap-3 px-6 py-3 lg:px-8 hover:bg-sage/20 transition-colors"
                             >
-                                <CheckCircle className="size-4 text-green-600 shrink-0" />
+                                <div className="size-6 bg-sage/30 border border-border flex items-center justify-center shrink-0">
+                                    <CheckCircle className="size-3.5 text-muted-foreground" />
+                                </div>
                                 <span className="text-sm text-muted-foreground">{pattern}</span>
                             </div>
                         ))}
@@ -233,14 +251,19 @@ export default function AuditPage() {
                 </div>
 
                 {/* Conclusion */}
-                <div className="bg-background">
+                <div className="bg-background border-border border-b">
                     <div className="flex flex-col lg:flex-row">
-                        <div className="lg:w-1/3 px-6 py-6 lg:px-12 border-border border-b lg:border-b-0 lg:border-r">
-                            <h2 className="text-lg font-semibold text-foreground lowercase">
-                                conclusion
-                            </h2>
+                        <div className="lg:w-1/3 px-6 py-4 lg:px-8 border-border border-b lg:border-b-0 lg:border-r bg-cream/30">
+                            <div className="flex items-center gap-3">
+                                <div className="size-10 bg-cream/50 border border-border flex items-center justify-center">
+                                    <CheckCircle className="size-5 text-muted-foreground" />
+                                </div>
+                                <h2 className="text-lg font-semibold text-foreground lowercase">
+                                    conclusion
+                                </h2>
+                            </div>
                         </div>
-                        <div className="lg:w-2/3 px-6 py-6 lg:px-12 border-border border-b">
+                        <div className="lg:w-2/3 px-6 py-6 lg:px-8">
                             <p className="text-muted-foreground mb-4">
                                 The Sigil Protocol demonstrates a mature approach to smart contract
                                 security. No critical or high severity issues were identified. The
@@ -256,12 +279,14 @@ export default function AuditPage() {
                     </div>
                 </div>
 
+                {/* Spacer */}
+                <div className="flex-1 bg-cream/10" />
+
                 {/* Footer */}
-                <div className="px-6 py-4 lg:px-12 bg-cream/50">
-                    <p className="text-xs text-muted-foreground text-center">
-                        <Shield className="size-3 inline mr-1" />
-                        All contracts verified on Basescan. Audit does not guarantee absence of
-                        bugs.
+                <div className="border-border border-t px-6 py-4 lg:px-8 bg-sage/20">
+                    <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-2">
+                        <Shield className="size-3" />
+                        All contracts verified on Basescan. Audit does not guarantee absence of bugs.
                     </p>
                 </div>
             </div>

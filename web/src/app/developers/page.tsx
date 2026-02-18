@@ -25,24 +25,18 @@ const problems = [
         title: "fragility",
         description:
             "Builder verification tied to a single platform API. When that platform changes, trust breaks.",
-        color: "text-red-500",
-        bg: "bg-red-50",
     },
     {
         icon: Target,
         title: "misalignment",
         description:
             "Builders collect fees without milestones. Capital flows without accountability.",
-        color: "text-orange-500",
-        bg: "bg-orange-50",
     },
     {
         icon: Signal,
         title: "noise",
         description:
             "Real dev projects compete with low-effort entries. No way to separate signal.",
-        color: "text-yellow-600",
-        bg: "bg-yellow-50",
     },
 ];
 
@@ -52,7 +46,6 @@ const solutions = [
         title: "5-Channel Verification",
         description: "GitHub, X (zkTLS), Facebook, Instagram, Domain. No single point of failure.",
         badge: "resilient",
-        color: "text-green-600",
     },
     {
         icon: Coins,
@@ -60,7 +53,6 @@ const solutions = [
         description:
             "Protocol fees route directly to verified builders. Capital follows verification.",
         badge: "automatic",
-        color: "text-blue-600",
     },
     {
         icon: Users,
@@ -68,14 +60,12 @@ const solutions = [
         description:
             "Community validates milestones to unlock native tokens. Accountability is structural.",
         badge: "onchain",
-        color: "text-purple-600",
     },
     {
         icon: Code,
         title: "EAS Attestations",
         description: "Onchain proof of builder legitimacy. Machine-readable. Permanent. Portable.",
         badge: "permanent",
-        color: "text-primary",
     },
 ];
 
@@ -120,9 +110,9 @@ export default function DevelopersPage() {
                 >
                     <div className="px-6 py-16 lg:px-12 lg:py-24">
                         <div className="max-w-3xl mx-auto text-center">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 mb-6">
-                                <Rocket className="size-4 text-primary" />
-                                <span className="text-sm font-medium text-primary uppercase tracking-wider">
+                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-sage/50 border border-border mb-6">
+                                <Rocket className="size-4 text-muted-foreground" />
+                                <span className="text-sm font-medium text-foreground uppercase tracking-wider">
                                     for builders
                                 </span>
                             </div>
@@ -155,10 +145,10 @@ export default function DevelopersPage() {
 
                 {/* Problem Section */}
                 <div className="border-border border-b">
-                    <div className="px-6 py-5 lg:px-12 border-border border-b bg-rose/30">
+                    <div className="px-6 py-5 lg:px-12 border-border border-b bg-rose/20">
                         <div className="flex items-center gap-3">
-                            <div className="size-10 bg-rose/50 border border-border flex items-center justify-center">
-                                <AlertTriangle className="size-5 text-red-500" />
+                            <div className="size-10 bg-rose/40 border border-border flex items-center justify-center">
+                                <AlertTriangle className="size-5 text-muted-foreground" />
                             </div>
                             <div>
                                 <p className="text-primary text-sm font-medium uppercase tracking-wider">
@@ -176,8 +166,8 @@ export default function DevelopersPage() {
                                 key={problem.title}
                                 className="flex-1 px-6 py-8 lg:px-8"
                             >
-                                <div className={cn("size-12 flex items-center justify-center mb-4 border border-border", problem.bg)}>
-                                    <problem.icon className={cn("size-6", problem.color)} />
+                                <div className="size-12 flex items-center justify-center mb-4 border border-border bg-cream/30">
+                                    <problem.icon className="size-6 text-muted-foreground" />
                                 </div>
                                 <h3 className="text-lg font-semibold text-foreground mb-2 lowercase">
                                     {problem.title}
@@ -195,7 +185,7 @@ export default function DevelopersPage() {
                     <div className="px-6 py-5 lg:px-12 border-border border-b bg-sage/20">
                         <div className="flex items-center gap-3">
                             <div className="size-10 bg-sage/40 border border-border flex items-center justify-center">
-                                <Zap className="size-5 text-primary" />
+                                <Zap className="size-5 text-muted-foreground" />
                             </div>
                             <div>
                                 <p className="text-primary text-sm font-medium uppercase tracking-wider">
@@ -219,8 +209,8 @@ export default function DevelopersPage() {
                                 )}
                             >
                                 <div className="flex items-start gap-4">
-                                    <div className="size-12 bg-primary/10 flex items-center justify-center shrink-0 border border-border">
-                                        <solution.icon className={cn("size-6", solution.color)} />
+                                    <div className="size-12 bg-lavender/20 flex items-center justify-center shrink-0 border border-border">
+                                        <solution.icon className="size-6 text-muted-foreground" />
                                     </div>
                                     <div className="flex-1">
                                         <div className="flex items-center gap-2 mb-2">
@@ -246,7 +236,7 @@ export default function DevelopersPage() {
                     <div className="px-6 py-5 lg:px-12 border-border border-b bg-lavender/20">
                         <div className="flex items-center gap-3">
                             <div className="size-10 bg-lavender/40 border border-border flex items-center justify-center">
-                                <ArrowRight className="size-5 text-primary" />
+                                <ArrowRight className="size-5 text-muted-foreground" />
                             </div>
                             <div>
                                 <p className="text-primary text-sm font-medium uppercase tracking-wider">
@@ -265,7 +255,7 @@ export default function DevelopersPage() {
                                 className="flex-1 px-6 py-6 lg:px-8"
                             >
                                 <div className="flex sm:flex-col items-start gap-4 sm:text-center sm:items-center">
-                                    <div className="size-12 bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shrink-0 border border-primary">
+                                    <div className="size-12 bg-cream/50 border border-border flex items-center justify-center font-bold text-sm shrink-0 text-foreground">
                                         {step.num}
                                     </div>
                                     <div>
@@ -280,62 +270,95 @@ export default function DevelopersPage() {
                     </div>
                 </div>
 
-                {/* CTA - fills remaining space */}
-                <div className="flex-1 bg-primary flex flex-col">
-                    <div className="flex-1 flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-primary-foreground/20">
-                        <div className="flex-1 px-6 py-10 lg:px-12 flex flex-col">
-                            <div className="size-12 bg-primary-foreground/10 border border-primary-foreground/20 flex items-center justify-center mb-4">
-                                <Shield className="size-6 text-primary-foreground" />
+                {/* CTA - Matching Homepage */}
+                <div className="flex-1 relative container border-primary-foreground/20 px-0 bg-primary flex flex-col">
+                    {/* Section Header */}
+                    <div className="px-6 py-3 lg:px-12 border-b border-primary-foreground/20">
+                        <span className="text-xs text-primary-foreground/70 uppercase tracking-wider">
+                            Get Started
+                        </span>
+                    </div>
+
+                    <div className="flex-1 flex flex-col lg:flex-row">
+                        {/* Claim Your Sigil */}
+                        <PixelCard
+                            variant="primary"
+                            className="flex-1 border-border border-b lg:border-b-0 lg:border-r border-primary-foreground/20"
+                            noFocus
+                        >
+                            <div className="flex flex-col h-full">
+                                {/* Card Header */}
+                                <div className="px-6 py-4 lg:px-8 border-b border-primary-foreground/20 flex items-center gap-3">
+                                    <div className="size-10 bg-background/20 flex items-center justify-center">
+                                        <Shield className="size-5 text-primary-foreground" />
+                                    </div>
+                                    <span className="text-primary-foreground/80 text-xs font-medium uppercase tracking-wider">
+                                        Verification
+                                    </span>
+                                </div>
+
+                                {/* Card Content */}
+                                <div className="flex-1 px-6 py-10 lg:px-12 lg:py-12">
+                                    <h2 className="text-primary-foreground text-2xl lg:text-3xl font-semibold mb-4 lowercase">
+                                        claim your sigil.
+                                    </h2>
+                                    <p className="text-primary-foreground/80 mb-8 max-w-md">
+                                        the verification standard for the agentic economy. five channels.
+                                        onchain attestation. milestone governance.
+                                    </p>
+                                    <Link href="/verify">
+                                        <Button
+                                            size="lg"
+                                            variant="secondary"
+                                            className="bg-background text-foreground hover:bg-background/90 gap-2"
+                                        >
+                                            Stamp Your Sigil
+                                            <ArrowRight className="size-4" />
+                                        </Button>
+                                    </Link>
+                                </div>
                             </div>
-                            <h2 className="text-2xl font-semibold text-primary-foreground mb-3 lowercase">
-                                ready to get verified?
-                            </h2>
-                            <p className="text-primary-foreground/80 mb-6 flex-1">
-                                Join the builders already using Sigil to verify their identity and
-                                route capital.
-                            </p>
-                            <Link href="/verify">
-                                <Button
-                                    size="lg"
-                                    variant="secondary"
-                                    className="bg-background text-foreground hover:bg-background/90 gap-2"
-                                >
-                                    Stamp Your Sigil
-                                    <ArrowRight className="size-4" />
-                                </Button>
-                            </Link>
-                        </div>
-                        <div className="flex-1 px-6 py-10 lg:px-12 flex flex-col">
-                            <div className="size-12 bg-primary-foreground/10 border border-primary-foreground/20 flex items-center justify-center mb-4">
-                                <MessageSquare className="size-6 text-primary-foreground" />
+                        </PixelCard>
+
+                        {/* Talk to Sigil */}
+                        <PixelCard
+                            variant="primary"
+                            className="flex-1"
+                            noFocus
+                        >
+                            <div className="flex flex-col h-full">
+                                {/* Card Header */}
+                                <div className="px-6 py-4 lg:px-8 border-b border-primary-foreground/20 flex items-center gap-3">
+                                    <div className="size-10 bg-background/20 flex items-center justify-center">
+                                        <MessageSquare className="size-5 text-primary-foreground" />
+                                    </div>
+                                    <span className="text-primary-foreground/80 text-xs font-medium uppercase tracking-wider">
+                                        AI Assistant
+                                    </span>
+                                </div>
+
+                                {/* Card Content */}
+                                <div className="flex-1 px-6 py-10 lg:px-12 lg:py-12">
+                                    <h2 className="text-primary-foreground text-2xl lg:text-3xl font-semibold mb-4 lowercase">
+                                        talk to sigil.
+                                    </h2>
+                                    <p className="text-primary-foreground/80 mb-8 max-w-md">
+                                        have questions about verification, fee routing, or milestone governance?
+                                        chat with our AI assistant.
+                                    </p>
+                                    <Link href="/chat">
+                                        <Button
+                                            size="lg"
+                                            variant="outline"
+                                            className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10 gap-2"
+                                        >
+                                            Start Chat
+                                            <ArrowRight className="size-4" />
+                                        </Button>
+                                    </Link>
+                                </div>
                             </div>
-                            <h2 className="text-2xl font-semibold text-primary-foreground mb-3 lowercase">
-                                have questions?
-                            </h2>
-                            <p className="text-primary-foreground/80 mb-6 flex-1">
-                                Chat with Sigil or browse the FAQ to learn more.
-                            </p>
-                            <div className="flex gap-3">
-                                <Link href="/chat">
-                                    <Button
-                                        size="lg"
-                                        variant="outline"
-                                        className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10"
-                                    >
-                                        Talk to Sigil
-                                    </Button>
-                                </Link>
-                                <Link href="/faq">
-                                    <Button
-                                        size="lg"
-                                        variant="outline"
-                                        className="border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10"
-                                    >
-                                        View FAQ
-                                    </Button>
-                                </Link>
-                            </div>
-                        </div>
+                        </PixelCard>
                     </div>
                 </div>
             </div>
