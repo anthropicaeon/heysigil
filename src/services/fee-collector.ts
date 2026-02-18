@@ -174,6 +174,9 @@ export class FeeCollector {
                     await tx.wait(1);
                     assigned++;
 
+                    // Wait for nonce to propagate before next tx
+                    await new Promise((r) => setTimeout(r, 3000));
+
                     log.info(
                         {
                             project: project.name,
