@@ -103,8 +103,8 @@ export default function ProfileDashboard() {
     ];
 
     return (
-        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0 bg-cream">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-[calc(100vh-5rem)] px-0 bg-cream flex flex-col">
                 {/* Profile Header */}
                 <div className="border-border border-b bg-background">
                     <div className="flex flex-col lg:flex-row">
@@ -276,47 +276,53 @@ export default function ProfileDashboard() {
                         )}
                 </div>
 
-                {/* Quick Actions */}
-                <div className="border-border border-t bg-sage/50">
-                    <div className="flex flex-col lg:flex-row">
-                        <div className="flex-1 px-6 py-6 lg:px-12 border-border border-b lg:border-b-0 lg:border-r">
-                            <h3 className="font-semibold text-foreground mb-2">View Attestation</h3>
-                            <p className="text-muted-foreground text-sm mb-4">
-                                Check your onchain Sigil on EAS Explorer
-                            </p>
-                            <Link
-                                href="https://base.easscan.org"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                <Button variant="outline" size="sm" className="gap-2">
-                                    <ExternalLink className="size-4" />
-                                    EAS Explorer
-                                </Button>
-                            </Link>
+                {/* Quick Actions - fills remaining space */}
+                <div className="flex-1 border-border border-t flex flex-col lg:flex-row">
+                    <div className="flex-1 flex flex-col px-6 py-6 lg:px-12 border-border border-b lg:border-b-0 lg:border-r bg-sage/30">
+                        <div className="px-0 py-2 mb-2 border-border border-b lg:hidden">
+                            <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                Quick Actions
+                            </span>
                         </div>
-                        <div className="flex-1 px-6 py-6 lg:px-12 border-border border-b lg:border-b-0 lg:border-r">
-                            <h3 className="font-semibold text-foreground mb-2">Governance</h3>
-                            <p className="text-muted-foreground text-sm mb-4">
-                                Vote on milestone proposals for your projects
-                            </p>
-                            <Link href="/governance">
-                                <Button variant="outline" size="sm">
-                                    View Proposals
-                                </Button>
-                            </Link>
-                        </div>
-                        <div className="flex-1 px-6 py-6 lg:px-12">
-                            <h3 className="font-semibold text-foreground mb-2">Add Verification</h3>
-                            <p className="text-muted-foreground text-sm mb-4">
-                                Strengthen your Sigil with more channels
-                            </p>
-                            <Link href="/verify">
-                                <Button variant="outline" size="sm">
-                                    Add Channel
-                                </Button>
-                            </Link>
-                        </div>
+                        <h3 className="font-semibold text-foreground mb-2">View Attestation</h3>
+                        <p className="text-muted-foreground text-sm mb-4">
+                            Check your onchain Sigil on EAS Explorer
+                        </p>
+                        <div className="flex-1" />
+                        <Link
+                            href="https://base.easscan.org"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <Button variant="outline" size="sm" className="gap-2">
+                                <ExternalLink className="size-4" />
+                                EAS Explorer
+                            </Button>
+                        </Link>
+                    </div>
+                    <div className="flex-1 flex flex-col px-6 py-6 lg:px-12 border-border border-b lg:border-b-0 lg:border-r bg-lavender/20">
+                        <h3 className="font-semibold text-foreground mb-2">Governance</h3>
+                        <p className="text-muted-foreground text-sm mb-4">
+                            Vote on milestone proposals for your projects
+                        </p>
+                        <div className="flex-1" />
+                        <Link href="/governance">
+                            <Button variant="outline" size="sm">
+                                View Proposals
+                            </Button>
+                        </Link>
+                    </div>
+                    <div className="flex-1 flex flex-col px-6 py-6 lg:px-12 bg-cream/50">
+                        <h3 className="font-semibold text-foreground mb-2">Add Verification</h3>
+                        <p className="text-muted-foreground text-sm mb-4">
+                            Strengthen your Sigil with more channels
+                        </p>
+                        <div className="flex-1" />
+                        <Link href="/verify">
+                            <Button variant="outline" size="sm">
+                                Add Channel
+                            </Button>
+                        </Link>
                     </div>
                 </div>
             </div>

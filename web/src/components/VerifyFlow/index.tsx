@@ -247,8 +247,8 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
     const isDev = process.env.NODE_ENV === "development";
 
     return (
-        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-[calc(100vh-5rem)] px-0 flex flex-col">
                 {/* Dev Mode Indicator */}
                 {isDev && (
                     <div className="absolute top-2 right-2 z-50 px-2 py-1 bg-primary/90 text-primary-foreground text-xs font-mono">
@@ -400,51 +400,53 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                     </div>
                 </div>
 
-                {/* Step Content */}
-                {step === "method" && (
-                    <MethodStep
-                        selectedMethod={selectedMethod}
-                        onSelect={setSelectedMethod}
-                        onContinue={() => setStep("details")}
-                    />
-                )}
+                {/* Step Content - fills remaining space */}
+                <div className="flex-1 flex flex-col bg-cream/30">
+                    {step === "method" && (
+                        <MethodStep
+                            selectedMethod={selectedMethod}
+                            onSelect={setSelectedMethod}
+                            onContinue={() => setStep("details")}
+                        />
+                    )}
 
-                {step === "details" && selectedMethod && (
-                    <DetailsStep
-                        method={selectedMethod}
-                        projectId={projectId}
-                        walletAddress={walletAddress}
-                        connectedAddress={address}
-                        privy={privy}
-                        privyGithubUsername={privyGithubUsername}
-                        loading={loading}
-                        error={error}
-                        onProjectIdChange={setProjectId}
-                        onWalletAddressChange={setWalletAddress}
-                        onBack={() => setStep("method")}
-                        onSubmit={handleCreateChallenge}
-                        onClearError={() => setError("")}
-                    />
-                )}
+                    {step === "details" && selectedMethod && (
+                        <DetailsStep
+                            method={selectedMethod}
+                            projectId={projectId}
+                            walletAddress={walletAddress}
+                            connectedAddress={address}
+                            privy={privy}
+                            privyGithubUsername={privyGithubUsername}
+                            loading={loading}
+                            error={error}
+                            onProjectIdChange={setProjectId}
+                            onWalletAddressChange={setWalletAddress}
+                            onBack={() => setStep("method")}
+                            onSubmit={handleCreateChallenge}
+                            onClearError={() => setError("")}
+                        />
+                    )}
 
-                {step === "challenge" && challenge && (
-                    <ChallengeStep
-                        challenge={challenge}
-                        loading={loading}
-                        error={error}
-                        onBack={() => setStep("details")}
-                        onCheck={handleCheckVerification}
-                    />
-                )}
+                    {step === "challenge" && challenge && (
+                        <ChallengeStep
+                            challenge={challenge}
+                            loading={loading}
+                            error={error}
+                            onBack={() => setStep("details")}
+                            onCheck={handleCheckVerification}
+                        />
+                    )}
 
-                {step === "result" && checkResult && challenge && (
-                    <ResultStep
-                        challenge={challenge}
-                        checkResult={checkResult}
-                        loading={loading}
-                        onClaim={handleClaimAttestation}
-                    />
-                )}
+                    {step === "result" && checkResult && challenge && (
+                        <ResultStep
+                            challenge={challenge}
+                            checkResult={checkResult}
+                            loading={loading}
+                            onClaim={handleClaimAttestation}
+                        />
+                    )}
+                </div>
             </div>
         </section>
     );

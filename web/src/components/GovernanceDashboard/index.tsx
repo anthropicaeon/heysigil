@@ -65,8 +65,8 @@ export default function GovernanceDashboard() {
 
     if (selectedProposal) {
         return (
-            <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
-                <div className="border-border relative container border-l border-r min-h-screen px-0 bg-sage">
+            <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+                <div className="border-border relative container border-l border-r min-h-[calc(100vh-5rem)] px-0 bg-sage flex flex-col">
                     <ProposalDetail
                         proposal={selectedProposal}
                         onBack={() => setSelectedProposal(null)}
@@ -77,8 +77,8 @@ export default function GovernanceDashboard() {
     }
 
     return (
-        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0 bg-sage">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-[calc(100vh-5rem)] px-0 bg-sage flex flex-col">
                 <GovernanceHeader proposals={proposals} escrowBalance="0" />
                 <ProposalFilter
                     activeTab={activeTab}
@@ -87,15 +87,17 @@ export default function GovernanceDashboard() {
                 />
 
                 {proposals.length === 0 ? (
-                    <div className="border-border border-b px-6 py-16 lg:px-12 text-center bg-background">
-                        <FileCheck className="size-12 mx-auto mb-4 text-muted-foreground/30" />
-                        <h3 className="text-lg font-semibold text-foreground mb-2">
-                            No proposals yet
-                        </h3>
-                        <p className="text-muted-foreground max-w-md mx-auto">
-                            Governance launches when the first milestone proposal is created. Token
-                            holders can propose milestones and the community votes to unlock funds.
-                        </p>
+                    <div className="flex-1 flex flex-col border-border border-b bg-background">
+                        <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 lg:px-12 text-center">
+                            <FileCheck className="size-12 mb-4 text-muted-foreground/30" />
+                            <h3 className="text-lg font-semibold text-foreground mb-2">
+                                No proposals yet
+                            </h3>
+                            <p className="text-muted-foreground max-w-md">
+                                Governance launches when the first milestone proposal is created. Token
+                                holders can propose milestones and the community votes to unlock funds.
+                            </p>
+                        </div>
                     </div>
                 ) : (
                     <ProposalListView

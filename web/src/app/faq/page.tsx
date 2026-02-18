@@ -90,8 +90,8 @@ export default function FAQPage() {
     const filteredFaqs = faqs.filter((faq) => faq.category === activeCategory);
 
     return (
-        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0 bg-cream">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-[calc(100vh-5rem)] px-0 bg-cream flex flex-col">
                 {/* Header */}
                 <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16">
                     <div className="max-w-3xl mx-auto text-center">
@@ -160,30 +160,48 @@ export default function FAQPage() {
                     ))}
                 </div>
 
-                {/* Still Have Questions */}
-                <div className="border-border border-t bg-sage/50">
-                    <div className="flex flex-col lg:flex-row">
-                        <div className="flex-1 px-6 py-8 lg:px-12 border-border border-b lg:border-b-0 lg:border-r">
+                {/* Still Have Questions - boxes fill remaining space */}
+                <div className="flex-1 border-border border-t flex flex-col lg:flex-row">
+                    {/* Talk to Sigil */}
+                    <div className="flex-1 flex flex-col border-border border-b lg:border-b-0 lg:border-r bg-sage/20">
+                        <div className="px-6 py-2 lg:px-12 border-border border-b bg-sage/40">
+                            <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                Support
+                            </span>
+                        </div>
+                        <div className="flex-1 flex flex-col justify-center px-6 py-8 lg:px-12">
                             <h3 className="font-semibold text-foreground mb-2">
                                 Still have questions?
                             </h3>
-                            <p className="text-muted-foreground text-sm mb-4">
+                            <p className="text-muted-foreground text-sm mb-6">
                                 Can't find the answer you're looking for? Chat with Sigil.
                             </p>
-                            <Link href="/chat">
-                                <Button variant="outline">Talk to Sigil</Button>
-                            </Link>
+                            <div>
+                                <Link href="/chat">
+                                    <Button variant="outline">Talk to Sigil</Button>
+                                </Link>
+                            </div>
                         </div>
-                        <div className="flex-1 px-6 py-8 lg:px-12">
+                    </div>
+                    {/* Get Started */}
+                    <div className="flex-1 flex flex-col bg-lavender/20">
+                        <div className="px-6 py-2 lg:px-12 border-border border-b bg-lavender/40">
+                            <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                Get Started
+                            </span>
+                        </div>
+                        <div className="flex-1 flex flex-col justify-center px-6 py-8 lg:px-12">
                             <h3 className="font-semibold text-foreground mb-2">
                                 Ready to get started?
                             </h3>
-                            <p className="text-muted-foreground text-sm mb-4">
+                            <p className="text-muted-foreground text-sm mb-6">
                                 Verification is free. You only pay gas fees.
                             </p>
-                            <Link href="/verify">
-                                <Button>Stamp Your Sigil</Button>
-                            </Link>
+                            <div>
+                                <Link href="/verify">
+                                    <Button>Stamp Your Sigil</Button>
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 </div>

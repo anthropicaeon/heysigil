@@ -54,7 +54,7 @@ export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultS
     };
 
     return (
-        <div className="bg-background">
+        <div className="flex-1 flex flex-col bg-background">
             {/* Section Header */}
             <div className="px-6 py-3 lg:px-12 border-b border-border bg-secondary/30">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -142,34 +142,36 @@ export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultS
                 </div>
             </div>
 
-            {/* Stamp CTA */}
+            {/* Stamp CTA - fills remaining space */}
             {!isStamped && (
-                <>
+                <div className="flex-1 flex flex-col">
                     <div className="px-6 py-2 lg:px-12 border-b border-border bg-lavender/20">
                         <span className="text-xs text-muted-foreground uppercase tracking-wider">
                             Final Step
                         </span>
                     </div>
-                    <div className="px-6 py-6 lg:px-12 border-b border-border">
-                        <h3 className="font-semibold text-foreground mb-2 lowercase">
-                            stamp your sigil on-chain
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                            Create an EAS attestation on Base. Your on-chain stamp starts USDC fee
-                            earnings from LP activity.
-                        </p>
-                        <Button onClick={onClaim} disabled={loading} size="lg" className="w-full">
-                            {loading ? (
-                                <>
-                                    <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
-                                    Stamping...
-                                </>
-                            ) : (
-                                "Stamp Sigil"
-                            )}
-                        </Button>
+                    <div className="flex-1 flex flex-col px-6 py-6 lg:px-12 bg-lavender/10">
+                        <div className="flex-1 flex flex-col justify-center">
+                            <h3 className="font-semibold text-foreground mb-2 lowercase">
+                                stamp your sigil on-chain
+                            </h3>
+                            <p className="text-sm text-muted-foreground mb-6">
+                                Create an EAS attestation on Base. Your on-chain stamp starts USDC fee
+                                earnings from LP activity.
+                            </p>
+                            <Button onClick={onClaim} disabled={loading} size="lg" className="w-full">
+                                {loading ? (
+                                    <>
+                                        <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                                        Stamping...
+                                    </>
+                                ) : (
+                                    "Stamp Sigil"
+                                )}
+                            </Button>
+                        </div>
                     </div>
-                </>
+                </div>
             )}
 
             {/* Success state after stamping */}
@@ -217,23 +219,26 @@ export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultS
                         </div>
                     </div>
 
-                    {/* CTA */}
-                    <div className="px-6 py-6 lg:px-12 bg-sage/10 flex gap-3">
-                        <Button variant="outline" asChild className="gap-2">
-                            <a
-                                href={`https://base.easscan.org/attestation/view/${checkResult.attestationUid}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                            >
-                                <ExternalLink className="size-4" />
-                                View on EAS
-                            </a>
-                        </Button>
-                        <Link href="/dashboard" className="flex-1">
-                            <Button size="lg" className="w-full">
-                                Go to Dashboard
+                    {/* CTA - fills remaining space */}
+                    <div className="flex-1 flex flex-col px-6 py-6 lg:px-12 bg-sage/20">
+                        <div className="flex-1" />
+                        <div className="flex gap-3">
+                            <Button variant="outline" asChild className="gap-2">
+                                <a
+                                    href={`https://base.easscan.org/attestation/view/${checkResult.attestationUid}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    <ExternalLink className="size-4" />
+                                    View on EAS
+                                </a>
                             </Button>
-                        </Link>
+                            <Link href="/dashboard" className="flex-1">
+                                <Button size="lg" className="w-full">
+                                    Go to Dashboard
+                                </Button>
+                            </Link>
+                        </div>
                     </div>
                 </>
             )}
