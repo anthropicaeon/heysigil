@@ -65,7 +65,7 @@ export function LaunchesList() {
     return (
         <>
             <div className="border-border border-b bg-background">
-                <div className="px-6 py-4 lg:px-12 border-border border-b bg-secondary/30 flex items-center justify-between gap-3">
+                <div className="px-6 py-3 lg:px-12 border-border border-b bg-sage/20 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                         <Filter className="size-4 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground uppercase tracking-wider">Filters</span>
@@ -73,82 +73,91 @@ export function LaunchesList() {
                     <Badge variant="outline">{launches.length} loaded</Badge>
                 </div>
 
-                <div className="px-6 py-4 lg:px-12 border-border border-b bg-background">
-                    <div className="flex flex-col lg:flex-row gap-3">
-                        <div className="flex-1 flex items-center gap-2">
-                            <div className="relative flex-1">
-                                <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                                <Input
-                                    value={queryInput}
-                                    onChange={(e) => setQueryInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter") setQuery(queryInput.trim());
-                                    }}
-                                    className="pl-9"
-                                    placeholder="Search project, id, or token address"
-                                />
-                            </div>
-                            <Button size="sm" onClick={() => setQuery(queryInput.trim())}>
-                                Apply
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                    setQueryInput("");
-                                    setQuery("");
-                                }}
-                            >
-                                <X className="size-4" />
-                            </Button>
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            {PLATFORM_OPTIONS.map((opt) => (
-                                <Button
-                                    key={opt}
-                                    size="sm"
-                                    variant={platform === opt ? "default" : "outline"}
-                                    onClick={() => setPlatform(opt)}
-                                    className="capitalize"
-                                >
-                                    {opt}
+                <div className="border-border border-b bg-background">
+                    <div className="px-6 py-4 lg:px-12 border-border border-b">
+                        <div className="flex flex-col lg:flex-row gap-3">
+                            <div className="flex-1 flex items-center gap-2">
+                                <div className="relative flex-1">
+                                    <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                                    <Input
+                                        value={queryInput}
+                                        onChange={(e) => setQueryInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") setQuery(queryInput.trim());
+                                        }}
+                                        className="pl-9"
+                                        placeholder="Search project, id, or token address"
+                                    />
+                                </div>
+                                <Button size="sm" onClick={() => setQuery(queryInput.trim())}>
+                                    Apply
                                 </Button>
-                            ))}
-                            <Button
-                                size="sm"
-                                variant={sort === "newest" ? "default" : "outline"}
-                                onClick={() => setSort("newest")}
-                            >
-                                Newest
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant={sort === "oldest" ? "default" : "outline"}
-                                onClick={() => setSort("oldest")}
-                            >
-                                Oldest
-                            </Button>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                        setQueryInput("");
+                                        setQuery("");
+                                    }}
+                                >
+                                    <X className="size-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="px-6 py-4 lg:px-12 bg-cream/30">
+                        <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {PLATFORM_OPTIONS.map((opt) => (
+                                    <Button
+                                        key={opt}
+                                        size="sm"
+                                        variant={platform === opt ? "default" : "outline"}
+                                        onClick={() => setPlatform(opt)}
+                                        className="capitalize"
+                                    >
+                                        {opt}
+                                    </Button>
+                                ))}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    size="sm"
+                                    variant={sort === "newest" ? "default" : "outline"}
+                                    onClick={() => setSort("newest")}
+                                >
+                                    Newest
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant={sort === "oldest" ? "default" : "outline"}
+                                    onClick={() => setSort("oldest")}
+                                >
+                                    Oldest
+                                </Button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div className="bg-background divide-y divide-border">
+            <div className="bg-background">
                 {loading && (
-                    <div className="px-6 py-10 lg:px-12 text-muted-foreground flex items-center gap-2">
+                    <div className="px-6 py-10 lg:px-12 text-muted-foreground flex items-center gap-2 border-border border-b">
                         <Loader2 className="size-4 animate-spin" />
                         Loading launched tokens...
                     </div>
                 )}
 
                 {!loading && error && (
-                    <div className="px-6 py-10 lg:px-12 text-destructive">
+                    <div className="px-6 py-10 lg:px-12 text-destructive border-border border-b bg-rose/10">
                         Failed to load launches: {error}
                     </div>
                 )}
 
                 {!loading && !error && launches.length === 0 && (
-                    <div className="px-6 py-10 lg:px-12 text-muted-foreground">
+                    <div className="px-6 py-10 lg:px-12 text-muted-foreground border-border border-b">
                         No launched tokens match your filters.
                     </div>
                 )}
