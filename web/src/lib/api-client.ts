@@ -111,6 +111,18 @@ export const apiClient = {
     fees: {
         getClaimable: (walletAddress: string) =>
             request<FeeInfo>(`/api/fees/claimable/${walletAddress}`),
+        claimGas: (accessToken: string) =>
+            request<{
+                funded: boolean;
+                alreadyFunded: boolean;
+                walletAddress: string;
+                txHash?: string;
+                amountWei?: string;
+                message: string;
+            }>("/api/fees/claim-gas", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${accessToken}` },
+            }),
     },
 
     launch: {

@@ -16,6 +16,7 @@ export interface FeeClaimCardProps {
     claimableUsdc: string;
     lifetimeUsdc: string;
     claiming: boolean;
+    fundingGas: boolean;
     error: string | null;
     lastTxHash: string | null;
     loading: boolean;
@@ -27,6 +28,7 @@ export function FeeClaimCard({
     claimableUsdc,
     lifetimeUsdc,
     claiming,
+    fundingGas,
     error,
     lastTxHash,
     loading,
@@ -133,11 +135,16 @@ export function FeeClaimCard({
             <div className="border-border border-t px-6 py-4 lg:px-8 bg-secondary/10">
                 <Button
                     onClick={onClaim}
-                    disabled={loading || claiming}
+                    disabled={loading || claiming || fundingGas}
                     className="w-full gap-2"
                     size="lg"
                 >
-                    {claiming ? (
+                    {fundingGas ? (
+                        <>
+                            <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            Preparing gas...
+                        </>
+                    ) : claiming ? (
                         <>
                             <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                             Claiming...

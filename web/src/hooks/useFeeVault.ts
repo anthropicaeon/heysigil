@@ -10,7 +10,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { encodeFunctionData, formatUnits } from "viem";
 
 import { FEE_VAULT_ABI, FEE_VAULT_ADDRESS, publicClient, USDC_ADDRESS } from "@/config/contracts";
-import { useOptionalWallets } from "@/hooks/useOptionalPrivy";
+import { useOptionalPrivy, useOptionalWallets } from "@/hooks/useOptionalPrivy";
+import { apiClient } from "@/lib/api-client";
 import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency } from "@/lib/format";
 
@@ -34,6 +35,8 @@ interface UseFeeVaultReturn {
     loading: boolean;
     /** Claiming tx in progress */
     claiming: boolean;
+    /** Gas funding in progress */
+    fundingGas: boolean;
     /** Last error message */
     error: string | null;
     /** Last successful claim tx hash */
@@ -54,10 +57,12 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
     const [allBalances, setAllBalances] = useState<FeeBalance[]>([]);
     const [loading, setLoading] = useState(false);
     const [claiming, setClaiming] = useState(false);
+    const [fundingGas, setFundingGas] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastTxHash, setLastTxHash] = useState<string | null>(null);
 
     const walletsData = useOptionalWallets();
+    const privy = useOptionalPrivy();
     const isMounted = useRef(true);
 
     useEffect(() => {
@@ -183,11 +188,36 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         [getProvider, refresh],
     );
 
+    // ── Fund gas before claim ──
+    const fundGas = useCallback(async () => {
+        setFundingGas(true);
+        try {
+            const token = await privy?.getAccessToken?.();
+            if (!token) {
+                throw new Error("Not authenticated — sign in to claim fees");
+            }
+            const result = await apiClient.fees.claimGas(token);
+            if (!result.funded) {
+                throw new Error("Failed to fund gas");
+            }
+            // Wait a moment for the gas tx to propagate
+            if (!result.alreadyFunded) {
+                await new Promise((r) => setTimeout(r, 2000));
+            }
+        } finally {
+            setFundingGas(false);
+        }
+    }, [privy]);
+
     // ── Claim USDC ──
     const claimUsdc = useCallback(async () => {
         setClaiming(true);
         setError(null);
         try {
+            // Step 1: Fund gas from backend
+            await fundGas();
+
+            // Step 2: Send claim tx
             const data = encodeFunctionData({
                 abi: FEE_VAULT_ABI,
                 functionName: "claimDevFees",
@@ -199,13 +229,17 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         } finally {
             setClaiming(false);
         }
-    }, [sendTx]);
+    }, [sendTx, fundGas]);
 
     // ── Claim All ──
     const claimAll = useCallback(async () => {
         setClaiming(true);
         setError(null);
         try {
+            // Step 1: Fund gas from backend
+            await fundGas();
+
+            // Step 2: Send claim tx
             const data = encodeFunctionData({
                 abi: FEE_VAULT_ABI,
                 functionName: "claimAllDevFees",
@@ -216,7 +250,7 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         } finally {
             setClaiming(false);
         }
-    }, [sendTx]);
+    }, [sendTx, fundGas]);
 
     return {
         claimableUsdc,
@@ -224,6 +258,7 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         allBalances,
         loading,
         claiming,
+        fundingGas,
         error,
         lastTxHash,
         claimUsdc,

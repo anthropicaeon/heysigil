@@ -60,6 +60,7 @@ export default function ProfileDashboard() {
         lifetimeUsdc,
         loading,
         claiming,
+        fundingGas,
         error,
         lastTxHash,
         claimUsdc,
@@ -253,6 +254,7 @@ export default function ProfileDashboard() {
                                 claimableUsdc={claimableUsdc}
                                 lifetimeUsdc={lifetimeUsdc}
                                 claiming={claiming}
+                                fundingGas={fundingGas}
                                 error={error}
                                 lastTxHash={lastTxHash}
                                 loading={loading}
