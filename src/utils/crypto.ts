@@ -186,6 +186,9 @@ function getKeystorePassword(): string {
  * This is the recommended method for new wallets.
  * Accepts both Wallet and HDNodeWallet (from createRandom()).
  *
+ * NOTE: In ethers v6, wallet.encrypt(password, cb?) does NOT accept scrypt options.
+ * We use ethers.encryptKeystoreJson(account, password, options) instead.
+ *
  * @param wallet - The ethers Wallet or HDNodeWallet to encrypt
  * @returns KeystoreData with the encrypted keystore JSON
  */
@@ -194,15 +197,10 @@ export async function encryptWalletKeystore(
 ): Promise<KeystoreData> {
     const password = getKeystorePassword();
 
-    // HDNodeWallet.encrypt() doesn't accept scrypt options — only (password, progressCallback?)
-    // Convert to a plain Wallet which supports the full encrypt(password, options) signature
-    const plainWallet =
-        wallet instanceof ethers.Wallet ? wallet : new ethers.Wallet(wallet.privateKey);
-
-    // Use lightweight scrypt params for faster encryption
-    // Production default: n=131072, r=8, p=1
-    // Our params: n=4096, r=8, p=1 (still secure, but faster for API usage)
-    const keystore = await plainWallet.encrypt(password, {
+    // Use ethers.encryptKeystoreJson which accepts scrypt options
+    // wallet.encrypt() in ethers v6 only takes (password, progressCallback?), NOT options
+    const account = { address: wallet.address, privateKey: wallet.privateKey };
+    const keystore = await ethers.encryptKeystoreJson(account, password, {
         scrypt: { N: 4096, r: 8, p: 1 },
     });
 
