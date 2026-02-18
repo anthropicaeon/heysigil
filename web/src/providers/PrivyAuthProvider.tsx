@@ -94,6 +94,11 @@ export default function PrivyAuthProvider({
                     landingHeader: "Sign in to Sigil",
                     loginMessage: "Fund builders. Trade tokens. No wallet needed.",
                 },
+                embeddedWallets: {
+                    ethereum: {
+                        createOnLogin: "all-users",
+                    },
+                },
                 legal: {
                     termsAndConditionsUrl: "https://heysigil.fund/terms",
                     privacyPolicyUrl: "https://heysigil.fund/privacy",
