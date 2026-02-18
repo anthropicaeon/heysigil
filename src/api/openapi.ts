@@ -36,7 +36,7 @@ All endpoints are rate-limited. Rate limit headers are included in responses:
         `.trim(),
         contact: {
             name: "Sigil Support",
-            url: "https://github.com/heysigil/sigil",
+            url: "https://github.com/anthropicaeon/heysigil",
         },
         license: {
             name: "MIT",
