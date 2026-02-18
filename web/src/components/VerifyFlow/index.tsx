@@ -101,10 +101,10 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    // Auto-fill wallet address from connected/embedded wallet
+    // Auto-fill wallet address from connected/embedded wallet (only when empty)
     useEffect(() => {
-        if (address) setWalletAddress(address);
-    }, [address]);
+        if (address && !walletAddress) setWalletAddress(address);
+    }, [address]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const stepIndex = ["method", "details", "challenge", "result"].indexOf(step);
     const steps: Step[] = ["method", "details", "challenge", "result"];
@@ -300,8 +300,8 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                                         stepIndex === 0
                                             ? "border-primary bg-primary/10"
                                             : stepIndex > 0
-                                              ? "border-primary/50 bg-sage/50"
-                                              : "border-border bg-background",
+                                                ? "border-primary/50 bg-sage/50"
+                                                : "border-border bg-background",
                                     )}
                                 >
                                     <span className="text-xs font-bold text-primary">01</span>
@@ -330,8 +330,8 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                                         stepIndex === 1
                                             ? "border-primary bg-primary/10"
                                             : stepIndex > 1
-                                              ? "border-primary/50 bg-sage/50"
-                                              : "border-border bg-background",
+                                                ? "border-primary/50 bg-sage/50"
+                                                : "border-border bg-background",
                                     )}
                                 >
                                     <span className="text-xs font-bold text-primary">02</span>
@@ -360,8 +360,8 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                                         stepIndex === 2
                                             ? "border-primary bg-primary/10"
                                             : stepIndex > 2
-                                              ? "border-primary/50 bg-sage/50"
-                                              : "border-border bg-background",
+                                                ? "border-primary/50 bg-sage/50"
+                                                : "border-border bg-background",
                                     )}
                                 >
                                     <span className="text-xs font-bold text-primary">03</span>
