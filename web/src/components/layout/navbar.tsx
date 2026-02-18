@@ -57,6 +57,7 @@ const Navbar = () => {
         { label: "Verify", href: "/verify", primary: true },
         { label: "Dashboard", href: "/dashboard" },
         { label: "Launches", href: "/launches" },
+        { label: "Agents", href: "/agents" },
         { label: "Chat", href: "/chat" },
         { label: "Governance", href: "/governance" },
         { label: "Developers", href: "/developers" },

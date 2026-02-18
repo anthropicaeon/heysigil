@@ -7,7 +7,8 @@ export type VerificationMethod =
     | "tweet_zktls"
     | "domain_dns"
     | "domain_file"
-    | "domain_meta";
+    | "domain_meta"
+    | "agent_keypair";
 
 export type VerificationStatus = "pending" | "verified" | "failed" | "expired";
 
@@ -15,7 +16,7 @@ export type VerificationStatus = "pending" | "verified" | "failed" | "expired";
  * Platform identifiers for identity verification.
  * Derived from const array for runtime + type safety.
  */
-export const PLATFORMS = ["github", "twitter", "instagram", "facebook", "domain"] as const;
+export const PLATFORMS = ["github", "twitter", "instagram", "facebook", "domain", "agent"] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
 export interface VerificationRequest {
@@ -89,6 +90,7 @@ export const METHOD_TO_PLATFORM: Record<VerificationMethod, Platform> = {
     domain_dns: "domain",
     domain_file: "domain",
     domain_meta: "domain",
+    agent_keypair: "agent",
 };
 
 /**
