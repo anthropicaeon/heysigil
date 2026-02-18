@@ -1,6 +1,16 @@
 "use client";
 
-import { BookOpen, ChevronRight, HelpCircle, Newspaper, Shield } from "lucide-react";
+import {
+    Activity,
+    BarChart3,
+    BookOpen,
+    ChevronRight,
+    HelpCircle,
+    Newspaper,
+    Plug,
+    Shield,
+    Trophy,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -67,6 +77,30 @@ const Navbar = () => {
                     href: "/about",
                     description: "Our mission and team",
                     icon: BookOpen,
+                },
+                {
+                    title: "Leaderboard",
+                    href: "/leaderboard",
+                    description: "Top verified builders and rankings",
+                    icon: Trophy,
+                },
+                {
+                    title: "Stats",
+                    href: "/stats",
+                    description: "Protocol analytics and metrics",
+                    icon: BarChart3,
+                },
+                {
+                    title: "Integrations",
+                    href: "/integrations",
+                    description: "SDKs, APIs, and ecosystem",
+                    icon: Plug,
+                },
+                {
+                    title: "Status",
+                    href: "/status",
+                    description: "System health and uptime",
+                    icon: Activity,
                 },
             ],
         },
