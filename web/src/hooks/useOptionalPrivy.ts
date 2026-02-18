@@ -6,7 +6,7 @@
  * Returns null when Privy is not configured.
  */
 
-import { usePrivyState } from "@/providers/PrivyAuthProvider";
+import { usePrivyState, usePrivyWallets } from "@/providers/PrivyAuthProvider";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -48,4 +48,13 @@ export function getUserDisplay(privy: PrivyContext | null): { name: string; prov
     if (u.email?.address) return { name: u.email.address, provider: "Email" };
     if (u.farcaster?.username) return { name: u.farcaster.username, provider: "Farcaster" };
     return { name: "User", provider: "" };
+}
+
+/**
+ * Access Privy wallets. Returns null if Privy is not configured.
+ * This wraps the wallet context bridge — no rules-of-hooks issues.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function useOptionalWallets(): { wallets: any[] } | null {
+    return usePrivyWallets();
 }

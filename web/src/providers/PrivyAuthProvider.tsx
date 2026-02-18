@@ -11,12 +11,16 @@ import { PrivyProvider, usePrivy, useWallets } from "@privy-io/react-auth";
 interface PrivyState {
     ready: boolean;
     authenticated: boolean;
-    user: Record<string, unknown> | null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    user: any | null;
     login: () => void;
     logout: () => Promise<void>;
 }
 
 const PrivyStateContext = createContext<PrivyState | null>(null);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const WalletsContext = createContext<{ wallets: any[] } | null>(null);
 
 /**
  * Read Privy state from context. Returns null if Privy is not configured.
@@ -26,15 +30,33 @@ export function usePrivyState(): PrivyState | null {
     return useContext(PrivyStateContext);
 }
 
+/**
+ * Returns true if Privy is configured (NEXT_PUBLIC_PRIVY_APP_ID is set).
+ */
+/**
+ * Read Privy wallets from context. Returns null if Privy is not configured.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function usePrivyWallets(): { wallets: any[] } | null {
+    return useContext(WalletsContext);
+}
+
+export function useIsPrivyConfigured(): boolean {
+    return Boolean(process.env.NEXT_PUBLIC_PRIVY_APP_ID);
+}
+
 // ─── Inner bridge component ─────────────────────────────
 // This component lives INSIDE PrivyProvider, so usePrivy() is always valid.
 
 function PrivyStateBridge({ children }: { children: React.ReactNode }) {
     const { ready, authenticated, user, login, logout } = usePrivy();
+    const { wallets } = useWallets();
 
     return (
         <PrivyStateContext.Provider value={{ ready, authenticated, user, login, logout }}>
-            {children}
+            <WalletsContext.Provider value={{ wallets }}>
+                {children}
+            </WalletsContext.Provider>
         </PrivyStateContext.Provider>
     );
 }
@@ -49,10 +71,12 @@ export default function PrivyAuthProvider({
     const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID || "";
 
     if (!appId) {
-        // No Privy configured — context returns null
+        // No Privy configured — contexts return null
         return (
             <PrivyStateContext.Provider value={null}>
-                {children}
+                <WalletsContext.Provider value={null}>
+                    {children}
+                </WalletsContext.Provider>
             </PrivyStateContext.Provider>
         );
     }
