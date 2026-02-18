@@ -3,13 +3,19 @@
 /**
  * Wallet Polling Hook
  *
- * Fetches wallet info for a session and polls every 30 seconds.
- * Auto-creates a wallet if none exists yet.
+ * Fetches/creates a wallet for the user.
+ *
+ * Priority:
+ * 1. Privy-authenticated: uses /api/wallet/me (identity-based, persists across sessions)
+ * 2. Session-based fallback: uses /api/wallet/:sessionId (legacy)
+ *
+ * Auto-creates a wallet as soon as the user is authenticated via Privy.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiClient, type WalletInfo } from "@/lib/api-client";
+import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import { getErrorMessage } from "@/lib/errors";
 
 interface UseWalletPollingResult {
@@ -30,47 +36,85 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Prevent duplicate auto-creation attempts
+    const privy = useOptionalPrivy();
     const autoCreateAttempted = useRef(false);
 
+    /**
+     * Create a wallet — prefers Privy-authenticated /me endpoint,
+     * falls back to session-based creation.
+     */
     const createWallet = useCallback(async () => {
-        if (!sessionId) return;
         setLoading(true);
 
         try {
-            await apiClient.wallet.create(sessionId);
+            // Privy-authenticated: create identity-based wallet
+            if (privy?.authenticated && privy.getAccessToken) {
+                const token = await privy.getAccessToken();
+                if (token) {
+                    const data = await apiClient.wallet.createMyWallet(token);
+                    setWallet(data);
+                    setError(null);
+                    return;
+                }
+            }
+
+            // Fallback: session-based wallet
+            if (sessionId) {
+                await apiClient.wallet.create(sessionId);
+                const data = await apiClient.wallet.getInfo(sessionId);
+                setWallet(data);
+                setError(null);
+                return;
+            }
+
+            // Neither auth nor session — can't create
             setError(null);
-            // Fetch immediately after creation
-            const data = await apiClient.wallet.getInfo(sessionId);
-            setWallet(data);
         } catch (err) {
             setError(
-                `Could not create wallet (${getErrorMessage(err, "request failed")}). Check backend and NEXT_PUBLIC_API_URL.`,
+                `Could not create wallet (${getErrorMessage(err, "request failed")}).`,
             );
         } finally {
             setLoading(false);
         }
-    }, [sessionId]);
+    }, [privy, sessionId]);
 
+    /**
+     * Fetch wallet info — prefers Privy-authenticated /me endpoint.
+     * Auto-creates if no wallet exists yet.
+     */
     const fetchWallet = useCallback(async () => {
-        if (!sessionId) return;
-
         try {
-            const data = await apiClient.wallet.getInfo(sessionId);
+            let data: WalletInfo | null = null;
+
+            // Privy-authenticated: fetch identity-based wallet
+            if (privy?.authenticated && privy.getAccessToken) {
+                const token = await privy.getAccessToken();
+                if (token) {
+                    data = await apiClient.wallet.getMyWallet(token);
+                }
+            }
+
+            // Fallback: session-based wallet
+            if (!data && sessionId) {
+                data = await apiClient.wallet.getInfo(sessionId);
+            }
+
+            if (!data) return; // No auth and no session yet
+
             setWallet(data);
             setError(null);
 
-            // Auto-create wallet if none exists yet
+            // Auto-create if no wallet exists
             if (!data.exists && !autoCreateAttempted.current) {
                 autoCreateAttempted.current = true;
                 await createWallet();
             }
         } catch (err) {
             setError(
-                `Wallet service unavailable (${getErrorMessage(err, "request failed")}). Check backend and NEXT_PUBLIC_API_URL.`,
+                `Wallet service unavailable (${getErrorMessage(err, "request failed")}).`,
             );
         }
-    }, [sessionId, createWallet]);
+    }, [privy, sessionId, createWallet]);
 
     const refreshBalance = useCallback(async () => {
         setRefreshing(true);
@@ -78,12 +122,12 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
         setTimeout(() => setRefreshing(false), 600);
     }, [fetchWallet]);
 
-    // Reset auto-create flag when session changes
+    // Reset auto-create flag when auth state or session changes
     useEffect(() => {
         autoCreateAttempted.current = false;
-    }, [sessionId]);
+    }, [privy?.authenticated, sessionId]);
 
-    // Fetch wallet on mount and every 30s
+    // Fetch wallet on mount, on auth change, and poll every 30s
     useEffect(() => {
         fetchWallet();
         const interval = setInterval(fetchWallet, POLL_INTERVAL_MS);

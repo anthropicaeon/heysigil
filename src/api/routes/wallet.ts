@@ -1,13 +1,24 @@
 /**
  * Wallet API Routes
  *
- * GET  /api/wallet/:sessionId        — Get wallet info (address + balance)
+ * GET  /api/wallet/me             — Get wallet for authenticated user
+ * POST /api/wallet/me             — Create wallet for authenticated user
+ * GET  /api/wallet/:sessionId     — Get wallet info (address + balance)
  * POST /api/wallet/:sessionId/create — Create wallet for session
  */
 
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { z } from "zod";
 import { getParams } from "../helpers/request.js";
-import { createWallet, hasWallet, getAddress, getBalance } from "../../services/wallet.js";
+import {
+    createWallet,
+    createWalletForUser,
+    hasWallet,
+    hasUserWallet,
+    getAddress,
+    getUserAddress,
+    getBalance,
+} from "../../services/wallet.js";
 import { walletCreateRateLimit, sessionEnumerationRateLimit } from "../../middleware/rate-limit.js";
 import {
     WalletSessionIdParamSchema,
@@ -16,8 +27,53 @@ import {
 } from "../schemas/wallet.js";
 import { handler } from "../helpers/route.js";
 import { jsonResponse, rateLimitResponse } from "../openapi.js";
+import { privyAuth, getUserId } from "../../middleware/auth.js";
 
 export const wallet = new OpenAPIHono();
+
+// ─── Identity-based wallet routes (Privy auth) ─────────
+
+/**
+ * GET /api/wallet/me
+ * Get wallet for the authenticated Privy user.
+ */
+wallet.get("/me", privyAuth(), async (c) => {
+    const userId = getUserId(c);
+    if (!userId) return c.json({ error: "Not authenticated" }, 401);
+
+    if (!(await hasUserWallet(userId))) {
+        return c.json({ exists: false as const, address: null, balance: null });
+    }
+
+    const address = await getUserAddress(userId);
+
+    // Get balance using the user-keyed wallet
+    // We pass the userId and query balance by address
+    return c.json({
+        exists: true as const,
+        address,
+        balance: null, // Balance fetched separately via refresh
+    });
+});
+
+/**
+ * POST /api/wallet/me
+ * Create a wallet for the authenticated Privy user (idempotent).
+ */
+wallet.post("/me", privyAuth(), async (c) => {
+    const userId = getUserId(c);
+    if (!userId) return c.json({ error: "Not authenticated" }, 401);
+
+    const walletInfo = await createWalletForUser(userId);
+
+    return c.json({
+        exists: true as const,
+        address: walletInfo.address,
+        createdAt: walletInfo.createdAt,
+    });
+});
+
+// ─── Session-based wallet routes ────────────────────────
 
 // Rate limit wallet lookups to prevent session ID enumeration
 wallet.use("/:sessionId", sessionEnumerationRateLimit());

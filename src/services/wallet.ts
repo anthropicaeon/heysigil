@@ -86,6 +86,53 @@ export async function createWallet(sessionId: string): Promise<WalletInfo> {
 }
 
 /**
+ * Create a wallet for an authenticated Privy user. Idempotent.
+ * Keyed by "user:<privyUserId>" so it persists across sessions.
+ */
+export async function createWalletForUser(privyUserId: string): Promise<WalletInfo> {
+    const existing = await walletRepo.findWalletByKey("user", privyUserId);
+    if (existing) {
+        return {
+            address: existing.address,
+            sessionId: privyUserId,
+            createdAt: existing.createdAt,
+        };
+    }
+
+    const wallet = ethers.Wallet.createRandom();
+    const { keystore } = await encryptWalletKeystore(wallet);
+
+    const stored = await walletRepo.createWallet({
+        address: wallet.address,
+        encryptedKeystore: keystore,
+        keyType: "user",
+        keyId: privyUserId,
+    });
+
+    return {
+        address: stored.address,
+        sessionId: privyUserId,
+        createdAt: stored.createdAt,
+    };
+}
+
+/**
+ * Check if a user has a wallet (by Privy user ID).
+ */
+export async function hasUserWallet(privyUserId: string): Promise<boolean> {
+    const wallet = await walletRepo.findWalletByKey("user", privyUserId);
+    return wallet !== null;
+}
+
+/**
+ * Get wallet address for a Privy user.
+ */
+export async function getUserAddress(privyUserId: string): Promise<string | undefined> {
+    const wallet = await walletRepo.findWalletByKey("user", privyUserId);
+    return wallet?.address;
+}
+
+/**
  * Check if a session has a wallet.
  */
 export async function hasWallet(sessionId: string): Promise<boolean> {
