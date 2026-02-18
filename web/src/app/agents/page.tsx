@@ -262,9 +262,17 @@ export default function AgentsPage() {
                                 </Link>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 border-border border-t lg:border-t-0 lg:border-l divide-x divide-y divide-border bg-background/60 backdrop-blur-sm">
-                            {HERO_SIGNALS.map((item) => (
-                                <div key={item.label} className="px-5 py-6">
+                        <div className="grid grid-cols-2 border-border border-t lg:border-t-0 bg-background/60 backdrop-blur-sm">
+                            {HERO_SIGNALS.map((item, index) => (
+                                <div
+                                    key={item.label}
+                                    className={cn(
+                                        "px-5 py-6 border-border",
+                                        index === 0 && "border-r border-b",
+                                        index === 1 && "border-b",
+                                        index === 2 && "border-r",
+                                    )}
+                                >
                                     <div className="size-9 bg-sage/30 border border-border flex items-center justify-center mb-3">
                                         <item.icon className="size-4 text-primary" />
                                     </div>
