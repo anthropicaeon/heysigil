@@ -96,7 +96,7 @@ export function EmptyState({
     };
 
     return (
-        <div className={cn("flex flex-col", className)}>
+        <div className={cn("flex flex-col h-full", className)}>
             {/* Step hint header section */}
             {stepHint && (
                 <div className="px-4 py-2 border-b border-border bg-secondary/30">
@@ -106,34 +106,38 @@ export function EmptyState({
                 </div>
             )}
 
-            {/* Title section */}
-            <div className="px-4 py-3 border-b border-border">
-                <p className="text-sm font-semibold text-foreground lowercase">{title}</p>
-            </div>
+            {/* Top spacer */}
+            <div className="flex-1 border-b border-border bg-sage/10" />
 
-            {/* Icon + Description section */}
-            <div className="px-4 py-4 border-b border-border bg-sage/20">
-                <div className="flex items-start gap-3">
-                    {icon && (
-                        <div className="size-10 bg-background border border-border flex items-center justify-center shrink-0 text-primary">
-                            {icon}
-                        </div>
-                    )}
-                    {description && (
-                        <p className="text-xs text-muted-foreground leading-relaxed flex-1">
-                            {description}
-                        </p>
-                    )}
+            {/* Icon section */}
+            {icon && (
+                <div className="px-4 py-6 border-b border-border flex justify-center">
+                    <div className="size-14 bg-lavender/30 border border-border flex items-center justify-center text-primary">
+                        {icon}
+                    </div>
                 </div>
+            )}
+
+            {/* Title + Description section */}
+            <div className="px-4 py-4 border-b border-border text-center">
+                <p className="text-sm font-semibold text-foreground lowercase mb-1">{title}</p>
+                {description && (
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                        {description}
+                    </p>
+                )}
             </div>
 
             {/* Actions section */}
             {(action || secondaryAction) && (
-                <div className="px-4 py-3 space-y-2">
+                <div className="px-4 py-4 border-b border-border space-y-2">
                     {action && <div className="w-full">{renderAction(action, true)}</div>}
                     {secondaryAction && <div>{renderAction(secondaryAction, false)}</div>}
                 </div>
             )}
+
+            {/* Bottom spacer */}
+            <div className="flex-1 bg-cream/30" />
         </div>
     );
 }
