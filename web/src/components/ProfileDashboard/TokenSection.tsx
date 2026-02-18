@@ -1,24 +1,24 @@
 "use client";
 
 /**
- * Token Section
+ * Project Section
  *
- * Displays a grid of tokens with optional header.
+ * Displays a grid of project cards with optional header.
  */
 
 import Image from "next/image";
-import type { TokenInfo } from "@/types";
-import { TokenCard } from "./TokenCard";
+import type { ProjectInfo } from "@/types";
+import { ProjectCard } from "./TokenCard";
 
-interface TokenSectionProps {
-    tokens: TokenInfo[];
+interface ProjectSectionProps {
+    projects: ProjectInfo[];
     title?: string;
     icon?: string;
     showHeader?: boolean;
 }
 
-export function TokenSection({ tokens, title, icon, showHeader = true }: TokenSectionProps) {
-    if (tokens.length === 0) return null;
+export function ProjectSection({ projects, title, icon, showHeader = true }: ProjectSectionProps) {
+    if (projects.length === 0) return null;
 
     return (
         <>
@@ -41,12 +41,12 @@ export function TokenSection({ tokens, title, icon, showHeader = true }: TokenSe
                         )}
                         {title}
                     </h2>
-                    <span className="section-count">{tokens.length} tokens</span>
+                    <span className="section-count">{projects.length} project{projects.length !== 1 ? "s" : ""}</span>
                 </div>
             )}
             <div className="token-grid">
-                {tokens.map((t) => (
-                    <TokenCard key={t.address} token={t} />
+                {projects.map((p) => (
+                    <ProjectCard key={p.projectId} project={p} />
                 ))}
             </div>
         </>

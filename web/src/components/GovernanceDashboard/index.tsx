@@ -2,15 +2,16 @@
  * GovernanceDashboard
  *
  * Main governance dashboard component for viewing and creating proposals.
- * Orchestrates child components for header, filtering, and proposal list.
+ * Currently shows an empty state — proposals will come from on-chain
+ * contract reads when milestone governance is live.
  */
 
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
+import Image from "next/image";
 
 import type { Proposal, TabFilter } from "./types";
-import { MOCK_PROPOSALS, MOCK_ESCROW_BALANCE } from "./hooks/useMockProposals";
 import { GovernanceHeader } from "./components/GovernanceHeader";
 import { ProposalFilter } from "./components/ProposalFilter";
 import { ProposalListView } from "./components/ProposalListView";
@@ -18,25 +19,21 @@ import { ProposalDetail } from "./components/ProposalDetail";
 import { CreateProposalModal } from "./components/CreateProposalModal";
 
 export default function GovernanceDashboard() {
-    const [proposals, setProposals] = useState<Proposal[]>(MOCK_PROPOSALS);
+    const [proposals, setProposals] = useState<Proposal[]>([]);
     const [activeTab, setActiveTab] = useState<TabFilter>("all");
     const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
     const [showCreate, setShowCreate] = useState(false);
 
-    const filteredProposals = useMemo(
-        () =>
-            proposals.filter((p) => {
-                if (activeTab === "all") return true;
-                if (activeTab === "active")
-                    return ["Voting", "Approved", "ProofSubmitted"].includes(p.status);
-                if (activeTab === "completed")
-                    return ["Completed", "Overridden"].includes(p.status);
-                if (activeTab === "rejected")
-                    return ["Rejected", "Expired", "Disputed"].includes(p.status);
-                return true;
-            }),
-        [proposals, activeTab]
-    );
+    const filteredProposals = proposals.filter((p) => {
+        if (activeTab === "all") return true;
+        if (activeTab === "active")
+            return ["Voting", "Approved", "ProofSubmitted"].includes(p.status);
+        if (activeTab === "completed")
+            return ["Completed", "Overridden"].includes(p.status);
+        if (activeTab === "rejected")
+            return ["Rejected", "Expired", "Disputed"].includes(p.status);
+        return true;
+    });
 
     const handleCreate = useCallback(
         (partial: Partial<Proposal>) => {
@@ -72,7 +69,7 @@ export default function GovernanceDashboard() {
 
     return (
         <div className="container" style={{ padding: "var(--space-12) var(--space-6)" }}>
-            <GovernanceHeader proposals={proposals} escrowBalance={MOCK_ESCROW_BALANCE} />
+            <GovernanceHeader proposals={proposals} escrowBalance="0" />
 
             <ProposalFilter
                 activeTab={activeTab}
@@ -80,11 +77,34 @@ export default function GovernanceDashboard() {
                 onCreateClick={() => setShowCreate(true)}
             />
 
-            <ProposalListView
-                proposals={filteredProposals}
-                activeTab={activeTab}
-                onSelectProposal={setSelectedProposal}
-            />
+            {proposals.length === 0 ? (
+                <div style={{
+                    textAlign: "center",
+                    padding: "var(--space-16) var(--space-6)",
+                    color: "var(--text-secondary)",
+                }}>
+                    <Image
+                        src="/icons/check-verified-02.svg"
+                        alt=""
+                        width={48}
+                        height={48}
+                        style={{ opacity: 0.2, marginBottom: "var(--space-4)" }}
+                    />
+                    <h3 style={{ color: "var(--text-primary)", marginBottom: "var(--space-2)" }}>
+                        No proposals yet
+                    </h3>
+                    <p style={{ maxWidth: 400, margin: "0 auto", lineHeight: 1.6 }}>
+                        Governance launches when the first milestone proposal is created.
+                        Token holders can propose milestones and the community votes to unlock funds.
+                    </p>
+                </div>
+            ) : (
+                <ProposalListView
+                    proposals={filteredProposals}
+                    activeTab={activeTab}
+                    onSelectProposal={setSelectedProposal}
+                />
+            )}
 
             {showCreate && (
                 <CreateProposalModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />

@@ -1,7 +1,7 @@
 /**
  * Token Types
  *
- * Types for token holdings and balances.
+ * Types for token holdings and project info.
  */
 
 export interface TokenBalance {
@@ -10,15 +10,17 @@ export interface TokenBalance {
     address: string;
 }
 
-export interface TokenInfo {
-    address: string;
-    name: string;
-    ticker: string;
-    color: string;
-    role: "dev" | "holder";
-    balance: string;
-    escrowBalance: string;
-    activeProposals: number;
-    totalProposals: number;
+export interface ProjectInfo {
     projectId: string;
+    name: string | null;
+    description: string | null;
+    poolTokenAddress: string | null;
+    poolId: string | null;
+    ownerWallet: string | null;
+    attestationUid: string | null;
+    devLinks: { platform: string; url: string; projectId: string }[] | null;
+    deployedBy: string | null;
+    createdAt: string | null;
+    verifiedAt: string | null;
 }
+

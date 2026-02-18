@@ -3,28 +3,34 @@
 /**
  * Profile Dashboard
  *
- * Main dashboard showing fee claims, portfolio metrics, and token holdings.
+ * Main dashboard showing fee claims, verified projects, and portfolio metrics.
+ * Fetches real project data from the backend API.
  */
 
-import { useState, useMemo } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useFeeVault } from "@/hooks/useFeeVault";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import { useIsPrivyConfigured } from "@/providers/PrivyAuthProvider";
 import { EmptyState } from "@/components/common/EmptyState";
 import { truncateAddress } from "@/lib/format";
-import { MOCK_DEV_TOKENS, MOCK_HELD_TOKENS } from "@/fixtures";
+import { apiClient } from "@/lib/api-client";
 import { FeeClaimCard } from "@/components/FeeVault/FeeClaimCard";
-import { TokenSection } from "./TokenSection";
+import { ProjectSection } from "./TokenSection";
+import type { ProjectInfo } from "@/types";
 
 export default function ProfileDashboard() {
-    const [activeSection, setActiveSection] = useState<"all" | "dev" | "held">("all");
     const isPrivyConfigured = useIsPrivyConfigured();
 
-    // Get wallet address from Privy
+    // Get wallet address + access token from Privy
     const privy = useOptionalPrivy();
     const walletAddress = privy?.user?.wallet?.address as string | undefined;
     const displayAddress = walletAddress ? truncateAddress(walletAddress) : "Not connected";
+
+    // Real project data from API
+    const [projects, setProjects] = useState<ProjectInfo[]>([]);
+    const [projectsLoading, setProjectsLoading] = useState(false);
+    const [projectsError, setProjectsError] = useState<string | null>(null);
 
     // Fee vault hook — reads on-chain data
     const {
@@ -38,19 +44,38 @@ export default function ProfileDashboard() {
         refresh,
     } = useFeeVault(walletAddress);
 
-    const devTokens = MOCK_DEV_TOKENS;
-    const heldTokens = MOCK_HELD_TOKENS;
-    const allTokens = [...devTokens, ...heldTokens];
+    // Fetch user's projects when authenticated
+    useEffect(() => {
+        let cancelled = false;
 
-    const tabDefinitions = useMemo(
-        () =>
-            [
-                ["all", `All Tokens (${allTokens.length})`],
-                ["dev", `My Projects (${devTokens.length})`],
-                ["held", `Holdings (${heldTokens.length})`],
-            ] as const,
-        [allTokens.length, devTokens.length, heldTokens.length],
-    );
+        async function loadProjects() {
+            if (!privy?.authenticated || !privy?.getAccessToken) return;
+
+            setProjectsLoading(true);
+            setProjectsError(null);
+
+            try {
+                const token = await privy.getAccessToken();
+                if (!token || cancelled) return;
+
+                const data = await apiClient.launch.myProjects(token);
+                if (!cancelled) {
+                    setProjects(data.projects);
+                }
+            } catch (err) {
+                if (!cancelled) {
+                    setProjectsError(err instanceof Error ? err.message : "Failed to load projects");
+                }
+            } finally {
+                if (!cancelled) {
+                    setProjectsLoading(false);
+                }
+            }
+        }
+
+        loadProjects();
+        return () => { cancelled = true; };
+    }, [privy?.authenticated, privy?.getAccessToken]);
 
     return (
         <div className="container" style={{ padding: "var(--space-12) var(--space-6)" }}>
@@ -101,7 +126,7 @@ export default function ProfileDashboard() {
                 )}
             </div>
 
-            {/* Miller's Law: Chunk 2 - At a Glance (max 4-5 key metrics) */}
+            {/* Miller's Law: Chunk 2 - At a Glance */}
             <div className="dashboard-chunk">
                 <h2 className="chunk-title">
                     <span className="chunk-icon">📊</span>
@@ -109,12 +134,12 @@ export default function ProfileDashboard() {
                 </h2>
                 <div className="profile-summary">
                     <div className="profile-summary-card">
-                        <div className="value">{devTokens.length + heldTokens.length}</div>
-                        <div className="label">Total Tokens</div>
+                        <div className="value">{projects.length}</div>
+                        <div className="label">Your Projects</div>
                     </div>
                     <div className="profile-summary-card">
-                        <div className="value">{devTokens.length}</div>
-                        <div className="label">Your Projects</div>
+                        <div className="value">{projects.filter((p) => p.poolTokenAddress).length}</div>
+                        <div className="label">Tokens Deployed</div>
                     </div>
                     <div className="profile-summary-card">
                         <div className="value" style={{ color: "var(--success)" }}>
@@ -131,98 +156,65 @@ export default function ProfileDashboard() {
                 </div>
             </div>
 
-            {/* Miller's Law: Chunk 3 - Your Portfolio */}
+            {/* Miller's Law: Chunk 3 - Your Projects */}
             <div className="dashboard-chunk">
                 <h2 className="chunk-title">
                     <span className="chunk-icon">💎</span>
-                    Your Portfolio
+                    Your Projects
                 </h2>
 
-                {/* Filter tabs */}
-                <div className="gov-tabs" style={{ marginBottom: "var(--space-6)" }}>
-                    {tabDefinitions.map(([key, label]) => (
-                        <button
-                            key={key}
-                            type="button"
-                            className={`gov-tab ${activeSection === key ? "active" : ""}`}
-                            onClick={() => setActiveSection(key as "all" | "dev" | "held")}
-                        >
-                            {label}
-                        </button>
-                    ))}
-                </div>
+                {/* Loading state */}
+                {projectsLoading && (
+                    <div style={{ textAlign: "center", padding: "var(--space-8)", color: "var(--text-secondary)" }}>
+                        Loading your projects…
+                    </div>
+                )}
+
+                {/* Error state */}
+                {projectsError && (
+                    <div style={{ textAlign: "center", padding: "var(--space-8)", color: "var(--danger)" }}>
+                        {projectsError}
+                    </div>
+                )}
+
+                {/* Real projects */}
+                {!projectsLoading && !projectsError && projects.length > 0 && (
+                    <ProjectSection
+                        projects={projects}
+                        title="Verified Projects"
+                        icon="/icons/zap-fast.svg"
+                        showHeader={false}
+                    />
+                )}
+
+                {/* Empty state */}
+                {!projectsLoading && !projectsError && projects.length === 0 && (
+                    <EmptyState
+                        className="profile-empty-section"
+                        useRawClasses
+                        stepHint="Get Started"
+                        icon={
+                            <Image
+                                src="/icons/zap-fast.svg"
+                                alt=""
+                                width={40}
+                                height={40}
+                                style={{ opacity: 0.3 }}
+                            />
+                        }
+                        title="No verified projects yet"
+                        description="Verify your project ownership to see your tokens here and start earning USDC fees from LP activity."
+                        action={{
+                            label: "Verify a Project",
+                            href: "/verify",
+                        }}
+                        secondaryAction={{
+                            label: "Learn how it works",
+                            href: "/developers",
+                        }}
+                    />
+                )}
             </div>
-
-            {/* Dev Tokens Section */}
-            {(activeSection === "all" || activeSection === "dev") && (
-                <TokenSection
-                    tokens={devTokens}
-                    title="Your Projects"
-                    icon="/icons/zap-fast.svg"
-                    showHeader={activeSection === "all"}
-                />
-            )}
-
-            {/* Held Tokens Section */}
-            {(activeSection === "all" || activeSection === "held") && (
-                <TokenSection
-                    tokens={heldTokens}
-                    title="Token Holdings"
-                    icon="/icons/coins-stacked-02.svg"
-                    showHeader={activeSection === "all"}
-                />
-            )}
-
-            {/* Empty states with Progressive Disclosure */}
-            {activeSection === "dev" && devTokens.length === 0 && (
-                <EmptyState
-                    className="profile-empty-section"
-                    useRawClasses
-                    stepHint="Get Started"
-                    icon={
-                        <Image
-                            src="/icons/zap-fast.svg"
-                            alt=""
-                            width={40}
-                            height={40}
-                            style={{ opacity: 0.3 }}
-                        />
-                    }
-                    title="You haven't launched any tokens yet"
-                    description="Verify your project ownership to create a Sigil token and start earning USDC fees from LP activity."
-                    action={{
-                        label: "Verify a Project",
-                        href: "/verify",
-                    }}
-                    secondaryAction={{
-                        label: "Learn how it works",
-                        href: "/developers",
-                    }}
-                />
-            )}
-
-            {activeSection === "held" && heldTokens.length === 0 && (
-                <EmptyState
-                    className="profile-empty-section"
-                    useRawClasses
-                    stepHint="Discover"
-                    icon={
-                        <Image
-                            src="/icons/coins-stacked-02.svg"
-                            alt=""
-                            width={40}
-                            height={40}
-                            style={{ opacity: 0.3 }}
-                        />
-                    }
-                    title="You don't hold any Sigil-launched tokens"
-                    description="Browse verified projects and back the builders shaping the agentic economy."
-                    action={{
-                        label: "Explore Projects",
-                        href: "/chat",
-                    }}
-                />
-            )}
         </div>
     );
 }
