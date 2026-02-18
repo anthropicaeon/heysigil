@@ -3,10 +3,10 @@
 import {
     ArrowRight,
     Bot,
+    Check,
     Cloud,
     Coins,
     Copy,
-    Check,
     ExternalLink,
     Globe,
     KeyRound,
@@ -21,6 +21,7 @@ import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PixelCard } from "@/components/ui/pixel-card";
 import { cn } from "@/lib/utils";
 
 /* ─── Skill file content (embedded from .agents/) ──────────────── */
@@ -151,6 +152,31 @@ DM [@HeySigil](https://x.com/HeySigil) on X, or visit the [developer docs](/deve
 
 /* ─── Copy button component ────────────────────────────────────── */
 
+const HERO_SIGNALS = [
+    { icon: Shield, label: "Attestation", value: "EAS on Base" },
+    { icon: Globe, label: "Network", value: "Base 8453" },
+    { icon: Cloud, label: "Deploy", value: "agent:// flow" },
+    { icon: Scale, label: "Governance", value: "Milestone votes" },
+];
+
+const AGENT_RAILS = [
+    {
+        icon: Terminal,
+        title: "System Prompt Ready",
+        description: "Drop skill.md into your runtime context with no additional parsing.",
+    },
+    {
+        icon: Shield,
+        title: "Verification Native",
+        description: "Agent keypair verification and EAS attestation are first-class protocol paths.",
+    },
+    {
+        icon: Globe,
+        title: "Production Surface",
+        description: "Works across verification, deploy, attestations, and fee claiming endpoints.",
+    },
+];
+
 function CopyButton({ text, label }: { text: string; label?: string }) {
     const [copied, setCopied] = useState(false);
 
@@ -163,7 +189,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
     return (
         <button
             onClick={handleCopy}
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors border border-border px-2.5 py-1"
+            className="inline-flex h-8 items-center gap-1.5 border border-border bg-background/70 px-3 text-[11px] font-medium tracking-wide text-muted-foreground uppercase transition-colors hover:text-foreground"
         >
             {copied ? (
                 <>
@@ -184,7 +210,7 @@ function CopyButton({ text, label }: { text: string; label?: string }) {
 
 function SkillMarkdownView({ content }: { content: string }) {
     return (
-        <div className="font-mono text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
+        <div className="font-mono text-xs lg:text-sm leading-relaxed whitespace-pre-wrap text-muted-foreground">
             {content}
         </div>
     );
@@ -197,67 +223,139 @@ export default function AgentsPage() {
 
     return (
         <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0">
-                {/* Header */}
-                <div className="border-border border-b px-6 py-10 lg:px-12 lg:py-16 bg-lavender/10">
-                    <p className="text-primary text-sm font-medium uppercase tracking-wider mb-3">
-                        agent skill
-                    </p>
-                    <h1 className="text-3xl lg:text-4xl font-semibold text-foreground mb-4 lowercase leading-tight">
-                        integrate with sigil
-                    </h1>
-                    <p className="text-muted-foreground max-w-xl">
-                        Everything an autonomous agent needs to verify identity, launch tokens,
-                        and claim fees on the Sigil protocol.
-                    </p>
-                </div>
+            <div className="border-border relative container border-l border-r min-h-screen px-0 flex flex-col">
+                <PixelCard
+                    variant="lavender"
+                    active
+                    centerFade
+                    noFocus
+                    className="border-border border-b bg-lavender/30"
+                >
+                    <div className="grid lg:grid-cols-[1fr_320px]">
+                        <div className="px-6 py-12 lg:px-12 lg:py-16 border-border lg:border-r">
+                            <p className="text-primary text-sm font-medium uppercase tracking-wider mb-3">
+                                agent infrastructure
+                            </p>
+                            <h1 className="text-3xl lg:text-5xl font-semibold text-foreground mb-4 lowercase leading-tight">
+                                production rails for autonomous agents
+                            </h1>
+                            <p className="text-muted-foreground max-w-2xl text-base lg:text-lg mb-6">
+                                Identity verification, token launch, attestations, and fee routing in
+                                a single border-centric protocol surface.
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2 mb-8">
+                                <Badge variant="outline">agent:// identifiers</Badge>
+                                <Badge variant="outline">EAS attestations</Badge>
+                                <Badge variant="outline">USDC fee vault</Badge>
+                            </div>
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <Link href="/verify">
+                                    <Button size="lg" className="gap-2">
+                                        Stamp Agent Sigil
+                                        <ArrowRight className="size-4" />
+                                    </Button>
+                                </Link>
+                                <Link href="/chat">
+                                    <Button variant="outline" size="lg">
+                                        Open Sigil Chat
+                                    </Button>
+                                </Link>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 divide-x divide-y divide-border bg-background/60 backdrop-blur-sm">
+                            {HERO_SIGNALS.map((item) => (
+                                <div key={item.label} className="px-5 py-6">
+                                    <div className="size-9 bg-sage/30 border border-border flex items-center justify-center mb-3">
+                                        <item.icon className="size-4 text-primary" />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                                        {item.label}
+                                    </p>
+                                    <p className="text-sm font-medium text-foreground">{item.value}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </PixelCard>
 
-                {/* Toggle */}
-                <div className="border-border border-b px-6 py-3 lg:px-12 flex items-center gap-3 bg-secondary/20">
-                    <button
-                        onClick={() => setView("humans")}
-                        className={cn(
-                            "px-4 py-1.5 text-sm font-medium transition-all border",
-                            view === "humans"
-                                ? "bg-foreground text-background border-foreground"
-                                : "bg-transparent text-muted-foreground border-border hover:text-foreground",
-                        )}
-                    >
-                        For Humans
-                    </button>
-                    <button
-                        onClick={() => setView("agents")}
-                        className={cn(
-                            "px-4 py-1.5 text-sm font-medium transition-all border",
-                            view === "agents"
-                                ? "bg-foreground text-background border-foreground"
-                                : "bg-transparent text-muted-foreground border-border hover:text-foreground",
-                        )}
-                    >
-                        For Agents
-                    </button>
-                    <div className="flex-1" />
-                    <CopyButton
-                        text={SIGIL_SKILL_MD}
-                        label="Copy skill.md"
-                    />
+                <div className="border-border border-b bg-background/80">
+                    <div className="flex flex-col sm:flex-row sm:items-center">
+                        <div className="flex border-border border-b sm:border-b-0 sm:border-r">
+                            <button
+                                onClick={() => setView("humans")}
+                                className={cn(
+                                    "h-12 px-6 text-sm font-medium lowercase transition-colors border-border border-r",
+                                    view === "humans"
+                                        ? "bg-background text-foreground"
+                                        : "bg-transparent text-muted-foreground hover:text-foreground",
+                                )}
+                            >
+                                for humans
+                            </button>
+                            <button
+                                onClick={() => setView("agents")}
+                                className={cn(
+                                    "h-12 px-6 text-sm font-medium lowercase transition-colors",
+                                    view === "agents"
+                                        ? "bg-background text-foreground"
+                                        : "bg-transparent text-muted-foreground hover:text-foreground",
+                                )}
+                            >
+                                for agents
+                            </button>
+                        </div>
+                        <div className="hidden sm:block flex-1" />
+                        <div className="px-4 py-3 sm:px-6 sm:py-0">
+                            <CopyButton text={SIGIL_SKILL_MD} label="Copy skill.md" />
+                        </div>
+                    </div>
                 </div>
 
                 {/* ─── For Agents View ──────────────────────────── */}
                 {view === "agents" && (
-                    <div className="border-border border-b">
-                        <div className="px-6 py-2 lg:px-12 border-border border-b bg-secondary/10">
-                            <span className="text-xs text-muted-foreground font-mono">
-                                skill.md — paste this into your agent&apos;s context
-                            </span>
-                        </div>
-                        <div className="px-6 py-6 lg:px-12 bg-foreground/[0.02]">
-                            <SkillMarkdownView content={SIGIL_SKILL_MD} />
+                    <div className="border-border border-b bg-background">
+                        <div className="grid lg:grid-cols-[280px_1fr]">
+                            <div className="border-border border-b lg:border-b-0 lg:border-r bg-sage/10 px-6 py-6 lg:px-8 lg:py-8">
+                                <p className="text-primary text-xs font-medium uppercase tracking-wider mb-4">
+                                    runtime profile
+                                </p>
+                                <div className="space-y-3">
+                                    {AGENT_RAILS.map((item) => (
+                                        <div
+                                            key={item.title}
+                                            className="border border-border bg-background/80 px-3 py-3"
+                                        >
+                                            <div className="flex items-start gap-2.5">
+                                                <item.icon className="size-4 text-primary mt-0.5 shrink-0" />
+                                                <div>
+                                                    <p className="text-sm font-medium text-foreground">
+                                                        {item.title}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        {item.description}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="min-w-0">
+                                <div className="px-6 py-3 lg:px-8 border-border border-b bg-foreground/[0.03] flex items-center justify-between gap-3">
+                                    <span className="text-xs text-muted-foreground font-mono">
+                                        skill.md - paste into your agent&apos;s system context
+                                    </span>
+                                    <CopyButton text={SIGIL_SKILL_MD} />
+                                </div>
+                                <div className="px-6 py-6 lg:px-8 bg-foreground/[0.02] max-h-[780px] overflow-auto">
+                                    <SkillMarkdownView content={SIGIL_SKILL_MD} />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
 
-                {/* ─── For Humans View ──────────────────────────── */}
+                {/* For Humans View */}
                 {view === "humans" && (
                     <>
                         {/* How It Works */}
@@ -592,3 +690,4 @@ export default function AgentsPage() {
         </section>
     );
 }
+
