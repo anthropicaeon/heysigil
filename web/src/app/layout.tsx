@@ -2,6 +2,7 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 import { Figtree } from "next/font/google";
+import { Toaster } from "sonner";
 
 import { Footer } from "@/components/layout/footer";
 import Navbar from "@/components/layout/navbar";
@@ -93,6 +94,7 @@ export default function RootLayout({
                             <Navbar />
                             <main>{children}</main>
                             <Footer />
+                            <Toaster position="bottom-right" />
                         </SessionProvider>
                     </PrivyAuthProvider>
                 </ThemeProvider>

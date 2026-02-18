@@ -160,7 +160,7 @@ export function DetailsStep({
                 >
                     {loading ? (
                         <>
-                            <span className="inline-block size-4 animate-spin border-2 border-current border-t-transparent mr-2" />
+                            <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
                             Creating...
                         </>
                     ) : method.requiresOAuth ? (
