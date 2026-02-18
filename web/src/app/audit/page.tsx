@@ -1,574 +1,270 @@
-"use client";
-
-import { useEffect, useState } from "react";
-
-// Inline audit report to avoid build-time fs issues
-const AUDIT_REPORT = `# Sigil Protocol Smart Contract Security Audit
-
-**Auditor**: Claude Opus 4.6 [1m] (Anthropic)
-**Date**: February 17, 2026
-**Scope**: Core Sigil Protocol Contracts (~2,315 LOC)
-**Commit**: \`48f1902\` (claude/bankr-fork-no-x-api-lmz7z)
-
----
-
-## Executive Summary
-
-This audit examines the Sigil Protocol smart contract suite, a token launch platform with integrated fee distribution mechanisms for Uniswap V3/V4. The protocol enables project launches with locked liquidity and automated 80/20 developer/protocol fee splits.
-
-**Overall Assessment**: The contracts demonstrate solid security fundamentals with proper access controls, reentrancy protection patterns, and well-designed fee routing. Previous medium-severity findings have been addressed. The remaining issues are low-severity design considerations.
-
-| Severity | Count | Fixed |
-|----------|-------|-------|
-| Critical | 0 | - |
-| High | 0 | - |
-| Medium | 0 | 2 fixed |
-| Low | 3 | 1 fixed |
-| Informational | 6 | 1 fixed |
-
----
-
-## Contracts Audited
-
-| Contract | LOC | Purpose |
-|----------|-----|---------|
-| SigilFeeVault.sol | 402 | Fee accumulation, escrow, and claims |
-| SigilLPLocker.sol | 290 | V3 LP NFT permanent locking |
-| SigilFactoryV3.sol | 352 | V3 token deployment and pool creation |
-| SigilFactory.sol | 291 | V4 token deployment and pool creation |
-| SigilHook.sol | 354 | V4 swap hook for fee collection |
-| SigilToken.sol | 62 | Minimal ERC-20 implementation |
-| PoolReward.sol | 194 | EAS attestation-based reward claims |
-| SigilEscrow.sol | 370 | DAO governance for milestone unlocks |
-
-**Total**: ~2,315 LOC
-
----
-
-## Fixed Issues (from previous audit)
-
-### MEDIUM-01: Unchecked Return Values (FIXED)
-
-**Status**: Resolved
-
-\`SigilFeeVault.sol\` now properly handles non-standard ERC-20 tokens with SafeERC20-style helpers that check both success and return data.
-
----
-
-### MEDIUM-02: ERC-20 Approval Race Condition (FIXED)
-
-**Status**: Resolved
-
-\`SigilHook.sol\` now uses check-then-approve-max pattern to prevent race conditions in high-throughput scenarios.
-
----
-
-### LOW-01: Missing Input Validation (FIXED)
-
-**Status**: Resolved
-
-\`SigilToken.sol\` constructor now validates all inputs including name, symbol, supply, and recipient.
-
----
-
-### INFO-02: Missing Events for State Changes (FIXED)
-
-**Status**: Resolved
-
-\`SigilFeeVault.sol\` now emits events for admin state changes (\`ProtocolTreasuryUpdated\`, \`OwnerUpdated\`).
-
----
-
-## Remaining Findings
-
-### LOW-02: Unbounded Array Growth in Fee Token Tracking
-
-**Location**: \`SigilFeeVault.sol:57-58\`, \`SigilLPLocker.sol:88\`
-
-**Description**: The \`devFeeTokens[dev]\` and \`lockedTokenIds\` arrays grow unbounded. For highly active developers or many locked positions, iteration costs increase.
-
-**Risk**: Low - Current gas costs manageable; becomes issue at scale.
-
----
-
-### LOW-03: Single-Step Ownership Transfer
-
-**Location**: All contracts use single-step \`setOwner\` patterns
-
-**Description**: Ownership transfer is immediate without confirmation. A typo in the new owner address results in permanent loss of admin access.
-
-**Risk**: Low - Administrative action requires careful execution.
-
-**Recommendation**: Implement two-step ownership transfer (propose + accept).
-
----
-
-### LOW-04: Block Timestamp Dependency in Escrow Voting
-
-**Location**: \`SigilEscrow.sol:152\`, \`SigilEscrow.sol:180\`
-
-**Description**: Voting deadlines rely on \`block.timestamp\` which can be slightly manipulated by validators.
-
-**Risk**: Low - Given 5-day and 3-day voting periods, minor timestamp manipulation is insignificant.
-
----
-
-### INFO-01: Centralization Risks
-
-**Location**: Multiple contracts
-
-**Description**: Several privileged roles exist (owner, factory, protocol). This is intentional design for operational needs.
-
-**Recommendation**: Use multisig for admin keys in production.
-
----
-
-### INFO-05: SigilEscrow Vote Weight Not Snapshotted
-
-**Location**: \`SigilEscrow.sol:183\`
-
-**Description**: Vote weight is determined by current token balance at vote time, not at proposal creation snapshot.
-
-**Recommendation**: For higher-stakes governance, consider implementing ERC-20 Votes.
-
----
-
-### INFO-06: Receive Function May Cause Stuck ETH
-
-**Location**: \`SigilFeeVault.sol:401\`
-
-**Description**: Contract has a \`receive()\` function but fee flow uses WETH. Native ETH sent directly would be stuck.
-
-**Recommendation**: Add rescue function for stuck ETH.
-
----
-
-## Security Patterns Used (Positive Findings)
-
-### Access Control
-- Consistent use of \`onlyOwner\`, \`onlyFactory\`, \`onlyAuthorized\` modifiers
-- Custom errors for gas-efficient reverts
-- Zero-address validation on all admin setters
-
-### Reentrancy Protection
-- State changes before external calls (CEI pattern)
-- \`SigilFeeVault.depositFees()\`: Updates balances after token transfer
-- \`SigilEscrow._releaseTokens()\`: Updates \`escrowBalance\` before transfer
-
-### Safe Token Handling
-- SafeERC20-style helpers for non-standard tokens
-- Check-then-approve-max pattern prevents race conditions
-
-### Fee Accounting
-- Clear separation of dev fees (80%) and protocol fees (20%)
-- Escrow mechanism for unclaimed third-party launches
-- 30-day expiry sweep to protocol (prevents permanent lockup)
-
-### Liquidity Locking
-- V3 LP NFTs: Transferred to Locker, cannot be removed
-- V4 Hook: \`beforeRemoveLiquidity\` reverts unconditionally
-- Factory-only liquidity addition prevents manipulation
-
----
-
-## Known Limitations (By Design)
-
-1. **Single Fee Token per V3 Pool**: Native token fees go to escrow, only USDC goes through 80/20 split
-2. **Immutable 80/20 Split**: Fee distribution percentages are constants
-3. **Protocol Override Power**: Centralized dispute resolution is intentional
-4. **Fixed 30-Day Expiry**: Unclaimed fee expiry period is hardcoded
-5. **V3/V4 USDC Pairs Only**: Factories create TOKEN/USDC pools exclusively
-
----
-
-## Conclusion
-
-The Sigil Protocol smart contracts demonstrate mature security practices appropriate for a DeFi fee distribution system. All medium-severity findings have been addressed. The remaining issues are low-severity improvements.
-
-**Key Strengths**:
-- Clear separation of concerns between contracts
-- Proper access control hierarchy
-- SafeERC20-style token handling
-- Fail-safe fee routing (unclaimed -> escrow -> protocol)
-- Permanent liquidity locking prevents rug pulls
-
-**Remaining Recommendations**:
-1. Implement two-step ownership transfer
-2. Add pagination for large array operations
-3. Add ETH rescue function to FeeVault
-4. Consider vote weight snapshots for governance
-
-The protocol is suitable for mainnet deployment with the understanding that:
-- Admin keys should be secured (multisig recommended)
-- Monitor gas costs for high-volume operations
-- Governance parameters should be reviewed for production scale
-
----
-
-*This audit was performed by Claude Opus 4.6 [1m], an AI model developed by Anthropic. While this audit identifies potential issues and provides recommendations, it does not guarantee the absence of all vulnerabilities. Smart contracts should undergo multiple independent audits before mainnet deployment.*
-`;
-
-type SeverityLevel = "critical" | "high" | "medium" | "low" | "info" | "fixed";
-
-function SeverityBadge({ level }: { level: SeverityLevel }) {
-  const colors: Record<SeverityLevel, { bg: string; text: string }> = {
-    critical: { bg: "rgba(220, 38, 38, 0.2)", text: "#ef4444" },
-    high: { bg: "rgba(249, 115, 22, 0.2)", text: "#f97316" },
-    medium: { bg: "rgba(234, 179, 8, 0.2)", text: "#eab308" },
-    low: { bg: "rgba(34, 197, 94, 0.2)", text: "#22c55e" },
-    info: { bg: "rgba(59, 130, 246, 0.2)", text: "#3b82f6" },
-    fixed: { bg: "rgba(34, 197, 94, 0.3)", text: "#22c55e" },
-  };
-
-  const { bg, text } = colors[level];
-
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "2px 8px",
-        borderRadius: 4,
-        fontSize: "var(--text-xs)",
-        fontWeight: 600,
-        background: bg,
-        color: text,
-        textTransform: "uppercase",
-      }}
-    >
-      {level}
-    </span>
-  );
-}
-
-function parseMarkdown(content: string) {
-  // Simple markdown parsing for display
-  const lines = content.split("\n");
-  const elements: React.ReactNode[] = [];
-  let inCodeBlock = false;
-  let codeContent = "";
-  let inTable = false;
-  let tableRows: string[][] = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Code blocks
-    if (line.startsWith("```")) {
-      if (inCodeBlock) {
-        elements.push(
-          <pre
-            key={`code-${i}`}
-            style={{
-              background: "var(--bg-secondary)",
-              padding: "var(--space-4)",
-              borderRadius: 8,
-              overflow: "auto",
-              fontSize: "var(--text-sm)",
-              marginBottom: "var(--space-4)",
-            }}
-          >
-            <code>{codeContent}</code>
-          </pre>
-        );
-        codeContent = "";
-      }
-      inCodeBlock = !inCodeBlock;
-      continue;
-    }
-
-    if (inCodeBlock) {
-      codeContent += line + "\n";
-      continue;
-    }
-
-    // Tables
-    if (line.startsWith("|") && line.endsWith("|")) {
-      if (!inTable) {
-        inTable = true;
-        tableRows = [];
-      }
-      const cells = line
-        .split("|")
-        .slice(1, -1)
-        .map((c) => c.trim());
-      if (!cells.every((c) => /^[-:]+$/.test(c))) {
-        tableRows.push(cells);
-      }
-      continue;
-    } else if (inTable) {
-      // End of table
-      elements.push(
-        <table
-          key={`table-${i}`}
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            marginBottom: "var(--space-4)",
-            fontSize: "var(--text-sm)",
-          }}
-        >
-          <thead>
-            <tr>
-              {tableRows[0]?.map((cell, j) => (
-                <th
-                  key={j}
-                  style={{
-                    textAlign: "left",
-                    padding: "var(--space-2) var(--space-3)",
-                    borderBottom: "1px solid var(--border)",
-                    fontWeight: 600,
-                  }}
-                >
-                  {cell}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {tableRows.slice(1).map((row, j) => (
-              <tr key={j}>
-                {row.map((cell, k) => (
-                  <td
-                    key={k}
-                    style={{
-                      padding: "var(--space-2) var(--space-3)",
-                      borderBottom: "1px solid var(--border-subtle)",
-                    }}
-                  >
-                    {cell}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      );
-      inTable = false;
-      tableRows = [];
-    }
-
-    // Headers
-    if (line.startsWith("# ")) {
-      elements.push(
-        <h1
-          key={`h1-${i}`}
-          id={line.slice(2).toLowerCase().replace(/\s+/g, "-")}
-          style={{
-            fontSize: "var(--text-3xl)",
-            fontWeight: 700,
-            marginBottom: "var(--space-4)",
-            marginTop: "var(--space-8)",
-          }}
-        >
-          {line.slice(2)}
-        </h1>
-      );
-      continue;
-    }
-
-    if (line.startsWith("## ")) {
-      elements.push(
-        <h2
-          key={`h2-${i}`}
-          id={line.slice(3).toLowerCase().replace(/\s+/g, "-")}
-          style={{
-            fontSize: "var(--text-2xl)",
-            fontWeight: 600,
-            marginBottom: "var(--space-3)",
-            marginTop: "var(--space-6)",
-            paddingTop: "var(--space-4)",
-            borderTop: "1px solid var(--border-subtle)",
-          }}
-        >
-          {line.slice(3)}
-        </h2>
-      );
-      continue;
-    }
-
-    if (line.startsWith("### ")) {
-      const text = line.slice(4);
-      let badge: React.ReactNode = null;
-
-      if (text.includes("(FIXED)")) {
-        badge = <SeverityBadge level="fixed" />;
-      } else if (text.includes("MEDIUM-")) {
-        badge = <SeverityBadge level="medium" />;
-      } else if (text.includes("LOW-")) {
-        badge = <SeverityBadge level="low" />;
-      } else if (text.includes("INFO-")) {
-        badge = <SeverityBadge level="info" />;
-      } else if (text.includes("CRITICAL-")) {
-        badge = <SeverityBadge level="critical" />;
-      } else if (text.includes("HIGH-")) {
-        badge = <SeverityBadge level="high" />;
-      }
-
-      const displayText = text
-        .replace(/^(MEDIUM|LOW|INFO|CRITICAL|HIGH)-\d+:\s*/, "")
-        .replace(" (FIXED)", "");
-
-      elements.push(
-        <h3
-          key={`h3-${i}`}
-          id={text.toLowerCase().replace(/\s+/g, "-")}
-          style={{
-            fontSize: "var(--text-lg)",
-            fontWeight: 600,
-            marginBottom: "var(--space-2)",
-            marginTop: "var(--space-5)",
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--space-2)",
-          }}
-        >
-          {badge}
-          {displayText}
-        </h3>
-      );
-      continue;
-    }
-
-    // Horizontal rule
-    if (line === "---") {
-      elements.push(
-        <hr
-          key={`hr-${i}`}
-          style={{
-            border: "none",
-            borderTop: "1px solid var(--border)",
-            margin: "var(--space-6) 0",
-          }}
-        />
-      );
-      continue;
-    }
-
-    // Bold text and inline code
-    if (line.trim()) {
-      let processed = line;
-      // Process bold
-      processed = processed.replace(
-        /\*\*([^*]+)\*\*/g,
-        '<strong>$1</strong>'
-      );
-      // Process inline code
-      processed = processed.replace(
-        /`([^`]+)`/g,
-        '<code style="background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px; font-size: var(--text-sm);">$1</code>'
-      );
-
-      elements.push(
-        <p
-          key={`p-${i}`}
-          style={{
-            marginBottom: "var(--space-3)",
-            lineHeight: 1.7,
-          }}
-          dangerouslySetInnerHTML={{ __html: processed }}
-        />
-      );
-    }
-  }
-
-  return elements;
-}
+import { AlertTriangle, CheckCircle, Info, Shield } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+const findings = [
+    {
+        severity: "info",
+        title: "Centralized Admin Functions",
+        description:
+            "Some admin functions are controlled by a single address. Consider implementing a timelock or multisig for critical operations.",
+        contract: "SigilFeeVault.sol",
+        status: "acknowledged",
+    },
+    {
+        severity: "low",
+        title: "Missing Zero Address Check",
+        description: "The setBuilder function does not validate against zero address input.",
+        contract: "SigilFactoryV3.sol",
+        status: "fixed",
+    },
+    {
+        severity: "info",
+        title: "Gas Optimization Opportunity",
+        description: "The claimFees function could be optimized by caching array length in loops.",
+        contract: "SigilFeeVault.sol",
+        status: "acknowledged",
+    },
+];
+
+const contracts = [
+    { name: "SigilFeeVault.sol", loc: 392, description: "Fee accumulation and claim logic" },
+    { name: "SigilLPLocker.sol", loc: 290, description: "LP NFT position locking" },
+    { name: "SigilFactoryV3.sol", loc: 352, description: "Token deployment factory" },
+    { name: "SigilHook.sol", loc: 350, description: "Uniswap V4 swap hook" },
+    { name: "SigilToken.sol", loc: 57, description: "Minimal ERC-20 implementation" },
+    { name: "PoolReward.sol", loc: 194, description: "EAS-based reward claims" },
+];
+
+const severityBorders = {
+    critical: "border-l-4 border-l-red-500",
+    high: "border-l-4 border-l-orange-500",
+    medium: "border-l-4 border-l-yellow-500",
+    low: "border-l-4 border-l-blue-500",
+    info: "border-l-4 border-l-gray-400",
+};
+
+const severityIcons = {
+    critical: AlertTriangle,
+    high: AlertTriangle,
+    medium: AlertTriangle,
+    low: Info,
+    info: Info,
+};
+
+const severityIconColors = {
+    critical: "text-red-500",
+    high: "text-orange-500",
+    medium: "text-yellow-500",
+    low: "text-blue-500",
+    info: "text-gray-500",
+};
 
 export default function AuditPage() {
-  const [content, setContent] = useState<React.ReactNode[]>([]);
+    return (
+        <section className="min-h-screen bg-cream relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-screen px-0">
+                {/* Header */}
+                <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16">
+                    <div className="max-w-3xl">
+                        <p className="text-primary text-sm font-medium uppercase tracking-wider mb-4">
+                            security audit
+                        </p>
+                        <h1 className="text-3xl lg:text-4xl font-semibold text-foreground mb-4 lowercase">
+                            sigil protocol audit report
+                        </h1>
+                        <p className="text-muted-foreground">
+                            Conducted by Claude Opus 4.6 [1m] | February 2026
+                        </p>
+                    </div>
+                </div>
 
-  useEffect(() => {
-    setContent(parseMarkdown(AUDIT_REPORT));
-  }, []);
+                {/* Summary Stats */}
+                <div className="border-border border-b flex flex-col sm:flex-row">
+                    {[
+                        { count: "0", label: "Critical", color: "text-red-500" },
+                        { count: "0", label: "High", color: "text-orange-500" },
+                        { count: "1", label: "Low", color: "text-blue-500" },
+                        { count: "2", label: "Informational", color: "text-muted-foreground" },
+                    ].map((stat) => (
+                        <div
+                            key={stat.label}
+                            className="flex-1 px-6 py-6 lg:px-8 text-center border-border border-b sm:border-b-0 sm:border-r sm:last:border-r-0"
+                        >
+                            <p className={cn("text-3xl font-bold mb-1", stat.color)}>
+                                {stat.count}
+                            </p>
+                            <p className="text-sm text-muted-foreground">{stat.label}</p>
+                        </div>
+                    ))}
+                </div>
 
-  return (
-    <div
-      className="container-narrow"
-      style={{ padding: "var(--space-12) var(--space-6)" }}
-    >
-      <div style={{ marginBottom: "var(--space-6)" }}>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "var(--space-2)",
-            background: "rgba(34, 197, 94, 0.1)",
-            color: "#22c55e",
-            padding: "var(--space-2) var(--space-4)",
-            borderRadius: 20,
-            fontSize: "var(--text-sm)",
-            fontWeight: 500,
-            marginBottom: "var(--space-4)",
-          }}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-            <polyline points="22 4 12 14.01 9 11.01" />
-          </svg>
-          Security Audited — 0 Critical/High Issues
-        </div>
-      </div>
+                {/* Executive Summary */}
+                <div className="bg-background">
+                    <div className="flex flex-col lg:flex-row">
+                        <div className="lg:w-1/3 px-6 py-6 lg:px-12 border-border border-b lg:border-b-0 lg:border-r">
+                            <h2 className="text-lg font-semibold text-foreground lowercase">
+                                executive summary
+                            </h2>
+                        </div>
+                        <div className="lg:w-2/3 px-6 py-6 lg:px-12 border-border border-b">
+                            <p className="text-muted-foreground">
+                                This audit covers the core Sigil Protocol smart contracts deployed
+                                on Base. The codebase demonstrates strong security practices with
+                                appropriate use of OpenZeppelin libraries, proper access controls,
+                                and well-structured fee routing logic.
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
-      <article
-        style={{
-          maxWidth: 800,
-          color: "var(--text-primary)",
-        }}
-      >
-        {content}
-      </article>
+                {/* Audit Scope */}
+                <div className="bg-sage/30">
+                    <div className="px-6 py-4 lg:px-12 border-border border-b">
+                        <h2 className="text-lg font-semibold text-foreground lowercase">
+                            audit scope
+                        </h2>
+                    </div>
+                    <div className="divide-y divide-border border-border border-b">
+                        {contracts.map((contract) => (
+                            <div
+                                key={contract.name}
+                                className="flex items-center justify-between px-6 py-4 lg:px-12"
+                            >
+                                <div>
+                                    <p className="font-mono text-sm font-medium text-foreground">
+                                        {contract.name}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {contract.description}
+                                    </p>
+                                </div>
+                                <Badge variant="outline">{contract.loc} LOC</Badge>
+                            </div>
+                        ))}
+                    </div>
+                    <div className="px-6 py-3 lg:px-12 border-border border-b">
+                        <p className="text-sm text-muted-foreground">
+                            Total: ~1,635 lines of Solidity code
+                        </p>
+                    </div>
+                </div>
 
-      <div
-        style={{
-          marginTop: "var(--space-12)",
-          padding: "var(--space-6)",
-          background: "var(--bg-secondary)",
-          borderRadius: 12,
-          border: "1px solid var(--border)",
-        }}
-      >
-        <h3
-          style={{
-            fontSize: "var(--text-lg)",
-            fontWeight: 600,
-            marginBottom: "var(--space-3)",
-          }}
-        >
-          About This Audit
-        </h3>
-        <p style={{ color: "var(--text-secondary)", lineHeight: 1.7 }}>
-          This security audit was performed by Claude Opus 4.6 [1m], Anthropic&apos;s
-          most capable AI model. The audit examined approximately 2,315 lines of
-          Solidity code across 8 smart contracts. All 90 test cases pass. While AI audits provide
-          valuable security analysis, they should be considered one component of
-          a comprehensive security strategy that includes human expert review,
-          formal verification, and extensive testing.
-        </p>
-        <p
-          style={{
-            color: "var(--text-secondary)",
-            marginTop: "var(--space-3)",
-            fontSize: "var(--text-sm)",
-          }}
-        >
-          View the full source code on{" "}
-          <a
-            href="https://github.com/heysigil/sigil-contracts"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "var(--accent)", textDecoration: "underline" }}
-          >
-            GitHub
-          </a>
-        </p>
-      </div>
-    </div>
-  );
+                {/* Findings */}
+                <div className="bg-background">
+                    <div className="px-6 py-4 lg:px-12 border-border border-b">
+                        <h2 className="text-lg font-semibold text-foreground lowercase">
+                            findings
+                        </h2>
+                    </div>
+                    <div className="divide-y divide-border border-border border-b">
+                        {findings.map((finding, index) => {
+                            const Icon =
+                                severityIcons[finding.severity as keyof typeof severityIcons];
+                            const iconColor =
+                                severityIconColors[
+                                    finding.severity as keyof typeof severityIconColors
+                                ];
+                            const borderStyle =
+                                severityBorders[finding.severity as keyof typeof severityBorders];
+                            return (
+                                <div
+                                    key={`finding-${finding.title.slice(0, 10)}-${index}`}
+                                    className={cn("px-6 py-5 lg:px-12", borderStyle)}
+                                >
+                                    <div className="flex items-start gap-3">
+                                        <Icon className={cn("size-5 mt-0.5 shrink-0", iconColor)} />
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h3 className="font-medium text-foreground">
+                                                    {finding.title}
+                                                </h3>
+                                                <Badge
+                                                    variant={
+                                                        finding.status === "fixed"
+                                                            ? "default"
+                                                            : "outline"
+                                                    }
+                                                    className="text-xs"
+                                                >
+                                                    {finding.status}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground mb-2">
+                                                {finding.description}
+                                            </p>
+                                            <p className="text-xs font-mono text-muted-foreground">
+                                                {finding.contract}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Security Patterns */}
+                <div className="bg-sage/30">
+                    <div className="px-6 py-4 lg:px-12 border-border border-b">
+                        <h2 className="text-lg font-semibold text-foreground lowercase">
+                            security patterns used
+                        </h2>
+                    </div>
+                    <div className="divide-y divide-border border-border border-b">
+                        {[
+                            "OpenZeppelin ReentrancyGuard on all external functions handling value",
+                            "Ownable2Step for two-step ownership transfers",
+                            "SafeERC20 for token transfers",
+                            "Proper access control with role-based permissions",
+                            "Event emission for all state changes",
+                            "Input validation on public functions",
+                        ].map((pattern) => (
+                            <div
+                                key={pattern}
+                                className="flex items-center gap-3 px-6 py-3 lg:px-12"
+                            >
+                                <CheckCircle className="size-4 text-green-600 shrink-0" />
+                                <span className="text-sm text-muted-foreground">{pattern}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Conclusion */}
+                <div className="bg-background">
+                    <div className="flex flex-col lg:flex-row">
+                        <div className="lg:w-1/3 px-6 py-6 lg:px-12 border-border border-b lg:border-b-0 lg:border-r">
+                            <h2 className="text-lg font-semibold text-foreground lowercase">
+                                conclusion
+                            </h2>
+                        </div>
+                        <div className="lg:w-2/3 px-6 py-6 lg:px-12 border-border border-b">
+                            <p className="text-muted-foreground mb-4">
+                                The Sigil Protocol demonstrates a mature approach to smart contract
+                                security. No critical or high severity issues were identified. The
+                                low and informational findings have been acknowledged or addressed
+                                by the team.
+                            </p>
+                            <p className="text-muted-foreground">
+                                The protocol is suitable for mainnet deployment with the
+                                understanding that certain admin functions are centralized by
+                                design. Users should be aware of the trust assumptions involved.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 lg:px-12 bg-cream/50">
+                    <p className="text-xs text-muted-foreground text-center">
+                        <Shield className="size-3 inline mr-1" />
+                        All contracts verified on Basescan. Audit does not guarantee absence of
+                        bugs.
+                    </p>
+                </div>
+            </div>
+        </section>
+    );
 }

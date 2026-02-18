@@ -3,13 +3,19 @@
  *
  * Step 4: Display verification result and claim attestation.
  * Implements Peak-End Rule with professional, subtle celebration.
+ * Updated with pastel design system.
  */
 
 "use client";
 
+import { Check, Copy, Shield } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+
 import type { ChallengeResponse, CheckResult } from "../types";
-import { LoadingButton } from "@/components/common/LoadingButton";
 
 interface ResultStepProps {
     challenge: ChallengeResponse;
@@ -48,80 +54,99 @@ export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultS
     };
 
     return (
-        <div className="result-step">
-            {/* Professional achievement card with subtle animation */}
-            <div className="result-achievement-card">
-                <div className="achievement-glow" />
-                <div className="achievement-content">
-                    <div className="achievement-icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                            <path d="M9 12l2 2 4-4" />
-                        </svg>
-                    </div>
-                    <span className="status-badge status-verified">Verified</span>
-                    <h2 className="achievement-title">Ownership Confirmed</h2>
-                    <p className="achievement-project">{challenge.projectId}</p>
+        <div className="bg-background">
+            {/* Success Hero */}
+            <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 text-center">
+                <div className="size-20 bg-sage border border-border flex items-center justify-center mx-auto mb-6">
+                    <Shield className="size-10 text-green-600" />
                 </div>
+                <Badge variant="sage" className="mb-4">
+                    Verified
+                </Badge>
+                <h2 className="text-2xl font-semibold text-foreground mb-2 lowercase">
+                    ownership confirmed
+                </h2>
+                <p className="text-muted-foreground">{challenge.projectId}</p>
             </div>
 
-            {/* Share section - professional styling */}
-            <div className="result-share-section">
-                <p className="share-label">Share your verification</p>
-                <div className="share-buttons">
-                    <button type="button" className="share-btn share-btn-primary" onClick={handleTwitterShare}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            {/* Share Section */}
+            <div className="border-border border-b px-6 py-6 lg:px-12">
+                <p className="text-sm text-muted-foreground mb-3">Share your verification</p>
+                <div className="flex gap-2">
+                    <Button variant="secondary" onClick={handleTwitterShare} className="gap-2">
+                        <svg className="size-4" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                         </svg>
                         Post on X
-                    </button>
-                    <button type="button" className="share-btn" onClick={handleShare}>
-                        {showShareTooltip ? "Copied!" : "Copy link"}
-                    </button>
+                    </Button>
+                    <Button variant="outline" onClick={handleShare} className="gap-2">
+                        {showShareTooltip ? (
+                            <>
+                                <Check className="size-4" />
+                                Copied!
+                            </>
+                        ) : (
+                            <>
+                                <Copy className="size-4" />
+                                Copy link
+                            </>
+                        )}
+                    </Button>
                 </div>
             </div>
 
             {/* Stamp CTA */}
             {!isStamped && (
-                <div className="result-stamp-section">
-                    <h3>Stamp Your Sigil On-Chain</h3>
-                    <p>
+                <div className="px-6 py-8 lg:px-12">
+                    <h3 className="font-semibold text-foreground mb-2">
+                        Stamp Your Sigil On-Chain
+                    </h3>
+                    <p className="text-sm text-muted-foreground mb-4">
                         Create an EAS attestation on Base. Your on-chain stamp starts USDC fee
                         earnings from LP activity.
                     </p>
-                    <LoadingButton
-                        loading={loading}
-                        onClick={onClaim}
-                        loadingText="Stamping..."
-                        className="btn-primary btn-lg"
-                        style={{ width: "100%" }}
-                    >
-                        Stamp Sigil
-                    </LoadingButton>
+                    <Button onClick={onClaim} disabled={loading} size="lg" className="w-full">
+                        {loading ? (
+                            <>
+                                <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                                Stamping...
+                            </>
+                        ) : (
+                            "Stamp Sigil"
+                        )}
+                    </Button>
                 </div>
             )}
 
             {/* Success state after stamping */}
             {isStamped && (
-                <div className="result-stamped-section">
-                    <div className="stamped-header">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10" />
-                            <path d="M9 12l2 2 4-4" />
-                        </svg>
-                        <span>Sigil stamped on-chain</span>
+                <div className="px-6 py-8 lg:px-12">
+                    <div className="flex items-center gap-2 text-green-600 mb-3">
+                        <Check className="size-5" />
+                        <span className="font-medium">Sigil stamped on-chain</span>
                     </div>
-                    <p className="stamped-uid">
-                        <code>{checkResult.attestationUid}</code>
+                    <p className="text-xs text-muted-foreground font-mono mb-4 break-all">
+                        {checkResult.attestationUid}
                     </p>
-                    <ul className="stamped-benefits">
-                        <li>USDC fees from LP activity flow to your wallet</li>
-                        <li>Native tokens unlock via community milestones</li>
-                        <li>Verification is permanent and portable</li>
+                    <ul className="text-sm text-muted-foreground space-y-2 mb-6">
+                        <li className="flex items-start gap-2">
+                            <Check className="size-4 text-green-600 mt-0.5" />
+                            USDC fees from LP activity flow to your wallet
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <Check className="size-4 text-green-600 mt-0.5" />
+                            Native tokens unlock via community milestones
+                        </li>
+                        <li className="flex items-start gap-2">
+                            <Check className="size-4 text-green-600 mt-0.5" />
+                            Verification is permanent and portable
+                        </li>
                     </ul>
-                    <a href="/dashboard" className="btn-primary btn-lg" style={{ display: "block", textAlign: "center" }}>
-                        Go to Dashboard
-                    </a>
+                    <Link href="/dashboard">
+                        <Button size="lg" className="w-full">
+                            Go to Dashboard
+                        </Button>
+                    </Link>
                 </div>
             )}
         </div>

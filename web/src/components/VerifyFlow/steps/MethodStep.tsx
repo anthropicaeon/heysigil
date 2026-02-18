@@ -4,13 +4,20 @@
  * Step 1: Choose verification method.
  * Implements Hick's Law: Show 3 recommended methods prominently,
  * collapse others under "More options" to reduce decision paralysis.
+ * Updated with pastel design system.
  */
 
 "use client";
 
+import { Check, ChevronDown } from "lucide-react";
 import { useState } from "react";
+
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+import { OTHER_METHODS, RECOMMENDED_METHODS } from "../constants";
 import type { Method } from "../types";
-import { RECOMMENDED_METHODS, OTHER_METHODS } from "../constants";
 
 interface MethodStepProps {
     selectedMethod: Method | null;
@@ -22,100 +29,109 @@ export function MethodStep({ selectedMethod, onSelect, onContinue }: MethodStepP
     const [showMore, setShowMore] = useState(false);
 
     // If user already selected a non-recommended method, keep expanded
-    const expandedByDefault = selectedMethod !== null && OTHER_METHODS.some((m) => m.id === selectedMethod.id);
+    const expandedByDefault =
+        selectedMethod !== null && OTHER_METHODS.some((m) => m.id === selectedMethod.id);
 
     return (
-        <div>
-            <h2 style={{ marginBottom: "var(--space-2)" }}>Choose Verification Method</h2>
-            <p style={{ fontSize: "var(--text-sm)", color: "var(--text-secondary)", marginBottom: "var(--space-6)" }}>
+        <div className="px-6 py-6 lg:px-12 bg-background">
+            <h2 className="text-lg font-semibold text-foreground lowercase mb-2">
+                choose a verification channel
+            </h2>
+            <p className="text-sm text-muted-foreground mb-6">
                 Pick the method that works best for you. Most developers use GitHub OAuth.
             </p>
 
-            {/* Recommended methods (Hick's Law: show 3 prominent choices) */}
-            <div className="method-grid method-grid-recommended">
+            {/* Recommended methods */}
+            <div className="border border-border divide-y divide-border mb-4">
                 {RECOMMENDED_METHODS.map((m) => (
-                    <label
+                    <button
                         key={m.id}
-                        className={`method-option method-option-recommended ${selectedMethod?.id === m.id ? "selected" : ""}`}
+                        type="button"
+                        onClick={() => onSelect(m)}
+                        className={cn(
+                            "w-full text-left p-4 transition-all",
+                            selectedMethod?.id === m.id
+                                ? "bg-primary/5 border-l-4 border-l-primary"
+                                : "hover:bg-secondary/30",
+                        )}
                     >
-                        <input
-                            type="radio"
-                            name="method"
-                            checked={selectedMethod?.id === m.id}
-                            onChange={() => onSelect(m)}
-                        />
-                        <div className="method-info">
-                            <div className="method-header">
-                                <h4>{m.name}</h4>
-                                {m.badge && <span className="method-badge">{m.badge}</span>}
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium text-foreground">{m.name}</span>
+                                    {m.badge && (
+                                        <Badge variant="sage" className="text-xs">
+                                            {m.badge}
+                                        </Badge>
+                                    )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">{m.description}</p>
+                                {m.popularity && (
+                                    <p className="text-xs text-muted-foreground mt-2">
+                                        {m.popularity}% of developers use this
+                                    </p>
+                                )}
                             </div>
-                            <p>{m.description}</p>
-                            {m.popularity && (
-                                <span className="method-popularity">{m.popularity}% of developers use this</span>
+                            {selectedMethod?.id === m.id && (
+                                <Check className="size-5 text-primary shrink-0" />
                             )}
                         </div>
-                    </label>
+                    </button>
                 ))}
             </div>
 
-            {/* More options toggle (Progressive Disclosure) */}
-            <div className="method-more-toggle">
-                <button
-                    type="button"
-                    className="method-more-btn"
-                    onClick={() => setShowMore(!showMore)}
-                    aria-expanded={showMore || expandedByDefault}
-                >
-                    <span>{showMore || expandedByDefault ? "Hide" : "Show"} {OTHER_METHODS.length} more options</span>
-                    <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 12 12"
-                        fill="none"
-                        style={{
-                            transform: showMore || expandedByDefault ? "rotate(180deg)" : "rotate(0deg)",
-                            transition: "transform var(--duration) var(--ease)",
-                        }}
-                    >
-                        <path d="M2 4L6 8L10 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                </button>
-            </div>
+            {/* More options toggle */}
+            <button
+                type="button"
+                onClick={() => setShowMore(!showMore)}
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
+            >
+                <span>
+                    {showMore || expandedByDefault ? "Hide" : "Show"} {OTHER_METHODS.length} more
+                    options
+                </span>
+                <ChevronDown
+                    className={cn(
+                        "size-4 transition-transform",
+                        (showMore || expandedByDefault) && "rotate-180",
+                    )}
+                />
+            </button>
 
-            {/* Additional methods (collapsed by default) */}
+            {/* Additional methods */}
             {(showMore || expandedByDefault) && (
-                <div className="method-grid method-grid-other">
+                <div className="border border-border divide-y divide-border mb-6">
                     {OTHER_METHODS.map((m) => (
-                        <label
+                        <button
                             key={m.id}
-                            className={`method-option ${selectedMethod?.id === m.id ? "selected" : ""}`}
+                            type="button"
+                            onClick={() => onSelect(m)}
+                            className={cn(
+                                "w-full text-left p-3 transition-all",
+                                selectedMethod?.id === m.id
+                                    ? "bg-primary/5 border-l-4 border-l-primary"
+                                    : "hover:bg-secondary/30",
+                            )}
                         >
-                            <input
-                                type="radio"
-                                name="method"
-                                checked={selectedMethod?.id === m.id}
-                                onChange={() => onSelect(m)}
-                            />
-                            <div className="method-info">
-                                <h4>{m.name}</h4>
-                                <p>{m.description}</p>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <span className="font-medium text-foreground text-sm">
+                                        {m.name}
+                                    </span>
+                                    <p className="text-xs text-muted-foreground">{m.description}</p>
+                                </div>
+                                {selectedMethod?.id === m.id && (
+                                    <Check className="size-4 text-primary" />
+                                )}
                             </div>
-                        </label>
+                        </button>
                     ))}
                 </div>
             )}
 
-            <div style={{ marginTop: "var(--space-6)" }}>
-                <button
-                    type="button"
-                    className="btn-primary btn-lg"
-                    disabled={!selectedMethod}
-                    onClick={onContinue}
-                    style={{ width: "100%" }}
-                >
-                    Continue with {selectedMethod?.name || "selected method"}
-                </button>
-            </div>
+            <Button onClick={onContinue} disabled={!selectedMethod} className="w-full" size="lg">
+                Continue with {selectedMethod?.name || "selected method"}
+            </Button>
         </div>
     );
 }

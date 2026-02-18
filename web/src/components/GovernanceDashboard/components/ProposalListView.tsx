@@ -2,9 +2,11 @@
  * ProposalListView
  *
  * Renders proposal list or empty state.
+ * Updated with pastel design system.
  */
 
-import Image from "next/image";
+import { FileCheck } from "lucide-react";
+
 import type { Proposal, TabFilter } from "../types";
 import { ProposalCard } from "./ProposalCard";
 
@@ -14,10 +16,14 @@ interface ProposalListViewProps {
     onSelectProposal: (proposal: Proposal) => void;
 }
 
-export function ProposalListView({ proposals, activeTab, onSelectProposal }: ProposalListViewProps) {
+export function ProposalListView({
+    proposals,
+    activeTab,
+    onSelectProposal,
+}: ProposalListViewProps) {
     if (proposals.length > 0) {
         return (
-            <div className="proposal-list">
+            <div className="flex flex-col bg-background">
                 {proposals.map((p) => (
                     <ProposalCard key={p.id} proposal={p} onClick={() => onSelectProposal(p)} />
                 ))}
@@ -26,17 +32,10 @@ export function ProposalListView({ proposals, activeTab, onSelectProposal }: Pro
     }
 
     return (
-        <div className="gov-empty">
-            <Image
-                src="/icons/check-verified-02.svg"
-                alt=""
-                width={48}
-                height={48}
-                className="gov-empty-icon"
-                style={{ opacity: 0.4, display: "block", margin: "0 auto var(--space-4)" }}
-            />
-            <h3>No proposals yet</h3>
-            <p>
+        <div className="px-6 py-16 lg:px-12 text-center bg-background">
+            <FileCheck className="size-12 text-muted-foreground/40 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">No proposals yet</h3>
+            <p className="text-muted-foreground">
                 {activeTab === "all"
                     ? "Be the first to propose a milestone for this project."
                     : `No ${activeTab} proposals found.`}

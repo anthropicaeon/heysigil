@@ -20,10 +20,20 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 function defaultChecks(): EnvironmentCheck[] {
     return [
-        { key: "frontend-privy", label: "Frontend Privy", status: "checking", detail: "Checking..." },
+        {
+            key: "frontend-privy",
+            label: "Frontend Privy",
+            status: "checking",
+            detail: "Checking...",
+        },
         { key: "backend-health", label: "Backend API", status: "checking", detail: "Checking..." },
         { key: "backend-auth", label: "Backend auth", status: "checking", detail: "Checking..." },
-        { key: "backend-db", label: "Backend DB endpoints", status: "checking", detail: "Checking..." },
+        {
+            key: "backend-db",
+            label: "Backend DB endpoints",
+            status: "checking",
+            detail: "Checking...",
+        },
     ];
 }
 
@@ -114,10 +124,9 @@ export function useEnvironmentReadiness(): ReadinessState {
                             key: "backend-auth",
                             label: "Backend auth",
                             status: "warn",
-                            detail:
-                                msg.includes("Authentication service unavailable")
-                                    ? "Missing PRIVY_APP_ID / PRIVY_APP_SECRET in backend .env."
-                                    : `Auth check returned 503 (${msg}).`,
+                            detail: msg.includes("Authentication service unavailable")
+                                ? "Missing PRIVY_APP_ID / PRIVY_APP_SECRET in backend .env."
+                                : `Auth check returned 503 (${msg}).`,
                         };
                     } else {
                         checks[2] = {
@@ -151,10 +160,9 @@ export function useEnvironmentReadiness(): ReadinessState {
                             key: "backend-db",
                             label: "Backend DB endpoints",
                             status: "error",
-                            detail:
-                                msg.includes("Database not configured")
-                                    ? "Missing DATABASE_URL in backend .env."
-                                    : `DB endpoint unavailable (${msg}).`,
+                            detail: msg.includes("Database not configured")
+                                ? "Missing DATABASE_URL in backend .env."
+                                : `DB endpoint unavailable (${msg}).`,
                         };
                     } else {
                         checks[3] = {

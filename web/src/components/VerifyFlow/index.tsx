@@ -2,22 +2,33 @@
  * VerifyFlow
  *
  * Multi-step wizard for project ownership verification.
+ * Updated with pastel design system.
  */
 
 "use client";
 
-import { useState, useEffect } from "react";
-import { useOptionalPrivy, useOptionalWallets } from "@/hooks/useOptionalPrivy";
-import { getErrorMessage } from "@/lib/errors";
-import { ApiError } from "@/lib/api-client";
+import { useEffect, useState } from "react";
 
-import type { Method, Step, ChallengeResponse, CheckResult } from "./types";
-import { STEP_LABELS } from "./constants";
-import { useVerificationService, type IVerificationService } from "./hooks/useVerificationService";
-import { MethodStep } from "./steps/MethodStep";
-import { DetailsStep } from "./steps/DetailsStep";
+import { Badge } from "@/components/ui/badge";
+import { useOptionalPrivy, useOptionalWallets } from "@/hooks/useOptionalPrivy";
+import { ApiError } from "@/lib/api-client";
+import { getErrorMessage } from "@/lib/errors";
+import { cn } from "@/lib/utils";
+
+import { type IVerificationService, useVerificationService } from "./hooks/useVerificationService";
 import { ChallengeStep } from "./steps/ChallengeStep";
+import { DetailsStep } from "./steps/DetailsStep";
+import { MethodStep } from "./steps/MethodStep";
 import { ResultStep } from "./steps/ResultStep";
+import type { ChallengeResponse, CheckResult, Method, Step } from "./types";
+
+const CHANNELS = [
+    { name: "GitHub", method: "OAuth" },
+    { name: "X", method: "zkTLS" },
+    { name: "Facebook", method: "OAuth" },
+    { name: "Instagram", method: "OAuth" },
+    { name: "Domain", method: "DNS" },
+];
 
 interface VerifyFlowProps {
     /** Optional service for testing/DI */
@@ -44,16 +55,22 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
     const walletsData = useOptionalWallets();
 
     // Get wallet address from embedded wallet (works for all sign-in methods)
-    const embeddedWallet = walletsData?.wallets?.find(
-        (w: { walletClientType: string }) => w.walletClientType === "privy"
-    ) ?? walletsData?.wallets?.[0] ?? null;
+    const embeddedWallet =
+        walletsData?.wallets?.find(
+            (w: { walletClientType: string }) => w.walletClientType === "privy",
+        ) ??
+        walletsData?.wallets?.[0] ??
+        null;
     const address = embeddedWallet?.address ?? privy?.user?.wallet?.address ?? null;
 
     // Detect if user signed in via GitHub through Privy
     const privyGithubUsername = privy?.user?.github?.username ?? null;
 
-    const { createChallenge: apiCreateChallenge, checkVerification: apiCheckVerification, createAttestation: apiCreateAttestation } =
-        useVerificationService({ service: verificationService });
+    const {
+        createChallenge: apiCreateChallenge,
+        checkVerification: apiCheckVerification,
+        createAttestation: apiCreateAttestation,
+    } = useVerificationService({ service: verificationService });
 
     const [step, setStep] = useState<Step>("method");
     const [selectedMethod, setSelectedMethod] = useState<Method | null>(null);
@@ -86,7 +103,12 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                 if (token) accessToken = token;
             }
 
-            const data = await apiCreateChallenge(selectedMethod.id, projectId, walletAddress, accessToken);
+            const data = await apiCreateChallenge(
+                selectedMethod.id,
+                projectId,
+                walletAddress,
+                accessToken,
+            );
             setChallenge(data);
 
             // For Privy GitHub: skip OAuth redirect, immediately check
@@ -96,9 +118,10 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                 if (checkData.success) {
                     setStep("result");
                 } else {
-                    const errMsg = typeof checkData.error === "string"
-                        ? checkData.error
-                        : "Verification failed — you may not have admin access to this repo.";
+                    const errMsg =
+                        typeof checkData.error === "string"
+                            ? checkData.error
+                            : "Verification failed — you may not have admin access to this repo.";
                     setError(errMsg);
                     setStep("challenge");
                 }
@@ -153,7 +176,7 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
 
         try {
             const data = await apiCreateAttestation(challenge.verificationId);
-            setCheckResult((prev) => prev ? { ...prev, ...data } : prev);
+            setCheckResult((prev) => (prev ? { ...prev, ...data } : prev));
         } catch (err) {
             setError(mapVerifyError(err, "Failed to create attestation"));
         } finally {
@@ -161,90 +184,196 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
         }
     }
 
-    // Zeigarnik Effect: Calculate progress percentage
-    // Start at 20% (endowed progress) to increase completion motivation
-    const progressPercent = 20 + (stepIndex / (STEP_LABELS.length - 1)) * 80;
-
     return (
-        <div className="verify-flow">
-            {/* Zeigarnik Effect: Visual progress bar */}
-            <div className="progress-container">
-                <div className="progress-header">
-                    <span className="progress-label">Step {stepIndex + 1} of {STEP_LABELS.length}</span>
-                    <span className="progress-percent">{Math.round(progressPercent)}% complete</span>
+        <section className="min-h-screen bg-lavender relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-screen px-0">
+                {/* Channels Bar */}
+                <div className="flex flex-col sm:flex-row bg-background border-border border-b">
+                    {CHANNELS.map((channel) => (
+                        <div
+                            key={channel.name}
+                            className={cn(
+                                "flex-1 px-4 py-3 lg:px-6 lg:py-4 flex items-center justify-center gap-2",
+                                "border-border border-b sm:border-b-0 sm:border-r sm:last:border-r-0",
+                            )}
+                        >
+                            <span className="text-sm font-medium text-foreground">
+                                {channel.name}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                                {channel.method}
+                            </Badge>
+                        </div>
+                    ))}
                 </div>
-                <div className="progress-bar">
-                    <div
-                        className="progress-fill"
-                        style={{ width: `${progressPercent}%` }}
-                    />
-                </div>
-            </div>
 
-            {/* Step indicators */}
-            <div className="steps">
-                {STEP_LABELS.map((label, i) => (
-                    <div
-                        key={label}
-                        className={`step ${i === stepIndex ? "active" : ""} ${i < stepIndex ? "completed" : ""}`}
-                    >
-                        <span className="step-number">{i < stepIndex ? "✓" : i + 1}</span>
-                        <span className="step-label">{label}</span>
+                {/* Flow Visualization */}
+                <div className="border-border border-b px-6 py-8 lg:px-12 lg:py-12 bg-background">
+                    <div className="max-w-3xl mx-auto">
+                        {/* Flow Diagram */}
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-0">
+                            {/* Node 1: Select Channel */}
+                            <div
+                                className={cn(
+                                    "flex flex-col items-center",
+                                    stepIndex >= 0 ? "opacity-100" : "opacity-40",
+                                )}
+                            >
+                                <div
+                                    className={cn(
+                                        "w-24 h-16 sm:w-28 sm:h-20 border-2 flex flex-col items-center justify-center text-center px-2",
+                                        stepIndex === 0
+                                            ? "border-primary bg-primary/10"
+                                            : stepIndex > 0
+                                              ? "border-primary/50 bg-sage/50"
+                                              : "border-border bg-background",
+                                    )}
+                                >
+                                    <span className="text-xs font-bold text-primary">01</span>
+                                    <span className="text-xs text-foreground">channel</span>
+                                </div>
+                            </div>
+
+                            {/* Connector */}
+                            <div
+                                className={cn(
+                                    "w-px h-6 sm:w-8 sm:h-px",
+                                    stepIndex >= 1 ? "bg-primary" : "bg-border",
+                                )}
+                            />
+
+                            {/* Node 2: Enter Details */}
+                            <div
+                                className={cn(
+                                    "flex flex-col items-center",
+                                    stepIndex >= 1 ? "opacity-100" : "opacity-40",
+                                )}
+                            >
+                                <div
+                                    className={cn(
+                                        "w-24 h-16 sm:w-28 sm:h-20 border-2 flex flex-col items-center justify-center text-center px-2",
+                                        stepIndex === 1
+                                            ? "border-primary bg-primary/10"
+                                            : stepIndex > 1
+                                              ? "border-primary/50 bg-sage/50"
+                                              : "border-border bg-background",
+                                    )}
+                                >
+                                    <span className="text-xs font-bold text-primary">02</span>
+                                    <span className="text-xs text-foreground">details</span>
+                                </div>
+                            </div>
+
+                            {/* Connector */}
+                            <div
+                                className={cn(
+                                    "w-px h-6 sm:w-8 sm:h-px",
+                                    stepIndex >= 2 ? "bg-primary" : "bg-border",
+                                )}
+                            />
+
+                            {/* Node 3: Verify */}
+                            <div
+                                className={cn(
+                                    "flex flex-col items-center",
+                                    stepIndex >= 2 ? "opacity-100" : "opacity-40",
+                                )}
+                            >
+                                <div
+                                    className={cn(
+                                        "w-24 h-16 sm:w-28 sm:h-20 border-2 flex flex-col items-center justify-center text-center px-2",
+                                        stepIndex === 2
+                                            ? "border-primary bg-primary/10"
+                                            : stepIndex > 2
+                                              ? "border-primary/50 bg-sage/50"
+                                              : "border-border bg-background",
+                                    )}
+                                >
+                                    <span className="text-xs font-bold text-primary">03</span>
+                                    <span className="text-xs text-foreground">verify</span>
+                                </div>
+                            </div>
+
+                            {/* Connector */}
+                            <div
+                                className={cn(
+                                    "w-px h-6 sm:w-8 sm:h-px",
+                                    stepIndex >= 3 ? "bg-primary" : "bg-border",
+                                )}
+                            />
+
+                            {/* Node 4: Stamp */}
+                            <div
+                                className={cn(
+                                    "flex flex-col items-center",
+                                    stepIndex >= 3 ? "opacity-100" : "opacity-40",
+                                )}
+                            >
+                                <div
+                                    className={cn(
+                                        "w-24 h-16 sm:w-28 sm:h-20 border-2 flex flex-col items-center justify-center text-center px-2",
+                                        stepIndex === 3
+                                            ? "border-primary bg-primary/10"
+                                            : "border-border bg-background",
+                                    )}
+                                >
+                                    <span className="text-xs font-bold text-primary">04</span>
+                                    <span className="text-xs text-foreground">stamp</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                ))}
+                </div>
+
+                {/* Step Content */}
+                {step === "method" && (
+                    <MethodStep
+                        selectedMethod={selectedMethod}
+                        onSelect={setSelectedMethod}
+                        onContinue={() => setStep("details")}
+                    />
+                )}
+
+                {step === "details" && selectedMethod && (
+                    <DetailsStep
+                        method={selectedMethod}
+                        projectId={projectId}
+                        walletAddress={walletAddress}
+                        connectedAddress={address}
+                        privy={privy}
+                        privyGithubUsername={privyGithubUsername}
+                        loading={loading}
+                        error={error}
+                        onProjectIdChange={setProjectId}
+                        onWalletAddressChange={setWalletAddress}
+                        onBack={() => setStep("method")}
+                        onSubmit={handleCreateChallenge}
+                        onClearError={() => setError("")}
+                    />
+                )}
+
+                {step === "challenge" && challenge && (
+                    <ChallengeStep
+                        challenge={challenge}
+                        loading={loading}
+                        error={error}
+                        onBack={() => setStep("details")}
+                        onCheck={handleCheckVerification}
+                    />
+                )}
+
+                {step === "result" && checkResult && challenge && (
+                    <ResultStep
+                        challenge={challenge}
+                        checkResult={checkResult}
+                        loading={loading}
+                        onClaim={handleClaimAttestation}
+                    />
+                )}
             </div>
-
-            {/* Step 1: Choose method */}
-            {step === "method" && (
-                <MethodStep
-                    selectedMethod={selectedMethod}
-                    onSelect={setSelectedMethod}
-                    onContinue={() => setStep("details")}
-                />
-            )}
-
-            {/* Step 2: Enter details */}
-            {step === "details" && selectedMethod && (
-                <DetailsStep
-                    method={selectedMethod}
-                    projectId={projectId}
-                    walletAddress={walletAddress}
-                    connectedAddress={address}
-                    privy={privy}
-                    privyGithubUsername={privyGithubUsername}
-                    loading={loading}
-                    error={error}
-                    onProjectIdChange={setProjectId}
-                    onWalletAddressChange={setWalletAddress}
-                    onBack={() => setStep("method")}
-                    onSubmit={handleCreateChallenge}
-                    onClearError={() => setError("")}
-                />
-            )}
-
-            {/* Step 3: Follow instructions */}
-            {step === "challenge" && challenge && (
-                <ChallengeStep
-                    challenge={challenge}
-                    loading={loading}
-                    error={error}
-                    onBack={() => setStep("details")}
-                    onCheck={handleCheckVerification}
-                />
-            )}
-
-            {/* Step 4: Result */}
-            {step === "result" && checkResult && challenge && (
-                <ResultStep
-                    challenge={challenge}
-                    checkResult={checkResult}
-                    loading={loading}
-                    onClaim={handleClaimAttestation}
-                />
-            )}
-        </div>
+        </section>
     );
 }
 
 // Re-export types for external use
-export type { Method, Step, ChallengeResponse, CheckResult } from "./types";
+export type { ChallengeResponse, CheckResult, Method, Step } from "./types";

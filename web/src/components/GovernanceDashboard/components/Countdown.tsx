@@ -2,9 +2,13 @@
  * Countdown Component
  *
  * Displays remaining time until deadline.
+ * Updated with pastel design system.
  */
 
-import Image from "next/image";
+import { Clock } from "lucide-react";
+
+import { cn } from "@/lib/utils";
+
 import { useCountdown } from "../hooks/useCountdown";
 
 interface CountdownProps {
@@ -16,14 +20,13 @@ export function Countdown({ deadline }: CountdownProps) {
     const isUrgent = deadline - Date.now() / 1000 < 86400 && deadline - Date.now() / 1000 > 0;
 
     return (
-        <span className={`countdown ${isUrgent ? "urgent" : ""}`}>
-            <Image
-                src="/icons/target-04.svg"
-                alt=""
-                width={12}
-                height={12}
-                style={{ display: "inline", verticalAlign: "middle", marginRight: 3, opacity: 0.5 }}
-            />
+        <span
+            className={cn(
+                "inline-flex items-center gap-1 text-sm",
+                isUrgent ? "text-orange-600 font-medium" : "text-muted-foreground",
+            )}
+        >
+            <Clock className="size-3" />
             {label}
         </span>
     );

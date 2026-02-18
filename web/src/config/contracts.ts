@@ -6,17 +6,14 @@ import { base } from "viem/chains";
 
 // ─── Addresses ──────────────────────────────────────────
 
-export const USDC_ADDRESS =
-    "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const;
+export const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const;
 
 // TODO: Update after V3 deployment
-export const FEE_VAULT_ADDRESS =
-    (process.env.NEXT_PUBLIC_FEE_VAULT_ADDRESS ??
-        "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const FEE_VAULT_ADDRESS = (process.env.NEXT_PUBLIC_FEE_VAULT_ADDRESS ??
+    "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
-export const LP_LOCKER_ADDRESS =
-    (process.env.NEXT_PUBLIC_LP_LOCKER_ADDRESS ??
-        "0x0000000000000000000000000000000000000000") as `0x${string}`;
+export const LP_LOCKER_ADDRESS = (process.env.NEXT_PUBLIC_LP_LOCKER_ADDRESS ??
+    "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
 // ─── FeeVault ABI (minimal) ─────────────────────────────
 

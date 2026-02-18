@@ -6,7 +6,8 @@
  * Manages chat messages state, sending, and session handling.
  */
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
+
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import type { ChatApiResponse } from "@/types/chat";
 import { isChatSuccess } from "@/types/chat";
@@ -31,9 +32,7 @@ interface UseChatMessagesResult {
     sendMessage: (text: string) => Promise<void>;
 }
 
-export function useChatMessages(
-    initialSessionId: string | null = null,
-): UseChatMessagesResult {
+export function useChatMessages(initialSessionId: string | null = null): UseChatMessagesResult {
     const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
     const [sessionId, setSessionId] = useState<string | null>(initialSessionId);
     const [loading, setLoading] = useState(false);
@@ -81,10 +80,7 @@ export function useChatMessages(
                     if (!sessionId) {
                         setSessionId(data.sessionId);
                     }
-                    setMessages((prev) => [
-                        ...prev,
-                        { role: "assistant", content: data.response },
-                    ]);
+                    setMessages((prev) => [...prev, { role: "assistant", content: data.response }]);
                 } else {
                     setMessages((prev) => [
                         ...prev,

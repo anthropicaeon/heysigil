@@ -2,9 +2,10 @@
  * VoteBar Component
  *
  * Displays vote progress bar with yes/no percentages.
+ * Updated with pastel design system.
  */
 
-import { votePercentage, formatTokens } from "../utils";
+import { formatTokens, votePercentage } from "../utils";
 
 interface VoteBarProps {
     yesVotes: string;
@@ -16,17 +17,18 @@ export function VoteBar({ yesVotes, noVotes, quorum }: VoteBarProps) {
     const pct = votePercentage(yesVotes, noVotes);
 
     return (
-        <div className="vote-bar-container">
-            <div className="vote-bar-labels">
-                <span className="vote-bar-yes">{"\u2713"} {formatTokens(yesVotes)} Yes</span>
-                <span className="vote-bar-no">{"\u2717"} {formatTokens(noVotes)} No</span>
+        <div className="space-y-2">
+            <div className="flex justify-between text-sm">
+                <span className="text-green-600 font-medium">✓ {formatTokens(yesVotes)} Yes</span>
+                <span className="text-red-600 font-medium">✗ {formatTokens(noVotes)} No</span>
             </div>
-            <div className="vote-bar">
-                <div className="vote-bar-fill" style={{ width: `${pct}%` }} />
+            <div className="h-3 bg-red-200 rounded-full overflow-hidden">
+                <div
+                    className="h-full bg-green-500 transition-all duration-500"
+                    style={{ width: `${pct}%` }}
+                />
             </div>
-            {quorum && (
-                <div className="vote-bar-quorum">Quorum: {quorum}</div>
-            )}
+            {quorum && <p className="text-xs text-muted-foreground">Quorum: {quorum}</p>}
         </div>
     );
 }

@@ -5,7 +5,7 @@
  * Replace with real contract reads in production.
  */
 
-import type { Proposal } from "@/components/GovernanceDashboard/types";
+import type { Proposal } from "@/types/governance";
 
 export const MOCK_PROPOSALS: Proposal[] = [
     {

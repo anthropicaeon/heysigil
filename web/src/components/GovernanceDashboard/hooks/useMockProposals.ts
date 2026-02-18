@@ -5,4 +5,4 @@
  * Replace with contract reads in production.
  */
 
-export { MOCK_PROPOSALS, MOCK_ESCROW_BALANCE, MOCK_TOTAL_SUPPLY } from "@/fixtures";
+export { MOCK_ESCROW_BALANCE, MOCK_PROPOSALS, MOCK_TOTAL_SUPPLY } from "@/fixtures";

@@ -6,14 +6,25 @@
  */
 
 import { useCallback } from "react";
+
 import { apiClient } from "@/lib/api-client";
-import type { ChallengeResponse, CheckResult, ClaimResult } from "@/types";
+import type { ChallengeResponse, CheckResult } from "@/types";
+
+export interface ClaimResult {
+    attestationUid?: string;
+    txHash?: string;
+}
 
 /**
  * Verification service interface for DI
  */
 export interface IVerificationService {
-    createChallenge: (method: string, projectId: string, walletAddress: string, accessToken?: string) => Promise<ChallengeResponse>;
+    createChallenge: (
+        method: string,
+        projectId: string,
+        walletAddress: string,
+        accessToken?: string,
+    ) => Promise<ChallengeResponse>;
     checkVerification: (verificationId: string, accessToken?: string) => Promise<CheckResult>;
     createAttestation: (verificationId: string) => Promise<ClaimResult>;
 }
@@ -41,17 +52,18 @@ export function useVerificationService(options: UseVerificationServiceOptions = 
     const createChallenge = useCallback(
         (method: string, projectId: string, walletAddress: string, accessToken?: string) =>
             service.createChallenge(method, projectId, walletAddress, accessToken),
-        [service]
+        [service],
     );
 
     const checkVerification = useCallback(
-        (verificationId: string, accessToken?: string) => service.checkVerification(verificationId, accessToken),
-        [service]
+        (verificationId: string, accessToken?: string) =>
+            service.checkVerification(verificationId, accessToken),
+        [service],
     );
 
     const createAttestation = useCallback(
         (verificationId: string) => service.createAttestation(verificationId),
-        [service]
+        [service],
     );
 
     return {
