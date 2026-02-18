@@ -52,7 +52,7 @@ export default function ProfileDashboard() {
         if (!privy?.authenticated || !privy?.getAccessToken) return;
         let cancelled = false;
         (async () => {
-            const token = await privy.getAccessToken();
+            const token = privy.getAccessToken ? await privy.getAccessToken() : null;
             if (!token || cancelled) return;
             try {
                 const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ""}/api/wallet/me`, {
