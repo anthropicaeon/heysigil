@@ -1,4 +1,4 @@
-import { ArrowRight, ExternalLink } from "lucide-react";
+import { ArrowRight, CheckCircle, ExternalLink, FileCheck, Shield } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -57,8 +57,18 @@ export default function SigilProof() {
     return (
         <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r border-b px-0">
-                {/* Proof Links Bar */}
-                <div className="flex flex-col sm:flex-row border-border border-b overflow-x-auto">
+                {/* Section Header */}
+                <div className="px-6 py-4 lg:px-12 border-border border-b bg-sage/20 flex items-center gap-3">
+                    <div className="size-8 bg-green-50 border border-border flex items-center justify-center">
+                        <Shield className="size-4 text-green-600" />
+                    </div>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Proof of Verification
+                    </span>
+                </div>
+
+                {/* Proof Links Bar - Enhanced */}
+                <div className="flex flex-col sm:flex-row border-border border-b overflow-x-auto bg-background">
                     {proofLinks.map((link) => (
                         <div
                             key={link.label}
@@ -71,7 +81,7 @@ export default function SigilProof() {
                                     href={link.href}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex items-center justify-center gap-2 px-4 py-4 lg:px-6 hover:bg-secondary/30 transition-colors"
+                                    className="flex items-center justify-center gap-2 px-4 py-4 lg:px-6 hover:bg-sage/20 transition-colors"
                                 >
                                     <Image src={link.icon} alt="" width={16} height={16} />
                                     <span className="text-sm font-medium text-foreground">
@@ -82,7 +92,7 @@ export default function SigilProof() {
                             ) : (
                                 <Link
                                     href={link.href}
-                                    className="flex items-center justify-center gap-2 px-4 py-4 lg:px-6 hover:bg-secondary/30 transition-colors"
+                                    className="flex items-center justify-center gap-2 px-4 py-4 lg:px-6 hover:bg-sage/20 transition-colors"
                                 >
                                     <Image src={link.icon} alt="" width={16} height={16} />
                                     <span className="text-sm font-medium text-foreground">
@@ -103,13 +113,19 @@ export default function SigilProof() {
                     </div>
                 </div>
 
-                {/* Example Attestation */}
+                {/* Example Attestation - Enhanced */}
                 <div className="bg-sage/30">
                     {/* Attestation Header */}
-                    <div className="px-6 py-3 lg:px-12 border-border border-b bg-secondary/50">
-                        <span className="text-muted-foreground text-xs font-mono">
-                            example · sigil attestation · base
-                        </span>
+                    <div className="px-6 py-3 lg:px-12 border-border border-b bg-sage/50 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <FileCheck className="size-4 text-green-600" />
+                            <span className="text-foreground text-xs font-mono font-medium">
+                                EXAMPLE ATTESTATION
+                            </span>
+                        </div>
+                        <Badge variant="outline" className="text-xs font-mono">
+                            Base Network
+                        </Badge>
                     </div>
 
                     {/* Attestation Content */}
@@ -127,7 +143,7 @@ export default function SigilProof() {
                                     <span className="text-foreground">{item.value}</span>
                                 </div>
                             ))}
-                            {/* Channels */}
+                            {/* Channels - Enhanced */}
                             <div className="flex flex-wrap px-6 py-3 lg:px-12 border-border border-b font-mono text-sm gap-2">
                                 <span className="text-muted-foreground w-24 shrink-0">
                                     channels:
@@ -137,9 +153,10 @@ export default function SigilProof() {
                                         <Badge
                                             key={ch.name}
                                             variant="secondary"
-                                            className="text-xs text-green-600 font-mono"
+                                            className="text-xs font-mono gap-1"
                                         >
-                                            ✓ {ch.name}
+                                            <CheckCircle className="size-3 text-green-600" />
+                                            {ch.name}
                                         </Badge>
                                     ))}
                                 </div>
@@ -151,7 +168,10 @@ export default function SigilProof() {
                             {attestationStats.map((item) => (
                                 <div
                                     key={item.label}
-                                    className="flex px-6 py-3 lg:px-12 border-border border-b last:border-b-0 font-mono text-sm"
+                                    className={cn(
+                                        "flex px-6 py-3 lg:px-12 border-border border-b last:border-b-0 font-mono text-sm",
+                                        item.highlight && "bg-green-50/50",
+                                    )}
                                 >
                                     <span className="text-muted-foreground w-24 shrink-0">
                                         {item.label}:
