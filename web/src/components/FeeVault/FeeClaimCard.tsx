@@ -86,8 +86,8 @@ export function FeeClaimCard({
                             {isNearExpiry
                                 ? `Claim within ${daysUntilExpiry} days or fees return to protocol`
                                 : isMediumValue
-                                  ? "Don't leave money on the table"
-                                  : `${daysUntilExpiry} days to claim`}
+                                    ? "Don't leave money on the table"
+                                    : `${daysUntilExpiry} days to claim`}
                         </p>
                     )}
                 </div>
@@ -124,7 +124,7 @@ export function FeeClaimCard({
 
             <Button
                 onClick={onClaim}
-                disabled={isZero || loading || claiming}
+                disabled={loading || claiming}
                 className={cn("w-full", isHighValue && "bg-orange-600 hover:bg-orange-700")}
                 size="lg"
             >
@@ -136,7 +136,7 @@ export function FeeClaimCard({
                 ) : (
                     <>
                         <Coins className="size-4 mr-2" />
-                        {isZero ? "No USDC to Claim" : `Claim ${claimableUsdc} Now`}
+                        {isZero ? "Claim USDC" : `Claim ${claimableUsdc} Now`}
                     </>
                 )}
             </Button>
