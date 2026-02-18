@@ -110,3 +110,23 @@ export function privyAuthOptional() {
 export function getUserId(c: Context): string | undefined {
     return c.get("userId");
 }
+
+/**
+ * Get a Privy user's linked GitHub username (if any).
+ * Returns null if Privy is not configured or user has no GitHub linked.
+ */
+export async function getPrivyGithubUsername(userId: string): Promise<string | null> {
+    const client = getPrivyClient();
+    if (!client) return null;
+
+    try {
+        const user = await client.getUser(userId);
+        // Privy user object has a `github` field with `username` when linked
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const github = (user as any).github;
+        return github?.username ?? null;
+    } catch (err) {
+        loggers.auth.warn({ userId, error: err }, "Failed to fetch Privy user for GitHub lookup");
+        return null;
+    }
+}

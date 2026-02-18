@@ -183,6 +183,67 @@ export async function checkRepoPermission(
     }
 }
 
+// ─── Privy-based verification (no OAuth redirect) ───────
+
+/**
+ * Verify GitHub repo admin access using a known GitHub username.
+ * Skips OAuth code exchange — uses unauthenticated GitHub API.
+ * Works for public repos only.
+ */
+export async function verifyGitHubViaPrivy(
+    githubUsername: string,
+    projectId: string,
+): Promise<VerificationResult> {
+    const parts = projectId.split("/");
+    if (parts.length !== 2) {
+        return buildFailure(
+            "github_oauth",
+            projectId,
+            "Invalid project ID — expected 'owner/repo' format",
+        );
+    }
+    const [owner, repo] = parts;
+
+    try {
+        // Use unauthenticated GitHub API to check collaborator permission
+        const response = await fetch(
+            `https://api.github.com/repos/${owner}/${repo}/collaborators/${githubUsername}/permission`,
+            { headers: GITHUB_API_HEADERS },
+        );
+
+        if (!response.ok) {
+            if (response.status === 404) {
+                return buildFailure(
+                    "github_oauth",
+                    projectId,
+                    `Repository ${projectId} not found or is private. Privy-based verification only works for public repos.`,
+                );
+            }
+            return buildFailure("github_oauth", projectId, `GitHub API error: ${response.status}`);
+        }
+
+        const permission = (await response.json()) as { permission: string; role_name: string };
+        const isAdmin = permission.permission === "admin";
+
+        if (!isAdmin) {
+            return buildFailure(
+                "github_oauth",
+                projectId,
+                `User ${githubUsername} has '${permission.permission}' permission, needs 'admin'`,
+                { platformUsername: githubUsername },
+            );
+        }
+
+        return buildSuccess("github_oauth", projectId, githubUsername, {
+            permission: permission.permission,
+            roleName: permission.role_name,
+            verifiedVia: "privy_identity",
+        });
+    } catch (err) {
+        return buildFailure("github_oauth", projectId, getErrorMessage(err));
+    }
+}
+
 // ─── File-based verification (non-OAuth) ────────────────
 
 /**

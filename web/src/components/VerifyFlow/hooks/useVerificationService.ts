@@ -13,8 +13,8 @@ import type { ChallengeResponse, CheckResult, ClaimResult } from "@/types";
  * Verification service interface for DI
  */
 export interface IVerificationService {
-    createChallenge: (method: string, projectId: string, walletAddress: string) => Promise<ChallengeResponse>;
-    checkVerification: (verificationId: string) => Promise<CheckResult>;
+    createChallenge: (method: string, projectId: string, walletAddress: string, accessToken?: string) => Promise<ChallengeResponse>;
+    checkVerification: (verificationId: string, accessToken?: string) => Promise<CheckResult>;
     createAttestation: (verificationId: string) => Promise<ClaimResult>;
 }
 
@@ -39,13 +39,13 @@ export function useVerificationService(options: UseVerificationServiceOptions = 
     const service = options.service ?? defaultService;
 
     const createChallenge = useCallback(
-        (method: string, projectId: string, walletAddress: string) =>
-            service.createChallenge(method, projectId, walletAddress),
+        (method: string, projectId: string, walletAddress: string, accessToken?: string) =>
+            service.createChallenge(method, projectId, walletAddress, accessToken),
         [service]
     );
 
     const checkVerification = useCallback(
-        (verificationId: string) => service.checkVerification(verificationId),
+        (verificationId: string, accessToken?: string) => service.checkVerification(verificationId, accessToken),
         [service]
     );
 

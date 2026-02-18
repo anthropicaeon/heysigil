@@ -13,7 +13,7 @@ import { getBody, getParams, getQuery } from "../helpers/request.js";
 import { randomBytes } from "node:crypto";
 import { eq, and, desc, inArray, type SQL } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
-import { verifyGitHubOwnership } from "../../verification/github.js";
+import { verifyGitHubOwnership, verifyGitHubViaPrivy } from "../../verification/github.js";
 import { verifyFacebookOwnership } from "../../verification/facebook.js";
 import { verifyInstagramOwnership } from "../../verification/instagram.js";
 import {
@@ -32,7 +32,12 @@ import {
     oauthCallbackRateLimit,
     verifyStatusRateLimit,
 } from "../../middleware/rate-limit.js";
-import { privyAuth, getUserId } from "../../middleware/auth.js";
+import {
+    privyAuth,
+    privyAuthOptional,
+    getUserId,
+    getPrivyGithubUsername,
+} from "../../middleware/auth.js";
 import {
     ErrorResponseSchema,
     NotFoundResponseSchema,
@@ -62,6 +67,7 @@ verify.use("/challenge", verifyChallengeRateLimit());
 
 // Rate limit verification checks (30 per minute per IP - allows reasonable retries)
 verify.use("/check", verifyCheckRateLimit());
+verify.use("/check", privyAuthOptional());
 
 // Rate limit OAuth callbacks (20 per minute per IP - prevents abuse)
 verify.use("/github/callback", oauthCallbackRateLimit());
@@ -337,6 +343,47 @@ verify.openapi(
                 .set({ status: "expired" })
                 .where(eq(schema.verifications.id, body.verificationId));
             return c.json({ error: "Verification expired" }, 400);
+        }
+
+        // For github_oauth: try Privy-based verification if user has a linked GitHub account
+        if (record.method === "github_oauth") {
+            const userId = getUserId(c);
+            if (userId) {
+                const githubUsername = await getPrivyGithubUsername(userId);
+                if (githubUsername) {
+                    const privyResult = await verifyGitHubViaPrivy(
+                        githubUsername,
+                        record.projectId,
+                    );
+
+                    if (privyResult.success) {
+                        await db
+                            .update(schema.verifications)
+                            .set({
+                                status: "verified",
+                                platformUsername: privyResult.platformUsername,
+                                proof: privyResult.proof,
+                                verifiedAt: new Date(),
+                            })
+                            .where(eq(schema.verifications.id, body.verificationId));
+
+                        await tryClaimPhantomIdentity(
+                            record.method as VerificationMethod,
+                            record.projectId,
+                            record.walletAddress,
+                        );
+                    }
+
+                    return c.json({
+                        verificationId: body.verificationId,
+                        status: privyResult.success ? ("verified" as const) : ("pending" as const),
+                        success: privyResult.success,
+                        error: privyResult.success ? undefined : privyResult.error,
+                        method: record.method,
+                        projectId: record.projectId,
+                    });
+                }
+            }
         }
 
         // Execute verification using service layer
