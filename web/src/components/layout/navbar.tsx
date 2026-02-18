@@ -8,7 +8,6 @@ import {
     HelpCircle,
     Newspaper,
     Plug,
-    Rocket,
     Shield,
     Trophy,
 } from "lucide-react";
@@ -57,6 +56,7 @@ const Navbar = () => {
     const ITEMS = [
         { label: "Verify", href: "/verify", primary: true },
         { label: "Dashboard", href: "/dashboard" },
+        { label: "Launches", href: "/launches" },
         { label: "Chat", href: "/chat" },
         { label: "Governance", href: "/governance" },
         { label: "Developers", href: "/developers" },
@@ -99,12 +99,6 @@ const Navbar = () => {
                     href: "/stats",
                     description: "Protocol analytics and metrics",
                     icon: BarChart3,
-                },
-                {
-                    title: "Launches",
-                    href: "/launches",
-                    description: "All tokens launched through Sigil",
-                    icon: Rocket,
                 },
                 {
                     title: "Integrations",
