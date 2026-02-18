@@ -1,15 +1,15 @@
 /**
- * Gas Sponsorship API for Fee Claims
+ * Fee Claim API
  *
- * Sends a small amount of ETH from the deployer wallet to the
- * user's Privy embedded wallet so they can call claimDevFees()
- * without needing to own any ETH themselves.
+ * POST /api/fees/claim-gas — Sends gas ETH to the user's server-side wallet
+ * POST /api/fees/claim     — Executes claimDevFees() server-side with the user's wallet
  */
 
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { ethers } from "ethers";
 import { getEnv } from "../../config/env.js";
-import { getUserId, privyAuth, getPrivyWalletAddress } from "../../middleware/auth.js";
+import { getUserId, privyAuth } from "../../middleware/auth.js";
+import { getUserAddress, getSignerWallet } from "../../services/wallet.js";
 import { loggers } from "../../utils/logger.js";
 import { handler } from "../helpers/route.js";
 
@@ -51,8 +51,11 @@ const lastFunded = new Map<string, number>();
 const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour between fundings
 
 // Amount of ETH to send — enough for ~2-3 claim txs on Base
-// Base gas is very cheap (~0.000001 ETH per tx), so 0.0002 ETH is generous
 const GAS_AMOUNT = ethers.parseEther("0.0002");
+
+// ─── Fee vault ABI (minimal — just claim functions) ─────
+
+const CLAIM_ABI = ["function claimDevFees(address token)", "function claimAllDevFees()"];
 
 // ─── POST /api/fees/claim-gas ───────────────────────────
 
@@ -75,8 +78,8 @@ claimGas.post(
             );
         }
 
-        // Get the user's Privy embedded wallet address
-        const walletAddress = await getPrivyWalletAddress(privyUserId);
+        // Get the user's SERVER-SIDE wallet address (not Privy embedded)
+        const walletAddress = await getUserAddress(privyUserId);
         if (!walletAddress) {
             return c.json({ error: "No wallet found for user" }, 400);
         }
@@ -124,6 +127,71 @@ claimGas.post(
         } catch (err) {
             log.error({ error: err, walletAddress }, "Failed to fund gas");
             return c.json({ error: "Failed to fund gas for claim. Please try again." }, 500);
+        }
+    }),
+);
+
+// ─── POST /api/fees/claim ───────────────────────────────
+
+claimGas.post(
+    "/claim",
+    privyAuth(),
+    handler(async (c) => {
+        const privyUserId = getUserId(c);
+        if (!privyUserId) {
+            return c.json({ error: "Not authenticated" }, 401);
+        }
+
+        const env = getEnv();
+        const feeVaultAddress = env.SIGIL_FEE_VAULT_ADDRESS;
+        if (!feeVaultAddress) {
+            return c.json({ error: "Fee vault not configured" }, 503);
+        }
+
+        // Get the user's server-side wallet signer
+        const walletKey = `user:${privyUserId}`;
+        const signer = await getSignerWallet(walletKey);
+        if (!signer) {
+            return c.json({ error: "No wallet found — visit the chat to create one" }, 400);
+        }
+
+        try {
+            const feeVault = new ethers.Contract(feeVaultAddress, CLAIM_ABI, signer);
+
+            // Parse optional token address from body
+            let body: { token?: string } = {};
+            try {
+                body = await c.req.json();
+            } catch {
+                // No body is fine — defaults to claimAll
+            }
+
+            let tx: ethers.TransactionResponse;
+            if (body.token) {
+                tx = await feeVault.claimDevFees(body.token);
+                log.info(
+                    { wallet: signer.address, token: body.token, txHash: tx.hash },
+                    "Claiming dev fees for token",
+                );
+            } else {
+                tx = await feeVault.claimAllDevFees();
+                log.info({ wallet: signer.address, txHash: tx.hash }, "Claiming all dev fees");
+            }
+
+            // Wait for confirmation
+            const receipt = await tx.wait();
+
+            return c.json({
+                success: true,
+                txHash: tx.hash,
+                blockNumber: receipt?.blockNumber,
+                walletAddress: signer.address,
+                message: "Fees claimed successfully",
+            });
+        } catch (err) {
+            log.error({ error: err, wallet: signer.address }, "Fee claim failed");
+            const message = err instanceof Error ? err.message : "Claim transaction failed";
+            return c.json({ error: message }, 500);
         }
     }),
 );

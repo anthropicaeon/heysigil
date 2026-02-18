@@ -123,6 +123,22 @@ export const apiClient = {
                 method: "POST",
                 headers: { Authorization: `Bearer ${accessToken}` },
             }),
+        claim: (accessToken: string, token?: string) =>
+            request<{
+                success: boolean;
+                txHash: string;
+                blockNumber?: number;
+                walletAddress: string;
+                message: string;
+                error?: string;
+            }>("/api/fees/claim", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                    "Content-Type": "application/json",
+                },
+                body: token ? JSON.stringify({ token }) : undefined,
+            }),
     },
 
     launch: {
