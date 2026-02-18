@@ -115,7 +115,9 @@ export async function executeAction(
 
     // ── Execute the action ─────────────────────────────────
     const handler = handlers[action.intent] || handlers.unknown;
-    const result = await handler(action.params, sessionId);
+    // Inject rawText into params so handlers can access the original user message
+    const params = { ...action.params, rawText: action.rawText || userMessage };
+    const result = await handler(params, sessionId);
 
     // Prepend warning to result message
     if (warningMessage) {
