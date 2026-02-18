@@ -204,7 +204,7 @@ export default function AboutPage() {
                             </h2>
                             <div className="flex gap-3">
                                 <Link
-                                    href="https://github.com/heysigil"
+                                    href="https://github.com/anthropicaeon/heysigil"
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >

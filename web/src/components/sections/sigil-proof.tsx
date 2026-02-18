@@ -27,7 +27,7 @@ const proofLinks = [
     {
         icon: "/icons/git-branch-01.svg",
         label: "source code",
-        href: "https://github.com/heysigil",
+        href: "https://github.com/anthropicaeon/heysigil",
         external: true,
     },
 ];

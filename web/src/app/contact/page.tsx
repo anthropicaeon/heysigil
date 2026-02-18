@@ -24,7 +24,7 @@ const contactOptions = [
         icon: Github,
         title: "Bug Reports",
         description: "Found an issue? Report it on GitHub.",
-        action: "github.com/heysigil",
+        action: "github.com/anthropicaeon/heysigil",
         isLink: true,
     },
 ];

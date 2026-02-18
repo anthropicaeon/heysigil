@@ -26,7 +26,7 @@ const navigation = [
 
 const socialLinks = [
     { icon: Twitter, href: "https://twitter.com/HeySigil", label: "Twitter" },
-    { icon: Github, href: "https://github.com/heysigil", label: "GitHub" },
+    { icon: Github, href: "https://github.com/anthropicaeon/heysigil", label: "GitHub" },
 ];
 
 const legal = [
