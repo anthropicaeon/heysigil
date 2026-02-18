@@ -4,9 +4,10 @@
  * Wallet Polling Hook
  *
  * Fetches wallet info for a session and polls every 30 seconds.
+ * Auto-creates a wallet if none exists yet.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiClient, type WalletInfo } from "@/lib/api-client";
 import { getErrorMessage } from "@/lib/errors";
@@ -29,19 +30,8 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const fetchWallet = useCallback(async () => {
-        if (!sessionId) return;
-
-        try {
-            const data = await apiClient.wallet.getInfo(sessionId);
-            setWallet(data);
-            setError(null);
-        } catch (err) {
-            setError(
-                `Wallet service unavailable (${getErrorMessage(err, "request failed")}). Check backend and NEXT_PUBLIC_API_URL.`,
-            );
-        }
-    }, [sessionId]);
+    // Prevent duplicate auto-creation attempts
+    const autoCreateAttempted = useRef(false);
 
     const createWallet = useCallback(async () => {
         if (!sessionId) return;
@@ -50,7 +40,9 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
         try {
             await apiClient.wallet.create(sessionId);
             setError(null);
-            await fetchWallet();
+            // Fetch immediately after creation
+            const data = await apiClient.wallet.getInfo(sessionId);
+            setWallet(data);
         } catch (err) {
             setError(
                 `Could not create wallet (${getErrorMessage(err, "request failed")}). Check backend and NEXT_PUBLIC_API_URL.`,
@@ -58,13 +50,38 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
         } finally {
             setLoading(false);
         }
-    }, [sessionId, fetchWallet]);
+    }, [sessionId]);
+
+    const fetchWallet = useCallback(async () => {
+        if (!sessionId) return;
+
+        try {
+            const data = await apiClient.wallet.getInfo(sessionId);
+            setWallet(data);
+            setError(null);
+
+            // Auto-create wallet if none exists yet
+            if (!data.exists && !autoCreateAttempted.current) {
+                autoCreateAttempted.current = true;
+                await createWallet();
+            }
+        } catch (err) {
+            setError(
+                `Wallet service unavailable (${getErrorMessage(err, "request failed")}). Check backend and NEXT_PUBLIC_API_URL.`,
+            );
+        }
+    }, [sessionId, createWallet]);
 
     const refreshBalance = useCallback(async () => {
         setRefreshing(true);
         await fetchWallet();
         setTimeout(() => setRefreshing(false), 600);
     }, [fetchWallet]);
+
+    // Reset auto-create flag when session changes
+    useEffect(() => {
+        autoCreateAttempted.current = false;
+    }, [sessionId]);
 
     // Fetch wallet on mount and every 30s
     useEffect(() => {
