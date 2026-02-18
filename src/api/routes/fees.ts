@@ -202,24 +202,16 @@ fees.openapi(
         // URL decode the projectId (handles "org/repo" format)
         const decodedProjectId = decodeURIComponent(projectId);
 
-        // Search by projectId field in fee distributions
+        // Query by projectId in the repository so pagination stays correct.
         const result = await findDistributions(
-            { poolId: undefined },
+            { projectId: decodedProjectId },
             { limit: query.limit, offset: query.offset },
         );
 
-        // Filter results by projectId client-side (until we add projectId index)
-        const filtered = result.data.filter((d) => d.projectId === decodedProjectId);
-
         return c.json({
             projectId: decodedProjectId,
-            distributions: filtered.map(formatDistribution),
-            pagination: {
-                limit: query.limit,
-                offset: query.offset,
-                count: filtered.length,
-                hasMore: result.pagination.hasMore,
-            },
+            distributions: result.data.map(formatDistribution),
+            pagination: result.pagination,
         });
     }),
 );
