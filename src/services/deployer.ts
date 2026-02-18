@@ -12,6 +12,7 @@ import { getEnv } from "../config/env.js";
 import { createPhantomUser, findUserByPlatform } from "./identity.js";
 import { checkDeployRateLimit } from "../middleware/rate-limit.js";
 import { linkPoolToProject } from "../db/repositories/index.js";
+import { verifyTokenOnBasescan } from "./contract-verifier.js";
 import { loggers } from "../utils/logger.js";
 
 const log = loggers.deployer;
@@ -126,8 +127,26 @@ export async function deployToken(
         devAddress = params.devAddress;
     } else if (params.isSelfLaunch === false && params.devLinks?.length) {
         // Third-party launch: check if dev already exists in our system
+        // Try agent:// links first (for autonomous agent launches)
+        const agentLink = params.devLinks.find((l) => l.startsWith("agent://"));
         const githubLink = params.devLinks.find((l) => l.includes("github.com"));
-        if (githubLink) {
+
+        if (agentLink) {
+            // Agent launch: resolve via agent platform identity
+            const agentId = agentLink.replace("agent://", "");
+            const existingAgent = await findUserByPlatform("agent", agentId);
+            if (existingAgent && existingAgent.status === "claimed") {
+                devAddress = existingAgent.walletAddress;
+                log.info({ agentId, devAddress }, "Agent already verified (direct routing)");
+            } else if (existingAgent && existingAgent.status === "phantom") {
+                devAddress = existingAgent.walletAddress;
+                log.info({ agentId, devAddress }, "Existing phantom agent");
+            } else {
+                const result = await createPhantomUser("agent", agentId, options?.sessionId);
+                devAddress = result.walletAddress;
+                log.info({ agentId, devAddress }, "Created phantom agent user");
+            }
+        } else if (githubLink) {
             // Extract org/repo from GitHub URL
             const match = githubLink.match(/github\.com\/([^/]+\/[^/]+)/);
             const repoId = match ? match[1].replace(/\.git$/, "") : githubLink;
@@ -148,7 +167,7 @@ export async function deployToken(
                 log.info({ repoId, devAddress }, "Created phantom user");
             }
         } else {
-            // No GitHub link — fall back to address(0) → contract escrow
+            // No GitHub or agent link — fall back to address(0) → contract escrow
             devAddress = ethers.ZeroAddress;
         }
     } else {
@@ -242,6 +261,13 @@ export async function deployToken(
         { tokenAddress, poolId, explorerUrl: result.explorerUrl },
         "Token deployed successfully",
     );
+
+    // Auto-verify on Basescan (async, non-blocking)
+    if (tokenAddress && tokenAddress !== "pending") {
+        verifyTokenOnBasescan(tokenAddress, params.name, params.symbol).catch((err) => {
+            log.warn({ err, tokenAddress }, "Basescan verification failed");
+        });
+    }
 
     // Link fee distributions to this project (async, fire-and-forget)
     if (poolId && params.projectId) {
