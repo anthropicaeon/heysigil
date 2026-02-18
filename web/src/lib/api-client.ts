@@ -93,6 +93,19 @@ export const apiClient = {
             request<WalletInfo>(`/api/wallet/${sessionId}/create`, {
                 method: "POST",
             }),
+
+        /** Get wallet for the authenticated Privy user */
+        getMyWallet: (accessToken: string) =>
+            request<WalletInfo>("/api/wallet/me", {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            }),
+
+        /** Create wallet for the authenticated Privy user (idempotent) */
+        createMyWallet: (accessToken: string) =>
+            request<WalletInfo>("/api/wallet/me", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${accessToken}` },
+            }),
     },
 
     fees: {
