@@ -26,9 +26,9 @@ const CHANNELS = [
 ];
 
 const HERO_STATS = [
-    { value: "5", label: "Channels", accent: "text-primary" },
-    { value: "Base", label: "Network", accent: "text-blue-500" },
-    { value: "EAS", label: "Attestation", accent: "text-amber-500" },
+    { value: "5", label: "Channels" },
+    { value: "Base", label: "Network" },
+    { value: "EAS", label: "Attestation" },
 ];
 
 export default function SigilHero() {
@@ -44,7 +44,7 @@ export default function SigilHero() {
     return (
         <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r px-0">
-                {/* Channels Bar - Enhanced */}
+                {/* Channels Bar - Pastel */}
                 <div className="flex flex-col sm:flex-row bg-sage/10 border-border border-b">
                     <div className="hidden sm:flex items-center px-4 lg:px-6 border-border border-r bg-sage/20">
                         <span className="text-xs text-muted-foreground uppercase tracking-wider whitespace-nowrap">
@@ -60,7 +60,7 @@ export default function SigilHero() {
                                 "hover:bg-sage/20 transition-colors",
                             )}
                         >
-                            <CheckCircle className="size-3.5 text-green-500" />
+                            <CheckCircle className="size-3.5 text-primary" />
                             <span className="text-sm font-medium text-foreground">
                                 {channel.name}
                             </span>
@@ -115,11 +115,9 @@ export default function SigilHero() {
                                 </div>
                             </div>
 
-                            {/* Headline - Enhanced */}
+                            {/* Headline - Pastel */}
                             <h1 className="text-foreground text-3xl lg:text-4xl xl:text-5xl font-semibold mb-6 leading-tight lowercase">
-                                <span className="border-l-4 border-l-primary pl-4">
-                                    the trust layer for
-                                </span>
+                                the trust layer for
                                 <br />
                                 <span className="text-primary">the agentic economy</span>
                             </h1>
@@ -157,13 +155,13 @@ export default function SigilHero() {
                             className="hidden lg:flex flex-col bg-sage/30"
                             noFocus
                         >
-                            {/* Sigil Visual - Enhanced */}
+                            {/* Sigil Visual - Pastel */}
                             <div className="flex-1 flex items-center justify-center p-8 border-border border-b relative z-10">
                                 <div className="relative">
                                     {/* Outer frame */}
-                                    <div className="size-56 bg-background/80 backdrop-blur-sm flex items-center justify-center border-2 border-border">
+                                    <div className="size-56 bg-background/80 backdrop-blur-sm flex items-center justify-center border border-border">
                                         {/* Middle frame */}
-                                        <div className="size-40 bg-primary/5 flex items-center justify-center border border-border">
+                                        <div className="size-40 bg-cream/30 flex items-center justify-center border border-border">
                                             {/* Inner frame with logo */}
                                             <div className="size-28 bg-background flex items-center justify-center border border-border">
                                                 <Image
@@ -175,24 +173,24 @@ export default function SigilHero() {
                                             </div>
                                         </div>
                                     </div>
-                                    {/* Enhanced Badges */}
-                                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-background text-foreground border-2 border-primary shadow-sm">
-                                        <span className="text-primary mr-1">●</span> EAS on Base
+                                    {/* Pastel Badges */}
+                                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-lavender/50 text-foreground border border-border">
+                                        EAS on Base
                                     </Badge>
-                                    <Badge className="absolute top-1/2 -right-8 -translate-y-1/2 bg-background text-foreground border-2 border-amber-500 shadow-sm">
-                                        <span className="text-amber-500 mr-1">●</span> zkTLS
+                                    <Badge className="absolute top-1/2 -right-8 -translate-y-1/2 bg-cream/50 text-foreground border border-border">
+                                        zkTLS
                                     </Badge>
-                                    <Badge className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-background text-foreground border-2 border-green-500 shadow-sm">
-                                        <span className="text-green-500 mr-1">●</span> 5 Channels
+                                    <Badge className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-sage/50 text-foreground border border-border">
+                                        5 Channels
                                     </Badge>
                                 </div>
                             </div>
 
-                            {/* Stats - Enhanced */}
+                            {/* Stats - Muted */}
                             <div className="flex divide-x divide-border relative z-10 bg-background/60 backdrop-blur-sm">
                                 {HERO_STATS.map((stat) => (
                                     <div key={stat.label} className="flex-1 px-6 py-4 text-center">
-                                        <p className={cn("text-2xl font-bold", stat.accent)}>
+                                        <p className="text-2xl font-bold text-foreground">
                                             {stat.value}
                                         </p>
                                         <p className="text-xs text-muted-foreground uppercase tracking-wider">

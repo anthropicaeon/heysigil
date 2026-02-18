@@ -3,6 +3,7 @@
  *
  * Memorable header with PixelCard hero, dramatic stats,
  * briefing cards, and visual governance flow.
+ * Pastel aesthetic matching PortfolioSidebar.
  */
 
 import {
@@ -41,36 +42,32 @@ export function GovernanceHeader({ proposals, escrowBalance }: GovernanceHeaderP
             value: formatTokens(escrowBalance),
             subtext: "USDC locked",
             icon: Hourglass,
-            accent: "text-amber-600",
         },
         {
             label: "Active Votes",
             value: activeVotes.toString(),
             subtext: "awaiting votes",
             icon: Vote,
-            accent: "text-primary",
         },
         {
             label: "In Progress",
             value: pending.toString(),
             subtext: "being built",
             icon: Clock,
-            accent: "text-blue-600",
         },
         {
             label: "Completed",
             value: completed.toString(),
             subtext: "milestones done",
             icon: CheckCircle,
-            accent: "text-green-600",
         },
     ];
 
     const flowSteps = [
-        { label: "Propose", icon: FileCheck, color: "bg-lavender/50" },
-        { label: "Vote", icon: Vote, color: "bg-primary/10" },
-        { label: "Build", icon: Clock, color: "bg-blue-50" },
-        { label: "Verify", icon: Check, color: "bg-green-50" },
+        { label: "Propose", icon: FileCheck },
+        { label: "Vote", icon: Vote },
+        { label: "Build", icon: Clock },
+        { label: "Verify", icon: Check },
     ];
 
     return (
@@ -86,13 +83,13 @@ export function GovernanceHeader({ proposals, escrowBalance }: GovernanceHeaderP
                 <div className="flex flex-col lg:flex-row">
                     {/* Icon Feature Cell */}
                     <div className="lg:w-32 px-6 py-8 lg:px-0 lg:py-0 flex items-center justify-center border-border border-b lg:border-b-0 lg:border-r">
-                        <div className="size-20 bg-lavender/40 border-2 border-border flex items-center justify-center">
+                        <div className="size-20 bg-lavender/40 border border-border flex items-center justify-center">
                             <Landmark className="size-10 text-primary" />
                         </div>
                     </div>
 
-                    {/* Title Section with Accent Border */}
-                    <div className="flex-1 px-6 py-8 lg:px-10 lg:py-10 border-l-4 border-l-primary">
+                    {/* Title Section */}
+                    <div className="flex-1 px-6 py-8 lg:px-10 lg:py-10">
                         <p className="text-primary text-sm font-medium uppercase tracking-wider mb-2">
                             governance
                         </p>
@@ -107,14 +104,14 @@ export function GovernanceHeader({ proposals, escrowBalance }: GovernanceHeaderP
                 </div>
             </PixelCard>
 
-            {/* Stats Row - Full Width Bordered Cells */}
+            {/* Stats Row - Muted Pastel Cells */}
             <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border border-border border-b bg-background">
                 {stats.map((stat) => (
                     <div
                         key={stat.label}
                         className="flex-1 px-6 py-6 lg:px-8 text-center"
                     >
-                        <div className={`text-4xl font-bold mb-1 ${stat.accent}`}>
+                        <div className="text-3xl font-bold text-foreground mb-1">
                             {stat.value}
                         </div>
                         <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground uppercase tracking-wider">
@@ -137,18 +134,18 @@ export function GovernanceHeader({ proposals, escrowBalance }: GovernanceHeaderP
                     {flowSteps.map((step, index) => (
                         <div
                             key={step.label}
-                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-4 lg:py-5 ${step.color}`}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-4 lg:py-5 bg-cream/20 hover:bg-cream/40 transition-colors"
                         >
                             <div className="flex items-center gap-2">
                                 <div className="size-8 border border-border bg-background flex items-center justify-center">
-                                    <step.icon className="size-4 text-foreground" />
+                                    <step.icon className="size-4 text-muted-foreground" />
                                 </div>
                                 <span className="text-sm font-medium text-foreground hidden sm:inline">
                                     {step.label}
                                 </span>
                             </div>
                             {index < flowSteps.length - 1 && (
-                                <ArrowRight className="size-4 text-muted-foreground/50 hidden lg:block ml-2" />
+                                <ArrowRight className="size-4 text-muted-foreground/40 hidden lg:block ml-2" />
                             )}
                         </div>
                     ))}
@@ -156,7 +153,7 @@ export function GovernanceHeader({ proposals, escrowBalance }: GovernanceHeaderP
             </div>
 
             {/* Briefing Cards */}
-            <div className="bg-cream/30">
+            <div className="bg-cream/20">
                 <div className="px-6 py-3 lg:px-8 border-border border-b">
                     <span className="text-xs text-muted-foreground uppercase tracking-wider">
                         Governance Briefing
@@ -167,7 +164,7 @@ export function GovernanceHeader({ proposals, escrowBalance }: GovernanceHeaderP
                     <div className="flex-1 px-6 py-5 lg:px-8">
                         <div className="flex items-start gap-3">
                             <div className="size-10 bg-lavender/30 border border-border flex items-center justify-center shrink-0">
-                                <Vote className="size-5 text-primary" />
+                                <Vote className="size-5 text-muted-foreground" />
                             </div>
                             <div>
                                 <h3 className="text-sm font-semibold text-foreground mb-1">
@@ -185,7 +182,7 @@ export function GovernanceHeader({ proposals, escrowBalance }: GovernanceHeaderP
                     <div className="flex-1 px-6 py-5 lg:px-8">
                         <div className="flex items-start gap-3">
                             <div className="size-10 bg-sage/30 border border-border flex items-center justify-center shrink-0">
-                                <Clock className="size-5 text-green-600" />
+                                <Clock className="size-5 text-muted-foreground" />
                             </div>
                             <div>
                                 <h3 className="text-sm font-semibold text-foreground mb-1">
@@ -202,8 +199,8 @@ export function GovernanceHeader({ proposals, escrowBalance }: GovernanceHeaderP
                     {/* Escrow Card */}
                     <div className="flex-1 px-6 py-5 lg:px-8">
                         <div className="flex items-start gap-3">
-                            <div className="size-10 bg-amber-50 border border-border flex items-center justify-center shrink-0">
-                                <Hourglass className="size-5 text-amber-600" />
+                            <div className="size-10 bg-cream/50 border border-border flex items-center justify-center shrink-0">
+                                <Hourglass className="size-5 text-muted-foreground" />
                             </div>
                             <div>
                                 <h3 className="text-sm font-semibold text-foreground mb-1">

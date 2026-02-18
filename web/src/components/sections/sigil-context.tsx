@@ -10,9 +10,7 @@ const problems = [
         title: "fragility",
         subtitle: "platform dependency",
         body: "builder verification tied to one platform's API. when that platform changes policy, the entire trust layer breaks. infrastructure for the agentic economy can't have a single point of failure.",
-        accent: "border-l-red-500",
-        iconColor: "text-red-500",
-        bg: "bg-red-50",
+        bg: "bg-rose/20",
     },
     {
         icon: Target,
@@ -20,9 +18,7 @@ const problems = [
         title: "misalignment",
         subtitle: "zero accountability",
         body: "builders collect fees with no obligation to ship. no milestones. no governance. capital without accountability creates misaligned incentives at scale.",
-        accent: "border-l-amber-500",
-        iconColor: "text-amber-500",
-        bg: "bg-amber-50",
+        bg: "bg-cream/30",
     },
     {
         icon: Signal,
@@ -30,9 +26,7 @@ const problems = [
         title: "noise",
         subtitle: "no signal differentiation",
         body: "real dev projects and low-effort entries move through the same channels with no distinction. communities have no reliable way to identify verified builders.",
-        accent: "border-l-blue-500",
-        iconColor: "text-blue-500",
-        bg: "bg-blue-50",
+        bg: "bg-lavender/20",
     },
 ];
 
@@ -68,7 +62,7 @@ export default function SigilContext() {
                     </div>
                 </PixelCard>
 
-                {/* Problems Grid - Enhanced */}
+                {/* Problems Grid - Pastel */}
                 <div className="flex flex-col lg:flex-row bg-background">
                     {problems.map((problem) => (
                         <div
@@ -81,14 +75,13 @@ export default function SigilContext() {
                             {/* Problem Number Header */}
                             <div className={cn(
                                 "px-6 py-3 lg:px-8 border-border border-b flex items-center justify-between",
-                                "border-l-4",
-                                problem.accent,
+                                problem.bg,
                             )}>
-                                <span className={cn("text-2xl font-bold", problem.iconColor)}>
+                                <span className="text-2xl font-bold text-foreground">
                                     {problem.num}
                                 </span>
-                                <div className={cn("size-8 flex items-center justify-center", problem.bg)}>
-                                    <problem.icon className={cn("size-4", problem.iconColor)} />
+                                <div className="size-8 flex items-center justify-center border border-border bg-background">
+                                    <problem.icon className="size-4 text-muted-foreground" />
                                 </div>
                             </div>
 
@@ -97,7 +90,7 @@ export default function SigilContext() {
                                 <h3 className="text-foreground text-lg font-semibold mb-1 lowercase">
                                     {problem.title}
                                 </h3>
-                                <p className={cn("text-sm font-medium mb-4", problem.iconColor)}>
+                                <p className="text-sm font-medium mb-4 text-muted-foreground">
                                     {problem.subtitle}
                                 </p>
                                 <p className="text-muted-foreground text-sm leading-relaxed">

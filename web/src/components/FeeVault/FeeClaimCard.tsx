@@ -4,7 +4,7 @@
  * Fee Claim Card
  *
  * Displays claimable USDC with loss aversion framing and urgency indicators.
- * Border-centric design with visual hierarchy.
+ * Pastel aesthetic with consistent borders.
  */
 
 import { AlertTriangle, CheckCircle, Clock, Coins, RefreshCw, Wallet } from "lucide-react";
@@ -52,33 +52,16 @@ export function FeeClaimCard({
                 <div
                     className={cn(
                         "flex-1 px-6 py-6 lg:px-8",
-                        isHighValue && "bg-orange-50 border-l-4 border-l-orange-500",
+                        isHighValue ? "bg-cream/40" : "bg-background",
                     )}
                 >
                     <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2">
-                            <div
-                                className={cn(
-                                    "size-10 border flex items-center justify-center",
-                                    isHighValue
-                                        ? "bg-orange-100 border-orange-200"
-                                        : "bg-primary/10 border-border",
-                                )}
-                            >
-                                <Coins
-                                    className={cn(
-                                        "size-5",
-                                        isHighValue ? "text-orange-600" : "text-primary",
-                                    )}
-                                />
+                            <div className="size-10 border border-border flex items-center justify-center bg-cream/30">
+                                <Coins className="size-5 text-muted-foreground" />
                             </div>
                             <div>
-                                <p
-                                    className={cn(
-                                        "text-xs uppercase tracking-wider font-medium",
-                                        isHighValue ? "text-orange-600" : "text-muted-foreground",
-                                    )}
-                                >
+                                <p className="text-xs uppercase tracking-wider font-medium text-muted-foreground">
                                     {isZero ? "Claimable USDC" : "Unclaimed USDC"}
                                 </p>
                             </div>
@@ -94,12 +77,7 @@ export function FeeClaimCard({
                         </Button>
                     </div>
 
-                    <div
-                        className={cn(
-                            "text-4xl font-bold mb-2",
-                            isHighValue ? "text-orange-600" : "text-foreground",
-                        )}
-                    >
+                    <div className="text-4xl font-bold text-foreground mb-2">
                         {loading ? (
                             <span className="inline-block size-8 animate-spin rounded-full border-2 border-current border-t-transparent" />
                         ) : (
@@ -109,14 +87,7 @@ export function FeeClaimCard({
 
                     {/* Urgency message */}
                     {!isZero && !loading && (
-                        <p
-                            className={cn(
-                                "text-sm flex items-center gap-1.5",
-                                isNearExpiry
-                                    ? "text-orange-600 font-medium"
-                                    : "text-muted-foreground",
-                            )}
-                        >
+                        <p className="text-sm flex items-center gap-1.5 text-muted-foreground">
                             {isNearExpiry ? (
                                 <>
                                     <AlertTriangle className="size-4" />
@@ -150,12 +121,7 @@ export function FeeClaimCard({
                             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
                                 Expires In
                             </p>
-                            <p
-                                className={cn(
-                                    "text-xl font-bold",
-                                    isNearExpiry ? "text-orange-600" : "text-foreground",
-                                )}
-                            >
+                            <p className="text-xl font-bold text-foreground">
                                 {daysUntilExpiry} days
                             </p>
                         </div>
@@ -168,10 +134,7 @@ export function FeeClaimCard({
                 <Button
                     onClick={onClaim}
                     disabled={loading || claiming}
-                    className={cn(
-                        "w-full gap-2",
-                        isHighValue && "bg-orange-600 hover:bg-orange-700",
-                    )}
+                    className="w-full gap-2"
                     size="lg"
                 >
                     {claiming ? (
@@ -190,13 +153,13 @@ export function FeeClaimCard({
 
             {/* Success State */}
             {lastTxHash && !claiming && (
-                <div className="border-border border-t px-6 py-4 lg:px-8 bg-green-50">
+                <div className="border-border border-t px-6 py-4 lg:px-8 bg-sage/20">
                     <div className="flex items-center gap-3">
-                        <div className="size-10 bg-green-100 border border-green-200 flex items-center justify-center">
-                            <CheckCircle className="size-5 text-green-600" />
+                        <div className="size-10 bg-sage/40 border border-border flex items-center justify-center">
+                            <CheckCircle className="size-5 text-muted-foreground" />
                         </div>
                         <div>
-                            <p className="font-semibold text-green-700">Successfully Claimed!</p>
+                            <p className="font-semibold text-foreground">Successfully Claimed!</p>
                             <a
                                 href={`https://basescan.org/tx/${lastTxHash}`}
                                 target="_blank"
@@ -212,12 +175,12 @@ export function FeeClaimCard({
 
             {/* Error State */}
             {error && (
-                <div className="border-border border-t px-6 py-4 lg:px-8 bg-red-50">
+                <div className="border-border border-t px-6 py-4 lg:px-8 bg-rose/20">
                     <div className="flex items-center gap-3">
-                        <div className="size-10 bg-red-100 border border-red-200 flex items-center justify-center">
-                            <AlertTriangle className="size-5 text-red-600" />
+                        <div className="size-10 bg-rose/30 border border-border flex items-center justify-center">
+                            <AlertTriangle className="size-5 text-muted-foreground" />
                         </div>
-                        <p className="text-sm text-red-700">{error}</p>
+                        <p className="text-sm text-foreground">{error}</p>
                     </div>
                 </div>
             )}
