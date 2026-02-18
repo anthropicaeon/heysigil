@@ -129,11 +129,11 @@ export default function PortfolioSidebar({
                     <EmptyState
                         icon={<Wallet className="size-8" />}
                         title="No wallet yet"
-                        description="Create a wallet to start trading directly from chat."
+                        description={loading ? "Creating your wallet..." : "Create a wallet to start trading directly from chat."}
                         action={{
-                            label: "Create Wallet",
+                            label: loading ? "Creating..." : "Create Wallet",
                             onClick: createWallet,
-                            disabled: loading || !sessionId,
+                            disabled: loading || (!sessionId && !isAuthenticated),
                             loading: loading,
                         }}
                     />

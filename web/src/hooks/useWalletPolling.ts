@@ -40,6 +40,18 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
     const autoCreateAttempted = useRef(false);
 
     /**
+     * Get a fresh Privy access token, or null if unavailable.
+     */
+    const getToken = useCallback(async (): Promise<string | null> => {
+        if (!privy?.authenticated || !privy.getAccessToken) return null;
+        try {
+            return await privy.getAccessToken();
+        } catch {
+            return null;
+        }
+    }, [privy]);
+
+    /**
      * Create a wallet — prefers Privy-authenticated /me endpoint,
      * falls back to session-based creation.
      */
@@ -48,14 +60,12 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
 
         try {
             // Privy-authenticated: create identity-based wallet
-            if (privy?.authenticated && privy.getAccessToken) {
-                const token = await privy.getAccessToken();
-                if (token) {
-                    const data = await apiClient.wallet.createMyWallet(token);
-                    setWallet(data);
-                    setError(null);
-                    return;
-                }
+            const token = await getToken();
+            if (token) {
+                const data = await apiClient.wallet.createMyWallet(token);
+                setWallet(data);
+                setError(null);
+                return;
             }
 
             // Fallback: session-based wallet
@@ -67,16 +77,16 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
                 return;
             }
 
-            // Neither auth nor session — can't create
-            setError(null);
+            // Neither auth nor session — nothing to do yet
         } catch (err) {
+            console.error("[useWalletPolling] createWallet failed:", err);
             setError(
                 `Could not create wallet (${getErrorMessage(err, "request failed")}).`,
             );
         } finally {
             setLoading(false);
         }
-    }, [privy, sessionId]);
+    }, [getToken, sessionId]);
 
     /**
      * Fetch wallet info — prefers Privy-authenticated /me endpoint.
@@ -87,10 +97,13 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
             let data: WalletInfo | null = null;
 
             // Privy-authenticated: fetch identity-based wallet
-            if (privy?.authenticated && privy.getAccessToken) {
-                const token = await privy.getAccessToken();
-                if (token) {
+            const token = await getToken();
+            if (token) {
+                try {
                     data = await apiClient.wallet.getMyWallet(token);
+                } catch (err) {
+                    console.warn("[useWalletPolling] /me fetch failed, trying session:", err);
+                    // Fall through to session-based
                 }
             }
 
@@ -99,7 +112,7 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
                 data = await apiClient.wallet.getInfo(sessionId);
             }
 
-            if (!data) return; // No auth and no session yet
+            if (!data) return; // No auth and no session yet — silent
 
             setWallet(data);
             setError(null);
@@ -110,11 +123,12 @@ export function useWalletPolling(sessionId: string | null): UseWalletPollingResu
                 await createWallet();
             }
         } catch (err) {
+            console.error("[useWalletPolling] fetchWallet failed:", err);
             setError(
                 `Wallet service unavailable (${getErrorMessage(err, "request failed")}).`,
             );
         }
-    }, [privy, sessionId, createWallet]);
+    }, [getToken, sessionId, createWallet]);
 
     const refreshBalance = useCallback(async () => {
         setRefreshing(true);
