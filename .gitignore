@@ -18,3 +18,5 @@ Created
 bun.lock
 bun.lock
 /.docs
+/.backups
+nul

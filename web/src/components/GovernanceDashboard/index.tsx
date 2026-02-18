@@ -7,15 +7,15 @@
 
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
-import type { Proposal, TabFilter } from "./types";
-import { MOCK_PROPOSALS, MOCK_ESCROW_BALANCE } from "./hooks/useMockProposals";
+import { CreateProposalModal } from "./components/CreateProposalModal";
 import { GovernanceHeader } from "./components/GovernanceHeader";
+import { ProposalDetail } from "./components/ProposalDetail";
 import { ProposalFilter } from "./components/ProposalFilter";
 import { ProposalListView } from "./components/ProposalListView";
-import { ProposalDetail } from "./components/ProposalDetail";
-import { CreateProposalModal } from "./components/CreateProposalModal";
+import { MOCK_ESCROW_BALANCE, MOCK_PROPOSALS } from "./hooks/useMockProposals";
+import type { Proposal, TabFilter } from "./types";
 
 export default function GovernanceDashboard() {
     const [proposals, setProposals] = useState<Proposal[]>(MOCK_PROPOSALS);
@@ -35,7 +35,7 @@ export default function GovernanceDashboard() {
                     return ["Rejected", "Expired", "Disputed"].includes(p.status);
                 return true;
             }),
-        [proposals, activeTab]
+        [proposals, activeTab],
     );
 
     const handleCreate = useCallback(
@@ -59,37 +59,47 @@ export default function GovernanceDashboard() {
             setProposals((prev) => [newProposal, ...prev]);
             setShowCreate(false);
         },
-        [proposals.length]
+        [proposals.length],
     );
 
     if (selectedProposal) {
         return (
-            <div className="container" style={{ padding: "var(--space-12) var(--space-6)" }}>
-                <ProposalDetail proposal={selectedProposal} onBack={() => setSelectedProposal(null)} />
-            </div>
+            <section className="min-h-screen bg-sage relative overflow-hidden px-2.5 lg:px-0">
+                <div className="border-border relative container border-l border-r min-h-screen px-0">
+                    <ProposalDetail
+                        proposal={selectedProposal}
+                        onBack={() => setSelectedProposal(null)}
+                    />
+                </div>
+            </section>
         );
     }
 
     return (
-        <div className="container" style={{ padding: "var(--space-12) var(--space-6)" }}>
-            <GovernanceHeader proposals={proposals} escrowBalance={MOCK_ESCROW_BALANCE} />
-
-            <ProposalFilter
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-                onCreateClick={() => setShowCreate(true)}
-            />
-
-            <ProposalListView
-                proposals={filteredProposals}
-                activeTab={activeTab}
-                onSelectProposal={setSelectedProposal}
-            />
-
+        <section className="min-h-screen bg-sage relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-screen px-0">
+                <GovernanceHeader proposals={proposals} escrowBalance={MOCK_ESCROW_BALANCE} />
+                <ProposalFilter
+                    activeTab={activeTab}
+                    onTabChange={setActiveTab}
+                    onCreateClick={() => setShowCreate(true)}
+                />
+                <ProposalListView
+                    proposals={filteredProposals}
+                    activeTab={activeTab}
+                    onSelectProposal={setSelectedProposal}
+                />
+                {/* Footer */}
+                <div className="border-border border-t px-6 py-4 lg:px-12 bg-sage/30">
+                    <p className="text-xs text-muted-foreground text-center">
+                        Governance is onchain. All votes are recorded permanently on Base.
+                    </p>
+                </div>
+            </div>
             {showCreate && (
                 <CreateProposalModal onClose={() => setShowCreate(false)} onCreate={handleCreate} />
             )}
-        </div>
+        </section>
     );
 }
 

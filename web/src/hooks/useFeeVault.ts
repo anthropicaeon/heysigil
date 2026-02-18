@@ -1,16 +1,18 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { formatUnits, encodeFunctionData } from "viem";
-import {
-    publicClient,
-    FEE_VAULT_ABI,
-    FEE_VAULT_ADDRESS,
-    USDC_ADDRESS,
-} from "@/config/contracts";
+/**
+ * Fee Vault Hook
+ *
+ * Manages on-chain fee vault reads and claims.
+ */
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { encodeFunctionData, formatUnits } from "viem";
+
+import { FEE_VAULT_ABI, FEE_VAULT_ADDRESS, publicClient, USDC_ADDRESS } from "@/config/contracts";
+import { useOptionalWallets } from "@/hooks/useOptionalPrivy";
 import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency } from "@/lib/format";
-import { useOptionalWallets } from "@/hooks/useOptionalPrivy";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -44,8 +46,6 @@ interface UseFeeVaultReturn {
     refresh: () => Promise<void>;
 }
 
-// ─── Helpers ────────────────────────────────────────────
-
 // ─── Hook ───────────────────────────────────────────────
 
 export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
@@ -61,12 +61,15 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
     const isMounted = useRef(true);
 
     useEffect(() => {
-        return () => { isMounted.current = false; };
+        return () => {
+            isMounted.current = false;
+        };
     }, []);
 
     // ── Fetch balances ──
     const refresh = useCallback(async () => {
-        if (!walletAddress || FEE_VAULT_ADDRESS === "0x0000000000000000000000000000000000000000") return;
+        if (!walletAddress || FEE_VAULT_ADDRESS === "0x0000000000000000000000000000000000000000")
+            return;
 
         setLoading(true);
         setError(null);
@@ -139,13 +142,15 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         // Find the embedded wallet or first available
         const wallet =
             walletsData.wallets.find(
-                (w: { walletClientType: string }) => w.walletClientType === "privy"
+                (w: { walletClientType: string }) => w.walletClientType === "privy",
             ) ?? walletsData.wallets[0];
 
         // Switch to Base if needed
         await wallet.switchChain(8453); // Base mainnet
 
-        const provider = await wallet.getEthereumProvider();
+        const provider = (await wallet.getEthereumProvider()) as {
+            request: (args: { method: string; params: unknown[] }) => Promise<unknown>;
+        };
         return { provider, address: wallet.address };
     }, [walletsData]);
 
@@ -175,7 +180,7 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
             // Refresh balances after claim
             await refresh();
         },
-        [getProvider, refresh]
+        [getProvider, refresh],
     );
 
     // ── Claim USDC ──

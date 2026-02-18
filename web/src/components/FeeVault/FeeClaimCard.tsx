@@ -4,11 +4,13 @@
  * Fee Claim Card
  *
  * Displays claimable USDC with loss aversion framing and urgency indicators.
+ * Updated with pastel design system.
  */
 
-import Image from "next/image";
-import { ErrorAlert } from "@/components/common/ErrorAlert";
-import { LoadingButton } from "@/components/common/LoadingButton";
+import { Coins, RefreshCw } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export interface FeeClaimCardProps {
     claimableUsdc: string;
@@ -43,31 +45,44 @@ export function FeeClaimCard({
     const isNearExpiry = daysUntilExpiry <= 7;
 
     return (
-        <div className={`fee-claim-card ${isHighValue ? "fee-claim-urgent" : ""}`}>
-            <div className="fee-claim-header">
+        <div
+            className={cn(
+                "rounded-xl border bg-background p-6 transition-all",
+                isHighValue ? "border-orange-300 bg-rose/30" : "border-border",
+            )}
+        >
+            <div className="flex items-start justify-between mb-4">
                 <div>
                     <h3
-                        style={{
-                            margin: 0,
-                            fontSize: "var(--text-sm)",
-                            color: isHighValue ? "var(--warning)" : "var(--text-secondary)",
-                        }}
+                        className={cn(
+                            "text-xs uppercase tracking-wider font-medium mb-1",
+                            isHighValue ? "text-orange-600" : "text-muted-foreground",
+                        )}
                     >
                         {isZero ? "Claimable USDC" : "Unclaimed USDC"}
                     </h3>
                     <div
-                        className="fee-claim-amount"
-                        style={{ color: isHighValue ? "var(--warning)" : undefined }}
+                        className={cn(
+                            "text-3xl font-bold",
+                            isHighValue ? "text-orange-600" : "text-foreground",
+                        )}
                     >
                         {loading ? (
-                            <span className="spinner" style={{ width: 20, height: 20 }} />
+                            <span className="inline-block size-6 animate-spin rounded-full border-2 border-current border-t-transparent" />
                         ) : (
                             claimableUsdc
                         )}
                     </div>
                     {/* Loss aversion: urgency message */}
                     {!isZero && !loading && (
-                        <p className={`fee-claim-urgency ${isNearExpiry ? "urgent" : ""}`}>
+                        <p
+                            className={cn(
+                                "text-sm mt-2",
+                                isNearExpiry
+                                    ? "text-orange-600 font-medium"
+                                    : "text-muted-foreground",
+                            )}
+                        >
                             {isNearExpiry
                                 ? `Claim within ${daysUntilExpiry} days or fees return to protocol`
                                 : isMediumValue
@@ -76,73 +91,65 @@ export function FeeClaimCard({
                         </p>
                     )}
                 </div>
-                <button
-                    type="button"
-                    className="fee-claim-refresh"
+                <Button
+                    variant="ghost"
+                    size="icon-sm"
                     onClick={onRefresh}
                     disabled={loading}
-                    title="Refresh balances"
+                    className="text-muted-foreground hover:text-foreground"
                 >
-                    <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    >
-                        <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2" />
-                    </svg>
-                </button>
+                    <RefreshCw className={cn("size-4", loading && "animate-spin")} />
+                </Button>
             </div>
 
-            <div className="fee-claim-stats">
-                <div className="fee-claim-stat">
-                    <span className="fee-label">Lifetime Earned</span>
-                    <span className="fee-value">{lifetimeUsdc}</span>
+            <div className="flex gap-6 mb-4 text-sm">
+                <div>
+                    <span className="text-muted-foreground">Lifetime Earned</span>
+                    <span className="ml-2 font-medium text-foreground">{lifetimeUsdc}</span>
                 </div>
                 {!isZero && (
-                    <div className="fee-claim-stat">
-                        <span className="fee-label">Expiry</span>
-                        <span className={`fee-value ${isNearExpiry ? "fee-expiry-urgent" : ""}`}>
+                    <div>
+                        <span className="text-muted-foreground">Expiry</span>
+                        <span
+                            className={cn(
+                                "ml-2 font-medium",
+                                isNearExpiry ? "text-orange-600" : "text-foreground",
+                            )}
+                        >
                             {daysUntilExpiry} days
                         </span>
                     </div>
                 )}
             </div>
 
-            <LoadingButton
-                className={`fee-claim-btn ${isHighValue ? "fee-claim-btn-urgent" : ""}`}
+            <Button
                 onClick={onClaim}
-                loading={claiming}
-                disabled={isZero || loading}
-                loadingText="Claiming…"
+                disabled={isZero || loading || claiming}
+                className={cn("w-full", isHighValue && "bg-orange-600 hover:bg-orange-700")}
+                size="lg"
             >
-                <Image
-                    src="/icons/coins-hand.svg"
-                    alt=""
-                    width={16}
-                    height={16}
-                    style={{
-                        display: "inline",
-                        verticalAlign: "middle",
-                        marginRight: 6,
-                        opacity: 0.7,
-                    }}
-                />
-                {isZero ? "No USDC to Claim" : `Claim ${claimableUsdc} Now`}
-            </LoadingButton>
+                {claiming ? (
+                    <>
+                        <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                        Claiming...
+                    </>
+                ) : (
+                    <>
+                        <Coins className="size-4 mr-2" />
+                        {isZero ? "No USDC to Claim" : `Claim ${claimableUsdc} Now`}
+                    </>
+                )}
+            </Button>
 
             {/* Success toast */}
             {lastTxHash && !claiming && (
-                <div className="fee-claim-success">
-                    ✓ Claimed!{" "}
+                <div className="mt-4 p-3 rounded-lg bg-sage/50 border border-sage text-sm text-green-700 flex items-center gap-2">
+                    <span>✓ Claimed!</span>
                     <a
                         href={`https://basescan.org/tx/${lastTxHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
+                        className="text-primary underline"
                     >
                         View tx ↗
                     </a>
@@ -150,7 +157,11 @@ export function FeeClaimCard({
             )}
 
             {/* Error */}
-            {error && <ErrorAlert error={error} className="fee-claim-error" />}
+            {error && (
+                <div className="mt-4 p-3 rounded-lg bg-rose/50 border border-rose text-sm text-red-700">
+                    {error}
+                </div>
+            )}
         </div>
     );
 }

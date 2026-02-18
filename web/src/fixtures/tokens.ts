@@ -5,7 +5,7 @@
  * Replace with real data in production.
  */
 
-import type { TokenInfo } from "@/types";
+import type { TokenInfo } from "@/types/token";
 
 export const MOCK_DEV_TOKENS: TokenInfo[] = [
     {

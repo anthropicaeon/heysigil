@@ -7,7 +7,8 @@
  * Integrates with Privy for authenticated users.
  */
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
+
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 
 interface SessionState {

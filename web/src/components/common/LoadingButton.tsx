@@ -1,46 +1,42 @@
+"use client";
+
 /**
  * LoadingButton Component
  *
  * Button with built-in loading state and spinner.
+ * Adapted for www design aesthetic using Tailwind and shadcn patterns.
  */
 
-import type { ReactNode, CSSProperties } from "react";
+import { Loader2 } from "lucide-react";
+import type { ReactNode } from "react";
 
-interface LoadingButtonProps {
+import { Button, type ButtonProps } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+interface LoadingButtonProps extends Omit<ButtonProps, "children"> {
     loading: boolean;
-    disabled?: boolean;
-    onClick: () => void;
     children: ReactNode;
     loadingText?: string;
-    className?: string;
-    style?: CSSProperties;
 }
 
 export function LoadingButton({
     loading,
-    disabled,
-    onClick,
     children,
     loadingText = "Loading...",
-    className = "btn-primary",
-    style,
+    disabled,
+    className,
+    ...props
 }: LoadingButtonProps) {
     return (
-        <button
-            type="button"
-            className={className}
-            disabled={disabled || loading}
-            onClick={onClick}
-            style={style}
-        >
+        <Button disabled={disabled || loading} className={cn(className)} {...props}>
             {loading ? (
                 <>
-                    <span className="spinner" style={{ width: 14, height: 14, marginRight: "var(--space-2)" }} />
+                    <Loader2 className="size-4 mr-2 animate-spin" />
                     {loadingText}
                 </>
             ) : (
                 children
             )}
-        </button>
+        </Button>
     );
 }

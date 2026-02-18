@@ -3,10 +3,12 @@
  *
  * Displays verification statistics and recent activity to build trust.
  * Based on Cialdini's principle: people follow the actions of others.
+ * Updated with pastel design system.
  */
 
 "use client";
 
+import { Shield } from "lucide-react";
 import { useEffect, useState } from "react";
 
 interface VerificationStats {
@@ -54,28 +56,36 @@ export function SocialProof() {
     const activity = stats.recentActivity[currentActivity];
 
     return (
-        <div className="social-proof">
+        <div className="rounded-xl border border-border bg-background/50 p-4 space-y-3">
             {/* Trust badge */}
-            <div className="social-proof-badge">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    <path d="M9 12l2 2 4-4" />
-                </svg>
-                <span>Trusted by <strong>{stats.totalVerified.toLocaleString()}</strong> developers</span>
+            <div className="flex items-center gap-2 text-sm">
+                <Shield className="size-4 text-primary" />
+                <span className="text-muted-foreground">
+                    Trusted by{" "}
+                    <strong className="text-foreground">
+                        {stats.totalVerified.toLocaleString()}
+                    </strong>{" "}
+                    developers
+                </span>
             </div>
 
             {/* Live activity pulse */}
-            <div className="social-proof-activity">
-                <span className="activity-pulse" />
-                <span className="activity-text">
-                    A developer verified via <strong>{activity?.method}</strong> · {activity?.timeAgo}
+            <div className="flex items-center gap-2 text-sm">
+                <span className="relative flex size-2">
+                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex size-2 rounded-full bg-green-500" />
+                </span>
+                <span className="text-muted-foreground">
+                    A developer verified via{" "}
+                    <strong className="text-foreground">{activity?.method}</strong> ·{" "}
+                    {activity?.timeAgo}
                 </span>
             </div>
 
             {/* Monthly counter */}
-            <div className="social-proof-monthly">
-                <span className="monthly-count">{stats.thisMonth}</span>
-                <span className="monthly-label">verifications this month</span>
+            <div className="flex items-center gap-2 pt-2 border-t border-border">
+                <span className="text-lg font-bold text-primary">{stats.thisMonth}</span>
+                <span className="text-sm text-muted-foreground">verifications this month</span>
             </div>
         </div>
     );

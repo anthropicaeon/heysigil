@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
-import PrivyAuthProvider from "../providers/PrivyAuthProvider";
-import ErrorBoundary from "../components/ErrorBoundary";
-import { useOptionalPrivy, getUserDisplay } from "@/hooks/useOptionalPrivy";
-import { useIsPrivyConfigured } from "@/providers/PrivyAuthProvider";
+import Link from "next/link";
+
 import { EnvironmentReadinessBanner } from "@/components/common/EnvironmentReadinessBanner";
+import { getUserDisplay, useOptionalPrivy } from "@/hooks/useOptionalPrivy";
+import PrivyAuthProvider, { useIsPrivyConfigured } from "@/providers/PrivyAuthProvider";
+
+import ErrorBoundary from "../components/ErrorBoundary";
 
 function NavLoginButton() {
     const isPrivyConfigured = useIsPrivyConfigured();
@@ -16,7 +17,11 @@ function NavLoginButton() {
     // Privy not configured — show explicit local-dev hint
     if (!isPrivyConfigured) {
         return (
-            <span className="nav-link" style={{ opacity: 0.6 }} title="Set NEXT_PUBLIC_PRIVY_APP_ID">
+            <span
+                className="nav-link"
+                style={{ opacity: 0.6 }}
+                title="Set NEXT_PUBLIC_PRIVY_APP_ID"
+            >
                 Sign-in disabled (dev)
             </span>
         );
@@ -34,21 +39,21 @@ function NavLoginButton() {
     const userInfo = getUserDisplay(privy);
     // For email, show only the local part
     const userDisplay = userInfo
-        ? (userInfo.provider === "Email" ? userInfo.name.split("@")[0] : userInfo.name)
+        ? userInfo.provider === "Email"
+            ? userInfo.name.split("@")[0]
+            : userInfo.name
         : "";
 
     if (privy.authenticated) {
         return (
             <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
                 <div className="nav-user-badge">
-                    <div className="nav-user-avatar">
-                        {userDisplay.charAt(0).toUpperCase()}
-                    </div>
+                    <div className="nav-user-avatar">{userDisplay.charAt(0).toUpperCase()}</div>
                     <span className="nav-user-name">{userDisplay}</span>
                 </div>
                 <button
                     className="btn-sm"
-                    onClick={() => privy.logout()}
+                    onClick={() => privy.logout?.()}
                     style={{
                         background: "transparent",
                         color: "var(--text-secondary)",
@@ -65,7 +70,7 @@ function NavLoginButton() {
     return (
         <button
             className="nav-cta"
-            onClick={() => privy.login()}
+            onClick={() => privy.login?.()}
             disabled={!privy.ready}
             title={
                 !privy.ready && isDev
@@ -79,11 +84,7 @@ function NavLoginButton() {
     );
 }
 
-export default function LayoutInner({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+export default function LayoutInner({ children }: { children: React.ReactNode }) {
     return (
         <ErrorBoundary>
             <PrivyAuthProvider>
@@ -101,11 +102,21 @@ export default function LayoutInner({
                         </Link>
                         {/* Serial Position Effect: Primary action first, settings last */}
                         <div className="nav-links">
-                            <Link href="/verify" className="nav-link nav-link-primary">Verify</Link>
-                            <Link href="/dashboard" className="nav-link">Dashboard</Link>
-                            <Link href="/chat" className="nav-link">Chat</Link>
-                            <Link href="/governance" className="nav-link">Governance</Link>
-                            <Link href="/developers" className="nav-link">Developers</Link>
+                            <Link href="/verify" className="nav-link nav-link-primary">
+                                Verify
+                            </Link>
+                            <Link href="/dashboard" className="nav-link">
+                                Dashboard
+                            </Link>
+                            <Link href="/chat" className="nav-link">
+                                Chat
+                            </Link>
+                            <Link href="/governance" className="nav-link">
+                                Governance
+                            </Link>
+                            <Link href="/developers" className="nav-link">
+                                Developers
+                            </Link>
                             <NavLoginButton />
                         </div>
                     </div>

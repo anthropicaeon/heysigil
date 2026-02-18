@@ -2,11 +2,14 @@
  * ChallengeStep Component
  *
  * Step 3: Display challenge instructions and verify.
+ * Updated with pastel design system.
  */
 
+import { ArrowLeft } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+
 import type { ChallengeResponse } from "../types";
-import { ErrorAlert } from "@/components/common/ErrorAlert";
-import { LoadingButton } from "@/components/common/LoadingButton";
 
 interface ChallengeStepProps {
     challenge: ChallengeResponse;
@@ -18,30 +21,59 @@ interface ChallengeStepProps {
 
 export function ChallengeStep({ challenge, loading, error, onBack, onCheck }: ChallengeStepProps) {
     return (
-        <div>
-            <h2 style={{ marginBottom: "var(--space-4)" }}>Complete Verification</h2>
-            <div className="card">
-                <p style={{ fontSize: "var(--text-sm)", marginBottom: "var(--space-3)" }}>
-                    Follow these instructions, then click &quot;Check Verification&quot;:
-                </p>
-                <div className="instructions">{challenge.instructions}</div>
-                <p style={{ fontSize: "var(--text-xs)", color: "var(--text-tertiary)" }}>
-                    Challenge code: <code style={{ fontFamily: "var(--font-mono)" }}>{challenge.challengeCode}</code>
+        <div className="bg-background">
+            <div className="border-border border-b px-6 py-6 lg:px-12">
+                <h2 className="text-lg font-semibold text-foreground lowercase">
+                    complete verification
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                    Follow these instructions, then click &quot;Check Verification&quot;
                 </p>
             </div>
-            {error && <ErrorAlert error={error} />}
-            <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
-                <button type="button" className="btn-secondary" onClick={onBack}>
+
+            <div className="border-border border-b">
+                <div className="px-6 py-3 lg:px-12 border-border border-b bg-lavender/30">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                        Instructions
+                    </span>
+                </div>
+                <div className="px-6 py-6 lg:px-12">
+                    <p className="text-foreground leading-relaxed whitespace-pre-wrap">
+                        {challenge.instructions}
+                    </p>
+                </div>
+            </div>
+
+            <div className="px-6 py-4 lg:px-12 border-border border-b bg-secondary/30">
+                <p className="text-sm text-muted-foreground">
+                    Challenge code:{" "}
+                    <code className="font-mono bg-background border border-border px-2 py-1">
+                        {challenge.challengeCode}
+                    </code>
+                </p>
+            </div>
+
+            {error && (
+                <div className="px-6 py-4 lg:px-12 bg-rose/30 border-border border-t border-b">
+                    <p className="text-sm text-red-700">{error}</p>
+                </div>
+            )}
+
+            <div className="border-border border-t px-6 py-6 lg:px-12 flex gap-3">
+                <Button variant="outline" onClick={onBack}>
+                    <ArrowLeft className="size-4 mr-2" />
                     Back
-                </button>
-                <LoadingButton
-                    loading={loading}
-                    onClick={onCheck}
-                    loadingText="Checking..."
-                    style={{ flex: 1 }}
-                >
-                    Check Verification
-                </LoadingButton>
+                </Button>
+                <Button onClick={onCheck} disabled={loading} className="flex-1">
+                    {loading ? (
+                        <>
+                            <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                            Checking...
+                        </>
+                    ) : (
+                        "Check Verification"
+                    )}
+                </Button>
             </div>
         </div>
     );

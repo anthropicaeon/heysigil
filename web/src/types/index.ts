@@ -5,39 +5,17 @@
  */
 
 // Governance
-export type {
-    Proposal,
-    ProposalStatus,
-    TabFilter,
-    Vote,
-} from "./governance";
+export type { Proposal, ProposalStatus, TabFilter, Vote } from "./governance";
 
 // Verification
-export type {
-    Method,
-    Step,
-    ChallengeResponse,
-    CheckResult,
-    ClaimResult,
-} from "./verification";
+export type { ChallengeResponse, CheckResult, ClaimResult, Method, Step } from "./verification";
 
 // Token
-export type {
-    TokenBalance,
-    TokenInfo,
-} from "./token";
+export type { TokenBalance, TokenInfo } from "./token";
 
 // Wallet
-export type {
-    WalletInfo,
-    FeeInfo,
-} from "./wallet";
+export type { FeeInfo, WalletInfo } from "./wallet";
 
 // Chat
-export type {
-    ChatRequest,
-    ChatApiResponse,
-    ChatSuccess,
-    ChatError,
-} from "./chat";
-export { isChatSuccess, isChatError } from "./chat";
+export type { ChatApiResponse, ChatError, ChatRequest, ChatSuccess } from "./chat";
+export { isChatError, isChatSuccess } from "./chat";

@@ -26,12 +26,26 @@ export function EnvironmentReadinessBanner() {
                 background: "var(--bg-tertiary)",
             }}
         >
-            <p style={{ margin: 0, marginBottom: "var(--space-2)", fontSize: "var(--text-sm)", fontWeight: 600 }}>
+            <p
+                style={{
+                    margin: 0,
+                    marginBottom: "var(--space-2)",
+                    fontSize: "var(--text-sm)",
+                    fontWeight: 600,
+                }}
+            >
                 Local environment readiness
             </p>
             <div style={{ display: "grid", gap: "var(--space-2)" }}>
                 {checks.map((check) => (
-                    <p key={check.key} style={{ margin: 0, fontSize: "var(--text-xs)", color: "var(--text-secondary)" }}>
+                    <p
+                        key={check.key}
+                        style={{
+                            margin: 0,
+                            fontSize: "var(--text-xs)",
+                            color: "var(--text-secondary)",
+                        }}
+                    >
                         <strong>{icon(check.status)}</strong> {check.label}: {check.detail}
                     </p>
                 ))}

@@ -2,12 +2,16 @@
  * DetailsStep Component
  *
  * Step 2: Enter project ID and wallet address.
+ * Updated with pastel design system.
  */
 
-import type { Method } from "../types";
+import { ArrowLeft } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import type { PrivyContext } from "@/hooks/useOptionalPrivy";
-import { ErrorAlert } from "@/components/common/ErrorAlert";
-import { LoadingButton } from "@/components/common/LoadingButton";
+
+import type { Method } from "../types";
 
 interface DetailsStepProps {
     method: Method;
@@ -45,93 +49,126 @@ export function DetailsStep({
     const hasPrivyGithub = isGithubMethod && !!privyGithubUsername;
 
     return (
-        <div>
-            <h2 style={{ marginBottom: "var(--space-4)" }}>Project Details</h2>
-            <div className="card">
-                <div className="form-group">
-                    <label>Project Identifier</label>
-                    {hasPrivyGithub && (
-                        <div style={{
-                            padding: "var(--space-2) var(--space-3)",
-                            background: "var(--success-bg, rgba(16, 185, 129, 0.1))",
-                            borderRadius: "var(--radius-md)",
-                            fontSize: "var(--text-xs)",
-                            color: "var(--success, #10b981)",
-                            marginBottom: "var(--space-2)",
-                            border: "1px solid var(--success, #10b981)",
-                        }}>
-                            ✓ Signed in as <strong>{privyGithubUsername}</strong> on GitHub — your identity is already verified
-                        </div>
-                    )}
-                    <input
-                        type="text"
+        <div className="bg-background">
+            <div className="border-border border-b px-6 py-6 lg:px-12">
+                <h2 className="text-lg font-semibold text-foreground lowercase">project details</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                    Enter your project information and fee routing address
+                </p>
+            </div>
+
+            {/* GitHub Verified Badge */}
+            {hasPrivyGithub && (
+                <div className="border-border border-b px-6 py-3 lg:px-12 bg-sage/50">
+                    <div className="flex items-center gap-2 text-sm">
+                        <span className="text-primary font-medium">✓</span>
+                        <span className="text-foreground">
+                            Signed in as <strong>{privyGithubUsername}</strong> on GitHub — your
+                            identity is already verified
+                        </span>
+                    </div>
+                </div>
+            )}
+
+            {/* Project Identifier */}
+            <div className="border-border border-b">
+                <div className="px-6 py-3 lg:px-12 border-border border-b bg-secondary/30">
+                    <label
+                        htmlFor="project"
+                        className="text-xs text-muted-foreground uppercase tracking-wider"
+                    >
+                        Project Identifier
+                    </label>
+                </div>
+                <div className="px-6 py-4 lg:px-12">
+                    <Input
+                        id="project"
                         placeholder={method.projectIdFormat}
                         value={projectId}
                         onChange={(e) => onProjectIdChange(e.target.value)}
                     />
-                    <span
-                        style={{
-                            fontSize: "var(--text-xs)",
-                            color: "var(--text-tertiary)",
-                            marginTop: "var(--space-1)",
-                            display: "block",
-                        }}
-                    >
+                    <p className="text-xs text-muted-foreground mt-2">
                         Format: {method.projectIdFormat}
-                    </span>
+                    </p>
                 </div>
-                <div className="form-group">
-                    <label>Wallet Address</label>
+            </div>
+
+            {/* Wallet Address */}
+            <div className="border-border border-b">
+                <div className="px-6 py-3 lg:px-12 border-border border-b bg-secondary/30">
+                    <label
+                        htmlFor="wallet"
+                        className="text-xs text-muted-foreground uppercase tracking-wider"
+                    >
+                        Wallet Address
+                    </label>
+                </div>
+                <div className="px-6 py-4 lg:px-12">
                     {isConnected && connectedAddress ? (
-                        <div style={{
-                            padding: "var(--space-3)",
-                            background: "var(--bg-tertiary)",
-                            borderRadius: "var(--radius-md)",
-                            fontFamily: "var(--font-mono)",
-                            fontSize: "var(--text-sm)",
-                            color: "var(--text-primary)",
-                            border: "1px solid var(--border)",
-                        }}>
+                        <div className="py-2.5 px-3 border border-border bg-sage/30 font-mono text-sm text-foreground">
                             {connectedAddress}
                         </div>
                     ) : (
-                        <div>
-                            <input
-                                type="text"
-                                placeholder="0x... (or sign in to auto-fill)"
+                        <div className="space-y-3">
+                            <Input
+                                id="wallet"
+                                placeholder="0x..."
                                 value={walletAddress}
                                 onChange={(e) => onWalletAddressChange(e.target.value)}
+                                className="font-mono"
                             />
                             {privy && !privy.authenticated && (
-                                <div style={{ marginTop: "var(--space-2)" }}>
-                                    <button
-                                        type="button"
-                                        className="btn-secondary"
-                                        onClick={() => privy.login?.()}
-                                        style={{ fontSize: "var(--text-xs)", padding: "var(--space-1) var(--space-3)" }}
-                                    >
-                                        Sign In to Auto-fill
-                                    </button>
-                                </div>
+                                <Button variant="outline" size="sm" onClick={() => privy.login?.()}>
+                                    Sign In to Auto-fill
+                                </Button>
                             )}
                         </div>
                     )}
                 </div>
             </div>
-            {error && <ErrorAlert error={error} onDismiss={onClearError} />}
-            <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-4)" }}>
-                <button type="button" className="btn-secondary" onClick={onBack}>
+
+            <div className="px-6 py-4 lg:px-12 bg-sage/30 border-border border-b">
+                <p className="text-xs text-muted-foreground">
+                    Your wallet address is where USDC fees will be routed after verification
+                </p>
+            </div>
+
+            {error && (
+                <div className="px-6 py-4 lg:px-12 bg-rose/30 border-border border-t">
+                    <div className="flex items-start justify-between">
+                        <p className="text-sm text-red-700">{error}</p>
+                        <button
+                            type="button"
+                            onClick={onClearError}
+                            className="text-red-700 hover:text-red-900"
+                        >
+                            ×
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <div className="border-border border-t px-6 py-6 lg:px-12 flex gap-3">
+                <Button variant="outline" onClick={onBack}>
+                    <ArrowLeft className="size-4 mr-2" />
                     Back
-                </button>
-                <LoadingButton
-                    loading={loading}
-                    disabled={!projectId || !walletAddress}
+                </Button>
+                <Button
                     onClick={onSubmit}
-                    loadingText="Creating..."
-                    style={{ flex: 1 }}
+                    disabled={!projectId || !walletAddress || loading}
+                    className="flex-1"
                 >
-                    {method.requiresOAuth ? "Authorize" : "Get Instructions"}
-                </LoadingButton>
+                    {loading ? (
+                        <>
+                            <span className="inline-block size-4 animate-spin border-2 border-current border-t-transparent mr-2" />
+                            Creating...
+                        </>
+                    ) : method.requiresOAuth ? (
+                        "Authorize"
+                    ) : (
+                        "Get Instructions"
+                    )}
+                </Button>
             </div>
         </div>
     );

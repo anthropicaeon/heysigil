@@ -4,7 +4,7 @@
  * Returns a formatted countdown string for a deadline timestamp.
  */
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export function useCountdown(deadline: number): string {
     const [now, setNow] = useState(Date.now() / 1000);

@@ -6,7 +6,8 @@
  * Fetches wallet info for a session and polls every 30 seconds.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+
 import { apiClient, type WalletInfo } from "@/lib/api-client";
 import { getErrorMessage } from "@/lib/errors";
 
