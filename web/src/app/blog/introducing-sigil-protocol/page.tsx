@@ -26,9 +26,9 @@ export default function IntroducingSigilPage() {
                 </div>
 
                 {/* Cover Image */}
-                <div className="border-border border-b aspect-video relative">
+                <div className="border-border border-b aspect-video relative bg-sage/20">
                     <Image
-                        src="/images/blog/introducing-sigil.jpg"
+                        src="https://images.unsplash.com/photo-1618005198919-d3d4b5a92ead?w=1200&q=80"
                         alt="Introducing Sigil"
                         fill
                         className="object-cover"
