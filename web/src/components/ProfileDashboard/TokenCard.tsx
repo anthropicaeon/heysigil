@@ -1,31 +1,35 @@
 "use client";
 
 /**
- * Token Card
+ * Project Card
  *
- * Displays a single token with balance, governance info, and actions.
+ * Displays a single verified project with token and attestation info.
  * Border-centric pastel design system.
  */
 
-import { ChevronRight, Coins, FileCheck, Zap } from "lucide-react";
+import { CheckCircle, ChevronRight, Clock, Zap } from "lucide-react";
 import Link from "next/link";
 import { memo } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { TokenInfo } from "@/types";
+import type { ProjectInfo } from "@/types";
 
-function formatNumericString(value: string): string {
-    const num = parseFloat(value.replace(/,/g, "")) || 0;
-    if (num >= 1_000_000_000) return `${(num / 1_000_000_000).toFixed(1)}B`;
-    if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1)}M`;
-    if (num >= 1_000) return `${(num / 1_000).toFixed(1)}K`;
-    return num.toLocaleString();
+/** Generate a deterministic color from a string */
+function hashColor(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 55%, 50%)`;
 }
 
-export const TokenCard = memo(function TokenCard({ token }: { token: TokenInfo }) {
-    const isAboveThreshold =
-        token.role === "holder" && parseFloat(token.balance.replace(/,/g, "")) >= 50_000_000;
+export const ProjectCard = memo(function ProjectCard({ project }: { project: ProjectInfo }) {
+    const displayName = project.name || project.projectId;
+    const shortId =
+        project.projectId.length > 20 ? project.projectId.slice(0, 20) + "…" : project.projectId;
+    const color = hashColor(project.projectId);
 
     return (
         <div className="border-border border-b last:border-b-0 bg-background hover:bg-secondary/30 transition-colors">
@@ -34,81 +38,92 @@ export const TokenCard = memo(function TokenCard({ token }: { token: TokenInfo }
                 <div className="flex items-center gap-3">
                     <div
                         className="size-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
-                        style={{ backgroundColor: token.color }}
+                        style={{ backgroundColor: color }}
                     >
-                        {token.ticker.charAt(0)}
+                        {displayName.charAt(0).toUpperCase()}
                     </div>
                     <div>
-                        <h3 className="font-medium text-foreground">{token.name}</h3>
-                        <span className="text-sm text-muted-foreground">${token.ticker}</span>
+                        <h3 className="font-medium text-foreground">{displayName}</h3>
+                        <span className="text-sm text-muted-foreground">{shortId}</span>
                     </div>
                 </div>
-                <Badge variant={token.role === "dev" ? "default" : "outline"} className="text-xs">
-                    {token.role === "dev" ? (
-                        <>
-                            <Zap className="size-3 mr-1" />
-                            Builder
-                        </>
-                    ) : (
-                        <>
-                            <Coins className="size-3 mr-1" />
-                            Holder
-                        </>
-                    )}
+                <Badge variant="default" className="text-xs">
+                    <Zap className="size-3 mr-1" />
+                    Developer
                 </Badge>
             </div>
 
             {/* Stats Row */}
             <div className="flex border-border border-b">
                 <div className="flex-1 px-6 py-4 lg:px-8 border-border border-r">
-                    <p className="text-2xl font-bold text-foreground">
-                        {formatNumericString(token.balance)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">Your Balance</p>
+                    {project.poolTokenAddress ? (
+                        <>
+                            <p className="text-sm font-mono text-foreground truncate">
+                                {project.poolTokenAddress.slice(0, 6)}…
+                                {project.poolTokenAddress.slice(-4)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Token Contract</p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-sm text-muted-foreground">—</p>
+                            <p className="text-xs text-muted-foreground">No Token Yet</p>
+                        </>
+                    )}
                 </div>
                 <div className="flex-1 px-6 py-4 lg:px-8 border-border border-r">
-                    <p className="text-2xl font-bold text-foreground">
-                        {formatNumericString(token.escrowBalance)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">In Escrow</p>
+                    <div className="flex items-center gap-2">
+                        {project.attestationUid ? (
+                            <>
+                                <CheckCircle className="size-4 text-green-600" />
+                                <span className="text-sm text-foreground">Verified</span>
+                            </>
+                        ) : (
+                            <>
+                                <Clock className="size-4 text-orange-500" />
+                                <span className="text-sm text-muted-foreground">Pending</span>
+                            </>
+                        )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Attestation</p>
                 </div>
                 <div className="flex-1 px-6 py-4 lg:px-8">
-                    <p className="text-2xl font-bold text-foreground">
-                        {token.activeProposals}
-                        <span className="text-muted-foreground font-normal text-lg">
-                            /{token.totalProposals}
-                        </span>
-                    </p>
-                    <p className="text-xs text-muted-foreground">Active Proposals</p>
+                    {project.verifiedAt ? (
+                        <>
+                            <p className="text-sm text-foreground">
+                                {new Date(project.verifiedAt).toLocaleDateString()}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Verified Date</p>
+                        </>
+                    ) : (
+                        <>
+                            <p className="text-sm text-muted-foreground">—</p>
+                            <p className="text-xs text-muted-foreground">Not Verified</p>
+                        </>
+                    )}
                 </div>
             </div>
 
             {/* Actions Row */}
             <div className="flex items-center justify-between px-6 py-3 lg:px-8">
                 <div className="flex gap-2">
-                    <Link href={`/governance?token=${token.address}`}>
-                        <Button variant="outline" size="sm" className="gap-2">
-                            <FileCheck className="size-4" />
-                            Governance
-                        </Button>
-                    </Link>
-                    {token.role === "holder" && isAboveThreshold && (
-                        <Link href={`/governance?token=${token.address}&action=propose`}>
-                            <Button variant="secondary" size="sm">
-                                Propose
-                            </Button>
-                        </Link>
+                    {project.devLinks && project.devLinks.length > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                            Platforms: {project.devLinks.map((l) => l.platform).join(", ")}
+                        </span>
                     )}
                 </div>
-                {token.role === "holder" && !isAboveThreshold && (
-                    <span className="text-xs text-muted-foreground">Need 50M to propose</span>
+                {project.poolTokenAddress && (
+                    <Link
+                        href={`/governance?token=${project.poolTokenAddress}`}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <Button variant="ghost" size="sm" className="gap-1">
+                            Governance
+                            <ChevronRight className="size-4" />
+                        </Button>
+                    </Link>
                 )}
-                <Link
-                    href={`/governance?token=${token.address}`}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                    <ChevronRight className="size-5" />
-                </Link>
             </div>
         </div>
     );

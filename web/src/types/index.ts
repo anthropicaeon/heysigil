@@ -10,8 +10,8 @@ export type { Proposal, ProposalStatus, TabFilter, Vote } from "./governance";
 // Verification
 export type { ChallengeResponse, CheckResult, ClaimResult, Method, Step } from "./verification";
 
-// Token
-export type { TokenBalance, TokenInfo } from "./token";
+// Token / Project
+export type { ProjectInfo, TokenBalance } from "./token";
 
 // Wallet
 export type { FeeInfo, WalletInfo } from "./wallet";
