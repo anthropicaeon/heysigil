@@ -3,8 +3,8 @@
 /**
  * PortfolioSidebar Component
  *
+ * Border-centric wallet sidebar with full-height sections.
  * Displays wallet info, balances, and quick actions.
- * Adapted for www design aesthetic using Tailwind and shadcn patterns.
  */
 
 import {
@@ -19,8 +19,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
-import { EmptyState } from "@/components/common/EmptyState";
-import { ErrorAlert } from "@/components/common/ErrorAlert";
 import { Button } from "@/components/ui/button";
 import { getTokenColor, TOKEN_COLORS } from "@/config/token-colors";
 import { getUserDisplay, useOptionalPrivy } from "@/hooks/useOptionalPrivy";
@@ -54,125 +52,224 @@ export default function PortfolioSidebar({
         setTimeout(() => setCopied(false), 2000);
     };
 
-    // Compute total portfolio value (just ETH for now)
     const ethBalance = wallet?.balance ? parseFloat(wallet.balance.eth) : 0;
     const hasTokens = wallet?.balance?.tokens && wallet.balance.tokens.length > 0;
 
+    // Collapsed state
     if (collapsed) {
         return (
             <div
-                className="w-14 border-l border-border bg-background flex flex-col items-center py-4 cursor-pointer hover:bg-secondary/20 transition-colors"
+                className="w-14 border-l border-border bg-background flex flex-col cursor-pointer hover:bg-secondary/20 transition-colors"
                 onClick={onToggle}
             >
-                <div className="size-10 bg-lavender flex items-center justify-center text-primary border border-border">
-                    <Wallet className="size-5" />
+                {/* Collapsed Header */}
+                <div className="py-4 border-b border-border flex justify-center">
+                    <div className="size-8 bg-lavender/50 flex items-center justify-center text-primary border border-border">
+                        <Wallet className="size-4" />
+                    </div>
                 </div>
-                {wallet?.exists && <div className="size-2 bg-green-500 mt-2" />}
+                {/* Status indicator */}
+                <div className="flex-1 flex flex-col items-center py-4 gap-2">
+                    {wallet?.exists && <div className="size-2 bg-green-500" />}
+                    {isAuthenticated && (
+                        <div className="size-6 bg-lavender/50 flex items-center justify-center text-xs font-medium text-primary border border-border">
+                            {userInfo?.name.charAt(0).toUpperCase()}
+                        </div>
+                    )}
+                </div>
+                {/* Network badge */}
+                <div className="py-3 border-t border-border flex justify-center">
+                    <div className="size-2 bg-green-500" />
+                </div>
             </div>
         );
     }
 
+    // Expanded state
     return (
-        <div className="w-72 border-l border-border bg-background flex flex-col">
+        <div className="w-72 border-l border-border bg-background flex flex-col h-full">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                <h3 className="font-semibold text-foreground">Portfolio</h3>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/30">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                    Portfolio
+                </span>
                 <button
                     type="button"
                     onClick={onToggle}
-                    className="size-8 hover:bg-secondary/50 flex items-center justify-center transition-colors"
+                    className="size-6 hover:bg-background flex items-center justify-center transition-colors border border-border"
                     title="Collapse"
                 >
-                    <ChevronLeft className="size-4 text-muted-foreground" />
+                    <ChevronLeft className="size-3 text-muted-foreground" />
                 </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto">
-                {/* User identity */}
+            {/* Content */}
+            <div className="flex-1 flex flex-col overflow-y-auto">
+                {/* User identity section */}
                 {isAuthenticated && userInfo && (
-                    <div className="px-4 py-3 border-b border-border">
-                        <div className="flex items-center gap-3">
-                            <div className="size-10 bg-lavender flex items-center justify-center shrink-0 border border-border">
-                                <span className="text-sm font-semibold text-primary">
-                                    {userInfo.name.charAt(0).toUpperCase()}
-                                </span>
-                            </div>
-                            <div className="min-w-0">
-                                <p className="text-sm font-medium text-foreground truncate">
-                                    {userInfo.name}
-                                </p>
-                                {userInfo.provider && (
-                                    <p className="text-xs text-muted-foreground">
-                                        via {userInfo.provider}
+                    <>
+                        <div className="px-4 py-2 border-b border-border bg-sage/20">
+                            <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                Account
+                            </span>
+                        </div>
+                        <div className="px-4 py-4 border-b border-border">
+                            <div className="flex items-center gap-3">
+                                <div className="size-10 bg-lavender/50 flex items-center justify-center shrink-0 border border-border">
+                                    <span className="text-sm font-semibold text-primary">
+                                        {userInfo.name.charAt(0).toUpperCase()}
+                                    </span>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-medium text-foreground truncate">
+                                        {userInfo.name}
                                     </p>
-                                )}
+                                    {userInfo.provider && (
+                                        <p className="text-xs text-muted-foreground">
+                                            via {userInfo.provider}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="size-2 bg-green-500" />
                             </div>
                         </div>
+                    </>
+                )}
+
+                {/* Not signed in state */}
+                {!isAuthenticated && privy && (
+                    <>
+                        <div className="px-4 py-2 border-b border-border bg-sage/20">
+                            <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                Get Started
+                            </span>
+                        </div>
+                        <div className="flex-1 flex flex-col">
+                            {/* Top spacer */}
+                            <div className="flex-1 border-b border-border bg-cream/20" />
+
+                            {/* Icon */}
+                            <div className="px-4 py-6 border-b border-border flex justify-center bg-lavender/10">
+                                <div className="size-14 bg-background border border-border flex items-center justify-center">
+                                    <User className="size-7 text-primary" />
+                                </div>
+                            </div>
+
+                            {/* Title */}
+                            <div className="px-4 py-3 border-b border-border text-center">
+                                <p className="text-sm font-semibold text-foreground lowercase">
+                                    sign in to get started
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Log in with GitHub, Telegram, or email
+                                </p>
+                            </div>
+
+                            {/* Action */}
+                            <div className="px-4 py-4 border-b border-border">
+                                <Button
+                                    onClick={() => privy.login?.()}
+                                    className="w-full"
+                                    size="sm"
+                                >
+                                    Sign In
+                                </Button>
+                            </div>
+
+                            {/* Bottom spacer */}
+                            <div className="flex-1 bg-sage/10" />
+                        </div>
+                    </>
+                )}
+
+                {/* No wallet state */}
+                {!wallet?.exists && (isAuthenticated || !privy) && (
+                    <>
+                        <div className="px-4 py-2 border-b border-border bg-sage/20">
+                            <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                Wallet
+                            </span>
+                        </div>
+                        <div className="flex-1 flex flex-col">
+                            {/* Top spacer */}
+                            <div className="flex-1 border-b border-border bg-cream/20" />
+
+                            {/* Icon */}
+                            <div className="px-4 py-6 border-b border-border flex justify-center bg-lavender/10">
+                                <div className="size-14 bg-background border border-border flex items-center justify-center">
+                                    <Wallet className="size-7 text-primary" />
+                                </div>
+                            </div>
+
+                            {/* Title */}
+                            <div className="px-4 py-3 border-b border-border text-center">
+                                <p className="text-sm font-semibold text-foreground lowercase">
+                                    {loading ? "creating wallet..." : "no wallet yet"}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {loading ? "Please wait" : "Create a wallet to start trading"}
+                                </p>
+                            </div>
+
+                            {/* Action */}
+                            <div className="px-4 py-4 border-b border-border">
+                                <Button
+                                    onClick={createWallet}
+                                    disabled={loading || (!sessionId && !isAuthenticated)}
+                                    className="w-full"
+                                    size="sm"
+                                >
+                                    {loading ? "Creating..." : "Create Wallet"}
+                                </Button>
+                            </div>
+
+                            {/* Bottom spacer */}
+                            <div className="flex-1 bg-sage/10" />
+                        </div>
+                    </>
+                )}
+
+                {/* Error state */}
+                {error && (
+                    <div className="px-4 py-3 border-b border-border bg-red-50">
+                        <p className="text-xs text-red-600">{error}</p>
                     </div>
                 )}
 
-                {/* Not signed in — prompt to login */}
-                {!isAuthenticated && privy && (
-                    <EmptyState
-                        icon={<User className="size-8" />}
-                        title="Sign in to get started"
-                        description="Log in with GitHub, Telegram, or email to create a wallet and start trading."
-                        action={{
-                            label: "Sign In",
-                            onClick: () => privy.login?.(),
-                        }}
-                    />
-                )}
-
-                {/* No wallet state — only show for authenticated users or when Privy isn't configured */}
-                {!wallet?.exists && (isAuthenticated || !privy) && (
-                    <EmptyState
-                        icon={<Wallet className="size-8" />}
-                        title="No wallet yet"
-                        description={loading ? "Creating your wallet..." : "Create a wallet to start trading directly from chat."}
-                        action={{
-                            label: loading ? "Creating..." : "Create Wallet",
-                            onClick: createWallet,
-                            disabled: loading || (!sessionId && !isAuthenticated),
-                            loading: loading,
-                        }}
-                    />
-                )}
-
-                {error && <ErrorAlert error={error} />}
-
-                {/* Wallet info */}
+                {/* Wallet exists - show details */}
                 {wallet?.exists && (
                     <>
-                        {/* Address card */}
-                        <div className="px-4 py-3 border-b border-border">
-                            <div className="flex items-center justify-between mb-1">
+                        {/* Address section */}
+                        <div className="px-4 py-2 border-b border-border bg-sage/20">
+                            <div className="flex items-center justify-between">
                                 <span className="text-xs text-muted-foreground uppercase tracking-wider">
                                     Address
                                 </span>
                                 <button
                                     type="button"
                                     onClick={copyAddress}
-                                    className="size-6 hover:bg-secondary/50 flex items-center justify-center transition-colors"
+                                    className="size-5 hover:bg-background flex items-center justify-center transition-colors"
                                     title="Copy address"
                                 >
                                     {copied ? (
-                                        <Check className="size-3.5 text-green-500" />
+                                        <Check className="size-3 text-green-500" />
                                     ) : (
-                                        <Copy className="size-3.5 text-muted-foreground" />
+                                        <Copy className="size-3 text-muted-foreground" />
                                     )}
                                 </button>
                             </div>
+                        </div>
+                        <div className="px-4 py-3 border-b border-border">
                             <p className="text-sm font-mono text-foreground">
                                 {wallet.address
-                                    ? `${wallet.address.slice(0, 6)}...${wallet.address.slice(-4)}`
+                                    ? `${wallet.address.slice(0, 8)}...${wallet.address.slice(-6)}`
                                     : "—"}
                             </p>
                         </div>
 
                         {/* Balance section */}
-                        <div className="px-4 py-3 border-b border-border">
-                            <div className="flex items-center justify-between mb-3">
+                        <div className="px-4 py-2 border-b border-border bg-sage/20">
+                            <div className="flex items-center justify-between">
                                 <span className="text-xs text-muted-foreground uppercase tracking-wider">
                                     Balance
                                 </span>
@@ -180,45 +277,43 @@ export default function PortfolioSidebar({
                                     type="button"
                                     onClick={refreshBalance}
                                     className={cn(
-                                        "size-6 hover:bg-secondary/50 flex items-center justify-center transition-colors",
+                                        "size-5 hover:bg-background flex items-center justify-center transition-colors",
                                         refreshing && "animate-spin",
                                     )}
                                     title="Refresh"
                                 >
-                                    <RefreshCw className="size-3.5 text-muted-foreground" />
+                                    <RefreshCw className="size-3 text-muted-foreground" />
                                 </button>
                             </div>
-
+                        </div>
+                        <div className="border-b border-border divide-y divide-border">
                             {/* ETH balance */}
-                            <div className="flex items-center gap-3 mb-3">
+                            <div className="px-4 py-3 flex items-center gap-3">
                                 <div
-                                    className="size-10 flex items-center justify-center text-white font-bold text-sm border border-border"
+                                    className="size-8 flex items-center justify-center text-white font-bold text-xs border border-border"
                                     style={{ background: TOKEN_COLORS.ETH }}
                                 >
                                     Ξ
                                 </div>
-                                <p className="text-lg font-semibold text-foreground">
-                                    {ethBalance.toFixed(
-                                        ethBalance < 0.001 && ethBalance > 0 ? 6 : 4,
-                                    )}{" "}
-                                    ETH
-                                </p>
+                                <div className="flex-1">
+                                    <p className="text-sm font-semibold text-foreground">
+                                        {ethBalance.toFixed(ethBalance < 0.001 && ethBalance > 0 ? 6 : 4)} ETH
+                                    </p>
+                                </div>
                             </div>
 
                             {/* Token balances */}
-                            {hasTokens && (
-                                <div className="space-y-2">
-                                    {wallet.balance?.tokens.map((token) => (
-                                        <div key={token.symbol} className="flex items-center gap-2">
-                                            <div
-                                                className="size-6 flex items-center justify-center text-white text-xs font-medium border border-border"
-                                                style={{
-                                                    background: getTokenColor(token.symbol),
-                                                }}
-                                            >
-                                                {token.symbol.charAt(0)}
-                                            </div>
-                                            <span className="text-sm text-muted-foreground flex-1">
+                            {hasTokens &&
+                                wallet.balance?.tokens.map((token) => (
+                                    <div key={token.symbol} className="px-4 py-3 flex items-center gap-3">
+                                        <div
+                                            className="size-8 flex items-center justify-center text-white text-xs font-medium border border-border"
+                                            style={{ background: getTokenColor(token.symbol) }}
+                                        >
+                                            {token.symbol.charAt(0)}
+                                        </div>
+                                        <div className="flex-1 flex items-center justify-between">
+                                            <span className="text-sm text-muted-foreground">
                                                 {token.symbol}
                                             </span>
                                             <span className="text-sm font-medium text-foreground">
@@ -227,37 +322,41 @@ export default function PortfolioSidebar({
                                                 )}
                                             </span>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+                                    </div>
+                                ))}
 
+                            {/* Empty balance hint */}
                             {ethBalance === 0 && !hasTokens && (
-                                <p className="text-sm text-muted-foreground">
-                                    Send ETH on Base to your address above to get started.
-                                </p>
+                                <div className="px-4 py-3 bg-cream/30">
+                                    <p className="text-xs text-muted-foreground">
+                                        Send ETH on Base to get started
+                                    </p>
+                                </div>
                             )}
                         </div>
 
-                        {/* Quick actions */}
-                        <div className="px-4 py-3 border-b border-border">
-                            <span className="text-xs text-muted-foreground uppercase tracking-wider block mb-3">
+                        {/* Quick Actions section */}
+                        <div className="px-4 py-2 border-b border-border bg-sage/20">
+                            <span className="text-xs text-muted-foreground uppercase tracking-wider">
                                 Quick Actions
                             </span>
-                            <div className="flex gap-2">
+                        </div>
+                        <div className="px-4 py-3 border-b border-border">
+                            <div className="grid grid-cols-2 gap-2">
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={copyAddress}
-                                    className="flex-1 gap-2"
+                                    className="gap-1.5"
                                 >
-                                    <ArrowDown className="size-4" />
+                                    <ArrowDown className="size-3.5" />
                                     Deposit
                                 </Button>
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     asChild
-                                    className="flex-1 gap-2"
+                                    className="gap-1.5"
                                 >
                                     <a
                                         href={
@@ -268,22 +367,28 @@ export default function PortfolioSidebar({
                                         target="_blank"
                                         rel="noopener noreferrer"
                                     >
-                                        <ExternalLink className="size-4" />
+                                        <ExternalLink className="size-3.5" />
                                         Explorer
                                     </a>
                                 </Button>
                             </div>
                         </div>
 
-                        {/* Network badge */}
-                        <div className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                                <div className="size-2 bg-green-500" />
-                                <span className="text-xs text-muted-foreground">Base Mainnet</span>
-                            </div>
-                        </div>
+                        {/* Spacer */}
+                        <div className="flex-1 bg-cream/10" />
                     </>
                 )}
+            </div>
+
+            {/* Footer - Network Status */}
+            <div className="px-4 py-3 border-t border-border bg-secondary/30">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <div className="size-2 bg-green-500" />
+                        <span className="text-xs text-muted-foreground">Base Mainnet</span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">L2</span>
+                </div>
             </div>
         </div>
     );
