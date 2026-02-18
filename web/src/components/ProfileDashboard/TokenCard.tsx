@@ -1,141 +1,104 @@
 "use client";
 
 /**
- * Token Card
+ * Project Card
  *
- * Displays a single token with balance, governance info, and actions.
+ * Displays a single verified project with token and attestation info.
  */
 
 import { memo } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { formatNumericString } from "@/lib/format";
-import type { TokenInfo } from "@/types";
+import type { ProjectInfo } from "@/types";
 
-export const TokenCard = memo(function TokenCard({ token }: { token: TokenInfo }) {
-    const isAboveThreshold =
-        token.role === "holder" && parseFloat(token.balance.replace(/,/g, "")) >= 50_000_000;
+/** Generate a deterministic color from a string */
+function hashColor(str: string): string {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 55%, 50%)`;
+}
+
+export const ProjectCard = memo(function ProjectCard({ project }: { project: ProjectInfo }) {
+    const displayName = project.name || project.projectId;
+    const shortId = project.projectId.length > 30
+        ? project.projectId.slice(0, 30) + "…"
+        : project.projectId;
+    const color = hashColor(project.projectId);
 
     return (
         <div className="token-card">
-            {/* Top: icon + name + role badge */}
+            {/* Top: icon + name */}
             <div className="token-card-top">
                 <div style={{ display: "flex", alignItems: "center" }}>
-                    <div className="token-card-icon" style={{ background: token.color }}>
-                        {token.ticker.charAt(0)}
+                    <div className="token-card-icon" style={{ background: color }}>
+                        {displayName.charAt(0).toUpperCase()}
                     </div>
                     <div className="token-card-name">
-                        <h3>{token.name}</h3>
-                        <span className="ticker">${token.ticker}</span>
+                        <h3>{displayName}</h3>
+                        <span className="ticker">{shortId}</span>
                     </div>
                 </div>
-                <span
-                    className={`token-role-badge ${token.role === "dev" ? "role-dev" : "role-holder"}`}
-                >
-                    {token.role === "dev" ? (
-                        <>
-                            <Image
-                                src="/icons/zap-fast.svg"
-                                alt=""
-                                width={12}
-                                height={12}
-                                style={{
-                                    display: "inline",
-                                    verticalAlign: "middle",
-                                    marginRight: 3,
-                                    opacity: 0.6,
-                                }}
-                            />{" "}
-                            Developer
-                        </>
-                    ) : (
-                        <>
-                            <Image
-                                src="/icons/coins-stacked-02.svg"
-                                alt=""
-                                width={12}
-                                height={12}
-                                style={{
-                                    display: "inline",
-                                    verticalAlign: "middle",
-                                    marginRight: 3,
-                                    opacity: 0.6,
-                                }}
-                            />{" "}
-                            Holder
-                        </>
-                    )}
-                </span>
-            </div>
-
-            {/* Stats */}
-            <div className="token-card-stats">
-                <div className="token-stat">
-                    <div className="stat-value">{formatNumericString(token.balance)}</div>
-                    <div className="stat-label">Your Balance</div>
-                </div>
-                <div className="token-stat">
-                    <div className="stat-value">{formatNumericString(token.escrowBalance)}</div>
-                    <div className="stat-label">In Escrow</div>
-                </div>
-            </div>
-
-            {/* Governance info */}
-            <div className="fee-row" style={{ marginBottom: "var(--space-4)" }}>
-                <span className="fee-label">Active Proposals</span>
-                <span className="fee-value">
-                    {token.activeProposals} / {token.totalProposals}
-                </span>
-            </div>
-
-            {/* Actions */}
-            <div className="token-card-actions">
-                <Link href={`/governance?token=${token.address}`} className="action-primary">
+                <span className="token-role-badge role-dev">
                     <Image
-                        src="/icons/check-verified-02.svg"
+                        src="/icons/zap-fast.svg"
                         alt=""
-                        width={14}
-                        height={14}
+                        width={12}
+                        height={12}
                         style={{
                             display: "inline",
                             verticalAlign: "middle",
-                            marginRight: 4,
+                            marginRight: 3,
                             opacity: 0.6,
                         }}
                     />{" "}
-                    Governance
-                </Link>
-                {token.role === "holder" && isAboveThreshold && (
-                    <Link href={`/governance?token=${token.address}&action=propose`}>
-                        <Image
-                            src="/icons/check-verified-02.svg"
-                            alt=""
-                            width={14}
-                            height={14}
-                            style={{
-                                display: "inline",
-                                verticalAlign: "middle",
-                                marginRight: 4,
-                                opacity: 0.6,
-                            }}
-                        />{" "}
-                        Propose
-                    </Link>
-                )}
-                {token.role === "holder" && !isAboveThreshold && (
-                    <span
-                        style={{
-                            flex: 1,
-                            padding: "var(--space-2) var(--space-3)",
-                            fontSize: "var(--text-xs)",
-                            textAlign: "center",
-                            color: "var(--text-tertiary)",
-                        }}
-                    >
-                        Need 50M to propose
-                    </span>
-                )}
+                    Developer
+                </span>
             </div>
+
+            {/* Info rows */}
+            <div className="token-card-stats">
+                {project.poolTokenAddress ? (
+                    <div className="token-stat">
+                        <div className="stat-value" style={{ fontSize: "var(--text-xs)", wordBreak: "break-all" }}>
+                            {project.poolTokenAddress.slice(0, 6)}…{project.poolTokenAddress.slice(-4)}
+                        </div>
+                        <div className="stat-label">Token Contract</div>
+                    </div>
+                ) : (
+                    <div className="token-stat">
+                        <div className="stat-value" style={{ color: "var(--text-tertiary)" }}>—</div>
+                        <div className="stat-label">No Token Yet</div>
+                    </div>
+                )}
+                <div className="token-stat">
+                    <div className="stat-value">
+                        {project.attestationUid ? "✓ Verified" : "Pending"}
+                    </div>
+                    <div className="stat-label">Attestation</div>
+                </div>
+            </div>
+
+            {/* Platform links */}
+            {project.devLinks && project.devLinks.length > 0 && (
+                <div className="fee-row" style={{ marginBottom: "var(--space-4)" }}>
+                    <span className="fee-label">Platforms</span>
+                    <span className="fee-value">
+                        {project.devLinks.map((l) => l.platform).join(", ")}
+                    </span>
+                </div>
+            )}
+
+            {/* Verified date */}
+            {project.verifiedAt && (
+                <div className="fee-row" style={{ marginBottom: "var(--space-4)" }}>
+                    <span className="fee-label">Verified</span>
+                    <span className="fee-value">
+                        {new Date(project.verifiedAt).toLocaleDateString()}
+                    </span>
+                </div>
+            )}
         </div>
     );
 });

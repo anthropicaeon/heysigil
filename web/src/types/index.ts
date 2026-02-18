@@ -21,10 +21,10 @@ export type {
     ClaimResult,
 } from "./verification";
 
-// Token
+// Token / Project
 export type {
     TokenBalance,
-    TokenInfo,
+    ProjectInfo,
 } from "./token";
 
 // Wallet

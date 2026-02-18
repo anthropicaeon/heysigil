@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm";
 import { getBody, getParams } from "../helpers/request.js";
 import { getDb, schema } from "../../db/client.js";
 import { rateLimit } from "../../middleware/rate-limit.js";
-import { getUserId } from "../../middleware/auth.js";
+import { getUserId, privyAuth } from "../../middleware/auth.js";
 import { handler } from "../helpers/route.js";
 import { getErrorMessage } from "../../utils/errors.js";
 import { parseDevLinks, launchToken, isDeployerConfigured } from "../../services/launch.js";
@@ -208,6 +208,58 @@ launch.openapi(
                 500,
             );
         }
+    }),
+);
+
+/**
+ * GET /api/launch/my-projects
+ * List projects owned by the authenticated user.
+ * Matches by ownerWallet (from Privy user → users table → walletAddress).
+ */
+launch.get(
+    "/my-projects",
+    privyAuth(),
+    handler(async (c) => {
+        const privyUserId = getUserId(c);
+        if (!privyUserId) {
+            return c.json({ error: "Not authenticated" }, 401);
+        }
+
+        const db = getDb();
+
+        // Find user by Privy user ID to get their wallet address
+        const [user] = await db
+            .select()
+            .from(schema.users)
+            .where(eq(schema.users.privyUserId, privyUserId))
+            .limit(1);
+
+        if (!user) {
+            // No user record yet — return empty
+            return c.json({ projects: [] });
+        }
+
+        // Query projects where ownerWallet matches the user's wallet
+        const projects = await db
+            .select()
+            .from(schema.projects)
+            .where(eq(schema.projects.ownerWallet, user.walletAddress));
+
+        return c.json({
+            projects: projects.map((p) => ({
+                projectId: p.projectId,
+                name: p.name,
+                description: p.description,
+                poolTokenAddress: p.poolTokenAddress,
+                poolId: p.poolId,
+                ownerWallet: p.ownerWallet,
+                attestationUid: p.attestationUid,
+                devLinks: p.devLinks,
+                deployedBy: p.deployedBy,
+                createdAt: p.createdAt?.toISOString() ?? null,
+                verifiedAt: p.verifiedAt?.toISOString() ?? null,
+            })),
+        });
     }),
 );
 
