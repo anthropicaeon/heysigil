@@ -8,7 +8,7 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { z } from "zod";
 import { getBody, getParams } from "../helpers/request.js";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { getDb, schema } from "../../db/client.js";
 import { find } from "../../db/helpers.js";
 import { createAttestation } from "../../attestation/eas.js";
@@ -148,25 +148,45 @@ claim.openapi(
                     .set({ attestationUid: attestation.uid })
                     .where(eq(schema.verifications.id, body.verificationId));
 
-                // Upsert project record
-                await tx
-                    .insert(schema.projects)
-                    .values({
+                // The deploy flow stores projectId as "platform:org/repo"
+                // (e.g. "github:anthropicaeon/vibecodooor") but the
+                // verification flow stores it as "org/repo". Try to find
+                // the existing deployed project first, then update it.
+                const platform = getPlatformFromMethod(verification.method as VerificationMethod);
+                const prefixedId = `${platform}:${verification.projectId}`;
+
+                const [existingProject] = await tx
+                    .select()
+                    .from(schema.projects)
+                    .where(
+                        or(
+                            eq(schema.projects.projectId, verification.projectId),
+                            eq(schema.projects.projectId, prefixedId),
+                        ),
+                    )
+                    .limit(1);
+
+                if (existingProject) {
+                    // Update the existing deployed project with attestation data
+                    await tx
+                        .update(schema.projects)
+                        .set({
+                            ownerWallet: verification.walletAddress,
+                            verificationMethod: verification.method,
+                            attestationUid: attestation.uid,
+                            verifiedAt: verification.verifiedAt || new Date(),
+                        })
+                        .where(eq(schema.projects.id, existingProject.id));
+                } else {
+                    // No deployed project yet — create a new record
+                    await tx.insert(schema.projects).values({
                         projectId: verification.projectId,
                         ownerWallet: verification.walletAddress,
                         verificationMethod: verification.method,
                         attestationUid: attestation.uid,
                         verifiedAt: verification.verifiedAt || new Date(),
-                    })
-                    .onConflictDoUpdate({
-                        target: schema.projects.projectId,
-                        set: {
-                            ownerWallet: verification.walletAddress,
-                            verificationMethod: verification.method,
-                            attestationUid: attestation.uid,
-                            verifiedAt: verification.verifiedAt || new Date(),
-                        },
                     });
+                }
             });
 
             return c.json({

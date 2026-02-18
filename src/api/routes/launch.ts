@@ -18,6 +18,7 @@ import { handler } from "../helpers/route.js";
 import { getErrorMessage } from "../../utils/errors.js";
 import { parseDevLinks, launchToken, isDeployerConfigured } from "../../services/launch.js";
 import { getDeployerBalance } from "../../services/deployer.js";
+import { getUserAddress } from "../../services/wallet.js";
 import {
     ErrorResponseSchema,
     NotFoundResponseSchema,
@@ -233,20 +234,31 @@ launch.get(
 
         const db = getDb();
 
-        // Find user by Privy user ID to get their wallet address
+        // Find user by Privy user ID to get their wallet address.
+        // Try the users table first, then fall back to the custodial
+        // wallet service (wallets table keyed by privy user ID).
         const [user] = await db
             .select()
             .from(schema.users)
             .where(eq(schema.users.privyUserId, privyUserId))
             .limit(1);
 
+        let walletAddress: string | null = user?.walletAddress ?? null;
+        if (!walletAddress) {
+            try {
+                walletAddress = (await getUserAddress(privyUserId)) ?? null;
+            } catch {
+                // No custodial wallet either — that's fine
+            }
+        }
+
         // ── Claimed projects (ownerWallet matches user's wallet) ──
         let claimedProjects: (typeof schema.projects.$inferSelect)[] = [];
-        if (user) {
+        if (walletAddress) {
             claimedProjects = await db
                 .select()
                 .from(schema.projects)
-                .where(eq(schema.projects.ownerWallet, user.walletAddress));
+                .where(eq(schema.projects.ownerWallet, walletAddress));
         }
 
         // ── Claimable projects (unclaimed, GitHub username matches devLinks) ──
