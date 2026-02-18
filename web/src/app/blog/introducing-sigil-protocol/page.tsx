@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export default function IntroducingSigilPage() {
     return (
-        <article className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
+        <article className="min-h-screen bg-cream relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r min-h-screen px-0">
                 {/* Header */}
                 <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16">
