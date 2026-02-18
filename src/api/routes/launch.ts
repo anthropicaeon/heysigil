@@ -212,6 +212,29 @@ launch.openapi(
     }),
 );
 
+// ── TEMPORARY DEBUG — remove after checking ──
+launch.get(
+    "/debug/all-projects",
+    handler(async (c) => {
+        const db = getDb();
+        const projects = await db.select().from(schema.projects);
+        return c.json({
+            count: projects.length,
+            projects: projects.map((p) => ({
+                projectId: p.projectId,
+                name: p.name,
+                ownerWallet: p.ownerWallet,
+                poolTokenAddress: p.poolTokenAddress,
+                userId: p.userId,
+                deployedBy: p.deployedBy,
+                devLinks: p.devLinks,
+                createdAt: p.createdAt?.toISOString() ?? null,
+                verifiedAt: p.verifiedAt?.toISOString() ?? null,
+            })),
+        });
+    }),
+);
+
 /**
  * GET /api/launch/my-projects
  * List projects owned by the authenticated user + claimable projects.
