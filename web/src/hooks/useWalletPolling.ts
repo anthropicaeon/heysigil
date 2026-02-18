@@ -14,8 +14,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { apiClient, type WalletInfo } from "@/lib/api-client";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
+import { apiClient, type WalletInfo } from "@/lib/api-client";
 import { getErrorMessage } from "@/lib/errors";
 
 interface UseWalletPollingResult {
