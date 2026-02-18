@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 
 export default function SigilCTA() {
     return (
-        <section className="bg-primary relative overflow-hidden px-2.5 lg:px-0">
-            <div className="relative container border-l border-r border-primary-foreground/20 px-0">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="relative container border-l border-r border-primary-foreground/20 px-0 bg-primary">
                 <div className="flex flex-col lg:flex-row">
                     <div className="flex-1 px-6 py-12 lg:px-12 lg:py-16 border-border border-b lg:border-b-0 lg:border-r border-primary-foreground/20">
                         <h2 className="text-primary-foreground text-2xl lg:text-3xl font-semibold mb-4 lowercase">

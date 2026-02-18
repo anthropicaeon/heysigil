@@ -12,8 +12,8 @@ export default function FeaturesHero() {
     const [isPlaying, setIsPlaying] = useState(false);
 
     return (
-        <section className="bg-obsidian relative overflow-hidden px-2.5 lg:px-0">
-            <div className="relative container px-0">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="relative container px-0 bg-obsidian">
                 {/* headline */}
                 <div className="border-dark-gray flex items-center justify-center border border-t-0 px-6 py-8 lg:px-8 lg:py-20">
                     <div className="flex w-full max-w-lg flex-col items-center gap-4 text-center lg:gap-6">

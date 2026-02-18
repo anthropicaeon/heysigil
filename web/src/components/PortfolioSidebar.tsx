@@ -59,7 +59,7 @@ export default function PortfolioSidebar({
     if (collapsed) {
         return (
             <div
-                className="w-14 border-l border-border bg-background flex flex-col cursor-pointer hover:bg-secondary/20 transition-colors"
+                className="w-14 bg-background flex flex-col cursor-pointer hover:bg-secondary/20 transition-colors"
                 onClick={onToggle}
             >
                 {/* Collapsed Header */}
@@ -87,7 +87,7 @@ export default function PortfolioSidebar({
 
     // Expanded state
     return (
-        <div className="w-72 border-l border-border bg-background flex flex-col h-full">
+        <div className="w-72 bg-background flex flex-col h-full">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/30">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">

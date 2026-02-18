@@ -11,6 +11,7 @@ import {
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { PixelCard } from "@/components/ui/pixel-card";
 import { cn } from "@/lib/utils";
 
 // Mock leaderboard data
@@ -89,8 +90,8 @@ const stats = [
 
 export default function LeaderboardPage() {
     return (
-        <section className="min-h-screen bg-sage/30 relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0">
+        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-screen px-0 bg-sage/30">
                 {/* Header */}
                 <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 bg-background">
                     <div className="max-w-3xl">
@@ -146,14 +147,14 @@ export default function LeaderboardPage() {
 
                 {/* Leaderboard Entries */}
                 <div className="bg-background divide-y divide-border">
-                    {topBuilders.map((builder) => (
-                        <div
-                            key={builder.name}
-                            className={cn(
-                                "flex items-center px-6 py-4 lg:px-12 hover:bg-secondary/20 transition-colors",
-                                builder.rank === 1 && "bg-primary/5",
-                            )}
-                        >
+                    {topBuilders.map((builder) => {
+                        const rowContent = (
+                            <div
+                                className={cn(
+                                    "flex items-center px-6 py-4 lg:px-12 hover:bg-secondary/20 transition-colors",
+                                    builder.rank === 1 && "bg-lavender/30",
+                                )}
+                            >
                             {/* Rank */}
                             <div className="w-16">
                                 {builder.rank <= 3 ? (
@@ -241,7 +242,23 @@ export default function LeaderboardPage() {
                                 </Badge>
                             </div>
                         </div>
-                    ))}
+                        );
+
+                        return builder.rank === 1 ? (
+                            <PixelCard
+                                key={builder.name}
+                                variant="lavender"
+                                active
+                                centerFade
+                                noFocus
+                                className="isolate"
+                            >
+                                {rowContent}
+                            </PixelCard>
+                        ) : (
+                            <div key={builder.name}>{rowContent}</div>
+                        );
+                    })}
                 </div>
 
                 {/* View All Link */}

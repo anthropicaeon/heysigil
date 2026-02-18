@@ -2,6 +2,7 @@ import { ArrowRight, Check, Code2, Copy, ExternalLink, Package, Terminal } from 
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
+import { PixelCard } from "@/components/ui/pixel-card";
 import { cn } from "@/lib/utils";
 
 // Official brand logos as SVG components
@@ -220,10 +221,16 @@ console.log(attestation.verified); // true`;
 
 export default function IntegrationsPage() {
     return (
-        <section className="min-h-screen bg-lavender/50 relative overflow-hidden px-2.5 lg:px-0">
+        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r min-h-screen px-0">
                 {/* Header */}
-                <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 bg-background">
+                <PixelCard
+                    variant="lavender"
+                    active
+                    centerFade
+                    noFocus
+                    className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 bg-lavender/30"
+                >
                     <div className="max-w-3xl">
                         <p className="text-primary text-sm font-medium uppercase tracking-wider mb-4">
                             integrations
@@ -236,7 +243,7 @@ export default function IntegrationsPage() {
                             attestations, verify builders, and integrate fee routing.
                         </p>
                     </div>
-                </div>
+                </PixelCard>
 
                 {/* SDK Cards */}
                 <div className="border-border border-b bg-background">
@@ -285,34 +292,36 @@ export default function IntegrationsPage() {
                             quick start
                         </h2>
                     </div>
-                    <div className="px-6 py-6 lg:px-12">
-                        {/* Briefing Card: Code Block */}
-                        <div className="max-w-3xl">
-                            <div className="border border-border bg-background">
-                                <div className="px-4 py-2 border-border border-b bg-secondary/30 flex items-center gap-2">
-                                    <Code2 className="size-4 text-muted-foreground" />
-                                    <span className="text-sm text-muted-foreground">
-                                        example.ts
-                                    </span>
-                                    <button
-                                        type="button"
-                                        className="ml-auto text-muted-foreground hover:text-foreground"
-                                    >
-                                        <Copy className="size-4" />
-                                    </button>
-                                </div>
-                                <pre className="px-4 py-4 text-sm overflow-x-auto">
-                                    <code className="text-foreground">{codeExample}</code>
-                                </pre>
+                    <div className="grid lg:grid-cols-[1fr,auto] divide-y lg:divide-y-0 lg:divide-x divide-border">
+                        {/* Code Block - Full Width in Container */}
+                        <div className="bg-background">
+                            <div className="px-6 py-2 lg:px-12 border-border border-b bg-secondary/30 flex items-center gap-2">
+                                <Code2 className="size-4 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">example.ts</span>
+                                <button
+                                    type="button"
+                                    className="ml-auto text-muted-foreground hover:text-foreground"
+                                >
+                                    <Copy className="size-4" />
+                                </button>
                             </div>
-                            <p className="text-sm text-muted-foreground mt-4">
+                            <pre className="px-6 py-6 lg:px-12 text-sm overflow-x-auto">
+                                <code className="text-foreground">{codeExample}</code>
+                            </pre>
+                        </div>
+                        {/* Description Sidebar */}
+                        <div className="lg:w-80 px-6 py-6 lg:px-8 bg-sage/50">
+                            <p className="text-sm text-muted-foreground mb-4">
                                 The SDK handles all attestation queries, signature verification, and
-                                onchain interactions. See the{" "}
-                                <Link href="/developers" className="text-primary hover:underline">
-                                    developer docs
-                                </Link>{" "}
-                                for the full API reference.
+                                onchain interactions.
                             </p>
+                            <Link
+                                href="/developers"
+                                className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                            >
+                                View full API reference
+                                <ArrowRight className="size-3" />
+                            </Link>
                         </div>
                     </div>
                 </div>

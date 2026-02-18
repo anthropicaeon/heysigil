@@ -1,3 +1,5 @@
+import { PixelCard } from "@/components/ui/pixel-card";
+
 const sections = [
     {
         title: "Information We Collect",
@@ -47,10 +49,16 @@ const sections = [
 
 export default function PrivacyPage() {
     return (
-        <section className="min-h-screen bg-lavender relative overflow-hidden px-2.5 lg:px-0">
+        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r min-h-screen px-0">
                 {/* Header */}
-                <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 bg-background">
+                <PixelCard
+                    variant="lavender"
+                    active
+                    centerFade
+                    noFocus
+                    className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 bg-lavender/30"
+                >
                     <p className="text-primary text-sm font-medium uppercase tracking-wider mb-4">
                         legal
                     </p>
@@ -58,7 +66,7 @@ export default function PrivacyPage() {
                         privacy policy
                     </h1>
                     <p className="text-muted-foreground mt-4">Last updated: February 2026</p>
-                </div>
+                </PixelCard>
 
                 {/* Sections */}
                 <div className="bg-background">

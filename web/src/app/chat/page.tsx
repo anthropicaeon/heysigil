@@ -5,6 +5,7 @@
  *
  * Multi-step AI agent chat with border-centric design.
  * Features tool invocations, chain of thought, and portfolio sidebar.
+ * Full-screen layout with no footer.
  */
 
 import {
@@ -16,7 +17,7 @@ import {
     ScaleIcon,
     SearchIcon,
 } from "lucide-react";
-import { type FormEvent, useCallback, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Action, Actions } from "@/components/ai-elements/actions";
@@ -182,6 +183,19 @@ export default function ChatPage() {
 
     const privy = useOptionalPrivy();
 
+    // Hide footer on chat page
+    useEffect(() => {
+        const footer = document.getElementById("site-footer");
+        if (footer) {
+            footer.style.display = "none";
+        }
+        return () => {
+            if (footer) {
+                footer.style.display = "";
+            }
+        };
+    }, []);
+
     const handleSubmit = useCallback(
         async (_: unknown, e: FormEvent) => {
             e.preventDefault();
@@ -334,10 +348,10 @@ export default function ChatPage() {
         message.parts.filter((part) => part.type === "source-url").length > 0;
 
     return (
-        <section className="bg-cream relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r px-0">
+        <section className="h-[calc(100vh-5rem)] bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r px-0 bg-cream h-full flex flex-col">
                 {/* Header */}
-                <div className="border-border border-b bg-background">
+                <div className="border-border border-b bg-background shrink-0">
                     <div className="flex flex-col lg:flex-row">
                         <div className="flex-1 px-6 py-4 lg:px-12">
                             <div className="flex items-center gap-3">
@@ -355,13 +369,10 @@ export default function ChatPage() {
                 </div>
 
                 {/* Main Content */}
-                <div
-                    className="flex flex-col lg:flex-row bg-background"
-                    style={{ minHeight: "70vh" }}
-                >
+                <div className="flex-1 flex flex-col lg:flex-row bg-background overflow-hidden">
                     {/* Chat Area */}
-                    <div className="flex-1 border-border lg:border-r flex flex-col">
-                        <Conversation className="flex-1">
+                    <div className="flex-1 flex flex-col overflow-hidden">
+                        <Conversation className="flex-1 overflow-hidden">
                             <ConversationContent>
                                 {messages.map((message) => (
                                     <div key={message.id} className="flex flex-col">
@@ -593,7 +604,7 @@ export default function ChatPage() {
 
                         {/* Suggestions */}
                         {messages.length === 1 && (
-                            <div className="border-border border-t">
+                            <div className="border-border border-t shrink-0">
                                 <div className="px-6 py-2 lg:px-12 border-border border-b bg-secondary/30">
                                     <p className="text-xs text-muted-foreground uppercase tracking-wider">
                                         Try these
@@ -614,23 +625,25 @@ export default function ChatPage() {
                         )}
 
                         {/* Input */}
-                        <PromptInput onSubmit={handleSubmit}>
-                            <PromptInputTextarea
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                placeholder="Ask Sigil anything..."
-                                disabled={status !== "ready"}
-                            />
-                            <PromptInputToolbar>
-                                <PromptInputTools className="ml-auto">
-                                    <PromptInputSubmit disabled={!input.trim()} status={status} />
-                                </PromptInputTools>
-                            </PromptInputToolbar>
-                        </PromptInput>
+                        <div className="shrink-0 border-border border-t">
+                            <PromptInput onSubmit={handleSubmit}>
+                                <PromptInputTextarea
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    placeholder="Ask Sigil anything..."
+                                    disabled={status !== "ready"}
+                                />
+                                <PromptInputToolbar>
+                                    <PromptInputTools className="ml-auto">
+                                        <PromptInputSubmit disabled={!input.trim()} status={status} />
+                                    </PromptInputTools>
+                                </PromptInputToolbar>
+                            </PromptInput>
+                        </div>
                     </div>
 
                     {/* Portfolio Sidebar */}
-                    <div className="hidden lg:block">
+                    <div className="hidden lg:block shrink-0 border-border border-l">
                         <PortfolioSidebar
                             sessionId={sessionId}
                             collapsed={sidebarCollapsed}

@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 export default function SignupPage() {
     return (
-        <section className="min-h-screen bg-sage relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0 flex items-center justify-center">
+        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-screen px-0 flex items-center justify-center bg-sage">
                 <Card className="w-full max-w-md bg-background border-border">
                     <CardHeader className="text-center space-y-4 pb-2">
                         <Link href="/" className="flex items-center justify-center gap-2">

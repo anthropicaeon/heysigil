@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PixelCard } from "@/components/ui/pixel-card";
 
 const tiers = [
     {
@@ -54,10 +55,16 @@ const tiers = [
 
 export default function PricingPage() {
     return (
-        <section className="min-h-screen bg-lavender relative overflow-hidden px-2.5 lg:px-0">
+        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r min-h-screen px-0">
                 {/* Hero */}
-                <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16">
+                <PixelCard
+                    variant="lavender"
+                    active
+                    centerFade
+                    noFocus
+                    className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 bg-lavender/30"
+                >
                     <div className="max-w-3xl mx-auto text-center">
                         <p className="text-primary text-sm font-medium uppercase tracking-wider mb-4">
                             pricing
@@ -69,7 +76,7 @@ export default function PricingPage() {
                             Verification is free for everyone. You only pay network gas fees.
                         </p>
                     </div>
-                </div>
+                </PixelCard>
 
                 {/* Pricing Cards */}
                 <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 bg-background">

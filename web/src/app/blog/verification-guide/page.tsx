@@ -15,8 +15,8 @@ import Link from "next/link";
 
 export default function VerificationGuidePage() {
     return (
-        <article className="min-h-screen bg-cream relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0">
+        <article className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-screen px-0 bg-cream">
                 {/* Back Navigation */}
                 <div className="border-border border-b px-6 py-4 lg:px-12 bg-lavender/30">
                     <Link

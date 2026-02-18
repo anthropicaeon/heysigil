@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { PixelCard } from "@/components/ui/pixel-card";
 import { getAllBlogPosts } from "@/lib/blog-posts";
 import { cn } from "@/lib/utils";
 
@@ -14,10 +15,16 @@ export default function BlogPage() {
         : allPosts;
 
     return (
-        <section className="min-h-screen bg-lavender relative overflow-hidden px-2.5 lg:px-0">
+        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r min-h-screen px-0">
                 {/* Header */}
-                <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 bg-background">
+                <PixelCard
+                    variant="lavender"
+                    active
+                    centerFade
+                    noFocus
+                    className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 bg-lavender/30"
+                >
                     <div className="max-w-xl">
                         <p className="text-primary text-sm font-medium uppercase tracking-wider mb-4">
                             blog
@@ -30,7 +37,7 @@ export default function BlogPage() {
                             insights on building the verification layer for the agentic economy.
                         </p>
                     </div>
-                </div>
+                </PixelCard>
 
                 {/* Featured Post */}
                 {featuredPost && (

@@ -27,8 +27,8 @@ const contactInfo = [
 
 export default function ContactHero() {
     return (
-        <section className="bg-obsidian relative overflow-hidden px-2.5 lg:px-0">
-            <div className="container px-0">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="container px-0 bg-obsidian">
                 <div className="border-b-dark-gray border-r-dark-gray border-l-dark-gray grid grid-cols-1 border-r border-b border-l lg:grid-cols-2">
                     <div className="lg:border-r-dark-gray border-b-dark-gray items-center border-b px-6 py-8 lg:border-r lg:border-b-0 lg:px-16 lg:py-16">
                         <h2 className="text-foreground mb-2.5 text-3xl font-medium tracking-tight lg:text-4xl">

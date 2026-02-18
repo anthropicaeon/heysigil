@@ -36,7 +36,7 @@ export default function SigilHero() {
     }, []);
 
     return (
-        <section className="bg-lavender relative overflow-hidden px-2.5 lg:px-0">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r px-0">
                 {/* Channels Bar */}
                 <div className="flex flex-col sm:flex-row bg-background border-border border-b">
@@ -59,7 +59,13 @@ export default function SigilHero() {
                 </div>
 
                 {/* Main Hero Content */}
-                <div className="border-border border-b">
+                <PixelCard
+                    variant="lavender"
+                    active
+                    centerFade
+                    noFocus
+                    className="border-border border-b bg-lavender/30"
+                >
                     <div className="grid lg:grid-cols-[1fr_400px]">
                         {/* Left Column - Content */}
                         <div className="px-6 py-16 lg:px-12 lg:py-24 border-border lg:border-r">
@@ -176,7 +182,7 @@ export default function SigilHero() {
                             </div>
                         </PixelCard>
                     </div>
-                </div>
+                </PixelCard>
             </div>
         </section>
     );

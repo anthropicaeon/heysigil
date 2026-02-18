@@ -103,8 +103,8 @@ export default function ProfileDashboard() {
     ];
 
     return (
-        <section className="min-h-screen bg-cream relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0">
+        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-screen px-0 bg-cream">
                 {/* Profile Header */}
                 <div className="border-border border-b bg-background">
                     <div className="flex flex-col lg:flex-row">
