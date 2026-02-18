@@ -96,37 +96,40 @@ export function EmptyState({
     };
 
     return (
-        <div
-            className={cn(
-                "flex flex-col px-4 py-6",
-                className,
-            )}
-        >
-            {/* Progressive disclosure: step hint */}
+        <div className={cn("flex flex-col", className)}>
+            {/* Step hint header section */}
             {stepHint && (
-                <span className="text-xs font-medium text-primary uppercase tracking-wider mb-3">
-                    {stepHint}
-                </span>
+                <div className="px-4 py-2 border-b border-border bg-secondary/30">
+                    <span className="text-xs font-medium text-primary uppercase tracking-wider">
+                        {stepHint}
+                    </span>
+                </div>
             )}
 
-            {/* Header with icon */}
-            <div className="flex items-start gap-3 mb-4">
-                {icon && (
-                    <div className="size-12 bg-lavender/50 border border-border flex items-center justify-center shrink-0 text-primary">
-                        {icon}
-                    </div>
-                )}
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-foreground">{title}</p>
+            {/* Title section */}
+            <div className="px-4 py-3 border-b border-border">
+                <p className="text-sm font-semibold text-foreground lowercase">{title}</p>
+            </div>
+
+            {/* Icon + Description section */}
+            <div className="px-4 py-4 border-b border-border bg-sage/20">
+                <div className="flex items-start gap-3">
+                    {icon && (
+                        <div className="size-10 bg-background border border-border flex items-center justify-center shrink-0 text-primary">
+                            {icon}
+                        </div>
+                    )}
                     {description && (
-                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{description}</p>
+                        <p className="text-xs text-muted-foreground leading-relaxed flex-1">
+                            {description}
+                        </p>
                     )}
                 </div>
             </div>
 
-            {/* Actions */}
+            {/* Actions section */}
             {(action || secondaryAction) && (
-                <div className="border-t border-border pt-4 space-y-2">
+                <div className="px-4 py-3 space-y-2">
                     {action && <div className="w-full">{renderAction(action, true)}</div>}
                     {secondaryAction && <div>{renderAction(secondaryAction, false)}</div>}
                 </div>
