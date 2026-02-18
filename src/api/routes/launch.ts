@@ -326,16 +326,24 @@ launch.get(
 
         if (allProjectIds.length > 0) {
             try {
-                // Sum devAmount from deposit events grouped by projectId
+                // Sum fees from deposit events (devAmount) and escrow events (amount)
                 const feeRows = await db
                     .select({
                         projectId: schema.feeDistributions.projectId,
-                        totalDevFees: sql<string>`COALESCE(SUM(CAST(${schema.feeDistributions.devAmount} AS NUMERIC)), 0)`,
+                        totalDevFees: sql<string>`COALESCE(SUM(
+                            CASE
+                                WHEN ${schema.feeDistributions.eventType} = 'deposit'
+                                    THEN CAST(${schema.feeDistributions.devAmount} AS NUMERIC)
+                                WHEN ${schema.feeDistributions.eventType} = 'escrow'
+                                    THEN CAST(${schema.feeDistributions.amount} AS NUMERIC)
+                                ELSE 0
+                            END
+                        ), 0)`,
                     })
                     .from(schema.feeDistributions)
                     .where(
                         and(
-                            eq(schema.feeDistributions.eventType, "deposit"),
+                            sql`${schema.feeDistributions.eventType} IN ('deposit', 'escrow')`,
                             sql`${schema.feeDistributions.projectId} = ANY(${allProjectIds})`,
                         ),
                     )

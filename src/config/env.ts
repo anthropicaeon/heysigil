@@ -25,6 +25,7 @@ const envSchema = z.object({
     DEPLOYER_PRIVATE_KEY: z.string().default(""),
     SIGIL_FACTORY_ADDRESS: z.string().default(""),
     SIGIL_FEE_VAULT_ADDRESS: z.string().default(""),
+    SIGIL_LP_LOCKER_ADDRESS: z.string().default(""),
     BASE_RPC_URL: z.string().default("https://mainnet.base.org"),
 
     // Privy (authentication)

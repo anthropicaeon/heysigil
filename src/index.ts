@@ -3,6 +3,7 @@ import { createApp } from "./api/server.js";
 import { getEnv } from "./config/env.js";
 import { runStartupChecks } from "./config/startup-checks.js";
 import { getFeeIndexer, isFeeIndexerConfigured } from "./services/fee-indexer.js";
+import { getFeeCollector, isFeeCollectorConfigured } from "./services/fee-collector.js";
 import { loggers } from "./utils/logger.js";
 
 const log = loggers.server;
@@ -47,4 +48,20 @@ if (isFeeIndexerConfigured()) {
     });
 } else {
     loggers.feeIndexer.info("Fee indexer disabled (SIGIL_FEE_VAULT_ADDRESS not set)");
+}
+
+// Start fee collector if configured (harvests V3 LP fees into the vault)
+if (isFeeCollectorConfigured()) {
+    const feeCollector = getFeeCollector();
+    feeCollector.start().catch((err) => {
+        log.error({ err }, "Failed to start fee collector");
+    });
+    log.info("Fee collector started (collects V3 LP fees every 60s)");
+
+    // Graceful shutdown
+    const stopCollector = () => feeCollector.stop();
+    process.on("SIGINT", stopCollector);
+    process.on("SIGTERM", stopCollector);
+} else {
+    log.info("Fee collector disabled (SIGIL_LP_LOCKER_ADDRESS not set)");
 }
