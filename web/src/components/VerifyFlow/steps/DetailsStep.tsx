@@ -85,7 +85,17 @@ export function DetailsStep({
                         id="project"
                         placeholder={method.projectIdFormat}
                         value={projectId}
-                        onChange={(e) => onProjectIdChange(e.target.value)}
+                        onChange={(e) => {
+                            let val = e.target.value.trim();
+                            // Auto-fix GitHub URLs → owner/repo
+                            if (method.id === "github_oauth" || method.id === "github_file") {
+                                val = val
+                                    .replace(/^https?:\/\/(www\.)?github\.com\//, "")
+                                    .replace(/\.git$/, "")
+                                    .replace(/\/+$/, "");
+                            }
+                            onProjectIdChange(val);
+                        }}
                     />
                     <p className="text-xs text-muted-foreground mt-2">
                         Format: {method.projectIdFormat}

@@ -190,11 +190,20 @@ verify.openapi(
         const challengeCode = `oc-${randomBytes(12).toString("hex")}`;
         const db = getDb();
 
+        // Normalize projectId — strip GitHub URLs to owner/repo format
+        let projectId = body.projectId.trim();
+        if (body.method.startsWith("github")) {
+            projectId = projectId
+                .replace(/^https?:\/\/(www\.)?github\.com\//, "")
+                .replace(/\.git$/, "")
+                .replace(/\/+$/, "");
+        }
+
         const [record] = await db
             .insert(schema.verifications)
             .values({
                 method: body.method,
-                projectId: body.projectId,
+                projectId,
                 walletAddress: body.walletAddress,
                 challengeCode,
                 status: "pending",

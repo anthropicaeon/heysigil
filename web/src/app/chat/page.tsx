@@ -18,8 +18,10 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { type FormEvent, useCallback, useState } from "react";
+import { type FormEvent, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
+
+import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
@@ -53,6 +55,8 @@ import {
     WebSearchView,
 } from "@/components/tool-views";
 import type { ChatStatus, MessagePart, MultiStepToolUIMessage } from "@/lib/chat-types";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 // Suggestions for quick actions
 const USE_CASES = [
@@ -173,50 +177,108 @@ export default function ChatPage() {
             parts: [
                 {
                     type: "text",
-                    text: "Hey! I'm Sigil, your verification and funding assistant. I can help you verify your identity, check your portfolio, swap tokens, or research anything. What would you like to do?",
+                    text: "Hey. I'm Sigil — here to help you stamp projects, launch tokens, and trade crypto.\n\nNeed something?",
                 },
             ],
         },
     ]);
     const [input, setInput] = useState("");
     const [status, setStatus] = useState<ChatStatus>("ready");
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const inputRef = useRef(input);
+    inputRef.current = input;
+
+    const privy = useOptionalPrivy();
 
     const handleSubmit = useCallback(
         async (_: unknown, e: FormEvent) => {
             e.preventDefault();
-            if (!input.trim() || status !== "ready") return;
+            const message = inputRef.current.trim();
+            if (!message || status !== "ready") return;
 
             const userMessage: MultiStepToolUIMessage = {
                 id: Date.now().toString(),
                 role: "user",
-                parts: [{ type: "text", text: input }],
+                parts: [{ type: "text", text: message }],
             };
 
             setMessages((prev) => [...prev, userMessage]);
             setInput("");
             setStatus("submitted");
 
-            // Simulate multi-step agent response
-            setTimeout(() => {
+            try {
+                const headers: Record<string, string> = {
+                    "Content-Type": "application/json",
+                };
+
+                // Attach Privy auth token if authenticated
+                if (privy?.authenticated && privy?.getAccessToken) {
+                    const token = await privy.getAccessToken();
+                    if (token) {
+                        headers["Authorization"] = `Bearer ${token}`;
+                    }
+                }
+
                 setStatus("streaming");
 
-                // Simulated response with tool usage
-                const assistantMessage: MultiStepToolUIMessage = {
+                const res = await fetch(`${API_BASE}/api/chat`, {
+                    method: "POST",
+                    headers,
+                    body: JSON.stringify({
+                        message,
+                        sessionId,
+                    }),
+                });
+
+                const data = await res.json();
+
+                if (data.response) {
+                    if (data.sessionId) {
+                        setSessionId(data.sessionId);
+                    }
+
+                    const assistantMessage: MultiStepToolUIMessage = {
+                        id: (Date.now() + 1).toString(),
+                        role: "assistant",
+                        parts: [
+                            {
+                                type: "text",
+                                text: data.response,
+                            },
+                        ],
+                    };
+
+                    setMessages((prev) => [...prev, assistantMessage]);
+                } else {
+                    const errorMessage: MultiStepToolUIMessage = {
+                        id: (Date.now() + 1).toString(),
+                        role: "assistant",
+                        parts: [
+                            {
+                                type: "text",
+                                text: data.error || "Something went wrong. Please try again.",
+                            },
+                        ],
+                    };
+                    setMessages((prev) => [...prev, errorMessage]);
+                }
+            } catch {
+                const errorMessage: MultiStepToolUIMessage = {
                     id: (Date.now() + 1).toString(),
                     role: "assistant",
                     parts: [
                         {
                             type: "text",
-                            text: `I understand you want to "${input}". This feature is being built with our multi-step AI agent. In the meantime, explore Verify, Dashboard, or Governance pages for full functionality.`,
+                            text: `Connection error. Is the backend running at ${API_BASE}?`,
                         },
                     ],
                 };
-
-                setMessages((prev) => [...prev, assistantMessage]);
+                setMessages((prev) => [...prev, errorMessage]);
+            } finally {
                 setStatus("ready");
-            }, 1500);
+            }
         },
-        [input, status],
+        [status, sessionId, privy],
     );
 
     const handleRegenerate = useCallback(() => {
