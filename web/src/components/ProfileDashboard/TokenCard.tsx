@@ -3,11 +3,11 @@
 /**
  * Project Card
  *
- * Displays a single verified project with token and attestation info.
+ * Displays a single project with token info, fees accrued, and claim action.
  * Border-centric pastel design system.
  */
 
-import { CheckCircle, ChevronRight, Clock, Zap } from "lucide-react";
+import { CheckCircle, ChevronRight, Clock, Gift, Zap } from "lucide-react";
 import Link from "next/link";
 import { memo } from "react";
 
@@ -25,14 +25,37 @@ function hashColor(str: string): string {
     return `hsl(${hue}, 55%, 50%)`;
 }
 
-export const ProjectCard = memo(function ProjectCard({ project }: { project: ProjectInfo }) {
-    const displayName = project.name || project.projectId;
-    const shortId =
-        project.projectId.length > 20 ? project.projectId.slice(0, 20) + "…" : project.projectId;
+/** Get a friendly display name from projectId like "github:org/repo" */
+function getDisplayName(project: ProjectInfo): string {
+    if (project.name) return project.name;
+    const id = project.projectId;
+    const colonIdx = id.indexOf(":");
+    return colonIdx > -1 ? id.slice(colonIdx + 1) : id;
+}
+
+/** Get short repo path */
+function getShortId(project: ProjectInfo): string {
+    const id = project.projectId;
+    const colonIdx = id.indexOf(":");
+    const clean = colonIdx > -1 ? id.slice(colonIdx + 1) : id;
+    return clean.length > 35 ? clean.slice(0, 35) + "…" : clean;
+}
+
+export const ProjectCard = memo(function ProjectCard({
+    project,
+    claimable = false,
+}: {
+    project: ProjectInfo;
+    claimable?: boolean;
+}) {
+    const displayName = getDisplayName(project);
+    const shortId = getShortId(project);
     const color = hashColor(project.projectId);
 
     return (
-        <div className="border-border border-b last:border-b-0 bg-background hover:bg-secondary/30 transition-colors">
+        <div
+            className={`border-border border-b last:border-b-0 bg-background hover:bg-secondary/30 transition-colors ${claimable ? "ring-1 ring-orange-300" : ""}`}
+        >
             {/* Header Row */}
             <div className="flex items-center justify-between px-6 py-4 lg:px-8 border-border border-b">
                 <div className="flex items-center gap-3">
@@ -47,14 +70,27 @@ export const ProjectCard = memo(function ProjectCard({ project }: { project: Pro
                         <span className="text-sm text-muted-foreground">{shortId}</span>
                     </div>
                 </div>
-                <Badge variant="default" className="text-xs">
-                    <Zap className="size-3 mr-1" />
-                    Developer
-                </Badge>
+                {claimable ? (
+                    <Badge variant="outline" className="text-xs border-orange-300 text-orange-600">
+                        <Gift className="size-3 mr-1" />
+                        Claimable
+                    </Badge>
+                ) : (
+                    <Badge variant="default" className="text-xs">
+                        <Zap className="size-3 mr-1" />
+                        Verified
+                    </Badge>
+                )}
             </div>
 
             {/* Stats Row */}
             <div className="flex border-border border-b">
+                <div className="flex-1 px-6 py-4 lg:px-8 border-border border-r">
+                    <p className="text-lg font-semibold text-green-600">
+                        {project.feesAccruedUsdc}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Fees Accrued</p>
+                </div>
                 <div className="flex-1 px-6 py-4 lg:px-8 border-border border-r">
                     {project.poolTokenAddress ? (
                         <>
@@ -71,7 +107,7 @@ export const ProjectCard = memo(function ProjectCard({ project }: { project: Pro
                         </>
                     )}
                 </div>
-                <div className="flex-1 px-6 py-4 lg:px-8 border-border border-r">
+                <div className="flex-1 px-6 py-4 lg:px-8">
                     <div className="flex items-center gap-2">
                         {project.attestationUid ? (
                             <>
@@ -87,42 +123,41 @@ export const ProjectCard = memo(function ProjectCard({ project }: { project: Pro
                     </div>
                     <p className="text-xs text-muted-foreground">Attestation</p>
                 </div>
-                <div className="flex-1 px-6 py-4 lg:px-8">
-                    {project.verifiedAt ? (
-                        <>
-                            <p className="text-sm text-foreground">
-                                {new Date(project.verifiedAt).toLocaleDateString()}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Verified Date</p>
-                        </>
-                    ) : (
-                        <>
-                            <p className="text-sm text-muted-foreground">—</p>
-                            <p className="text-xs text-muted-foreground">Not Verified</p>
-                        </>
-                    )}
-                </div>
             </div>
 
             {/* Actions Row */}
             <div className="flex items-center justify-between px-6 py-3 lg:px-8">
-                <div className="flex gap-2">
+                <div className="flex items-center gap-4">
                     {project.devLinks && project.devLinks.length > 0 && (
                         <span className="text-xs text-muted-foreground">
-                            Platforms: {project.devLinks.map((l) => l.platform).join(", ")}
+                            {project.devLinks.map((l) => l.platform).join(", ")}
+                        </span>
+                    )}
+                    {(project.verifiedAt || project.createdAt) && (
+                        <span className="text-xs text-muted-foreground">
+                            {project.verifiedAt ? "Verified" : "Created"}{" "}
+                            {new Date(
+                                project.verifiedAt || project.createdAt || "",
+                            ).toLocaleDateString()}
                         </span>
                     )}
                 </div>
-                {project.poolTokenAddress && (
-                    <Link
-                        href={`/governance?token=${project.poolTokenAddress}`}
-                        className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                        <Button variant="ghost" size="sm" className="gap-1">
-                            Governance
+                {claimable ? (
+                    <Link href={`/verify?project=${encodeURIComponent(project.projectId)}`}>
+                        <Button size="sm" className="gap-1 bg-orange-500 hover:bg-orange-600">
+                            Verify & Claim
                             <ChevronRight className="size-4" />
                         </Button>
                     </Link>
+                ) : (
+                    project.poolTokenAddress && (
+                        <Link href={`/governance?token=${project.poolTokenAddress}`}>
+                            <Button variant="ghost" size="sm" className="gap-1">
+                                Governance
+                                <ChevronRight className="size-4" />
+                            </Button>
+                        </Link>
+                    )
                 )}
             </div>
         </div>

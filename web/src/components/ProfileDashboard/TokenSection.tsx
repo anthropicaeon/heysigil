@@ -15,9 +15,16 @@ interface ProjectSectionProps {
     projects: ProjectInfo[];
     title?: string;
     showHeader?: boolean;
+    /** When true, cards show a "Claim" CTA */
+    claimable?: boolean;
 }
 
-export function ProjectSection({ projects, title, showHeader = true }: ProjectSectionProps) {
+export function ProjectSection({
+    projects,
+    title,
+    showHeader = true,
+    claimable = false,
+}: ProjectSectionProps) {
     if (projects.length === 0) return null;
 
     return (
@@ -32,7 +39,7 @@ export function ProjectSection({ projects, title, showHeader = true }: ProjectSe
             )}
             <div className="divide-y divide-border border-border border-b">
                 {projects.map((p) => (
-                    <ProjectCard key={p.projectId} project={p} />
+                    <ProjectCard key={p.projectId} project={p} claimable={claimable} />
                 ))}
             </div>
         </div>

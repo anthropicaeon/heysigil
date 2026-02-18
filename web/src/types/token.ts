@@ -20,6 +20,8 @@ export interface ProjectInfo {
     attestationUid: string | null;
     devLinks: { platform: string; url: string; projectId: string }[] | null;
     deployedBy: string | null;
+    feesAccruedWei: string;
+    feesAccruedUsdc: string;
     createdAt: string | null;
     verifiedAt: string | null;
 }
