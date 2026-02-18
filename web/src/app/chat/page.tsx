@@ -21,8 +21,6 @@ import Link from "next/link";
 import { type FormEvent, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
-
 import { Action, Actions } from "@/components/ai-elements/actions";
 import {
     ChainOfThought,
@@ -54,6 +52,7 @@ import {
     ProvideAnswerView,
     WebSearchView,
 } from "@/components/tool-views";
+import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import type { ChatStatus, MessagePart, MultiStepToolUIMessage } from "@/lib/chat-types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
