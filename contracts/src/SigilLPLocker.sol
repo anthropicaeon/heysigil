@@ -258,6 +258,28 @@ contract SigilLPLocker {
         emit DevUpdated(tokenId, oldDev, newDev);
     }
 
+    /// @notice Register an orphaned LP NFT that was transferred but never registered.
+    ///         This can happen if the factory was redeployed after the NFT transfer.
+    ///         Only callable by owner. Verifies the NFT is actually owned by this contract.
+    function registerPosition(uint256 tokenId, bytes32 poolId, address dev) external {
+        if (msg.sender != owner) revert OnlyOwner();
+        if (positions[tokenId].locked) revert AlreadyLocked();
+
+        // Read token0/token1 from the NFT position (also implicitly verifies it exists)
+        (, , address token0, address token1, , , , , , , , ) = positionManager.positions(tokenId);
+
+        positions[tokenId] = LockedPosition({
+            poolId: poolId,
+            dev: dev,
+            token0: token0,
+            token1: token1,
+            locked: true
+        });
+        lockedTokenIds.push(tokenId);
+
+        emit PositionLocked(tokenId, poolId, dev);
+    }
+
     function setOwner(address newOwner) external {
         if (msg.sender != owner) revert OnlyOwner();
         if (newOwner == address(0)) revert ZeroAddress();

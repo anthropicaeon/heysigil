@@ -17,6 +17,7 @@ import { ethers } from "ethers";
 import { getEnv } from "../config/env.js";
 import { getErrorMessage } from "../utils/errors.js";
 import { loggers } from "../utils/logger.js";
+import { getDb, schema, DatabaseUnavailableError } from "../db/client.js";
 import {
     createFeeDistribution,
     getLastProcessedBlock,
@@ -90,6 +91,9 @@ export class FeeIndexer {
     private eventsIndexed = 0;
     private startedAt: Date | null = null;
     private currentBlock: number | null = null;
+
+    /** Cached poolId → projectId mapping from the projects table */
+    private poolToProject = new Map<string, string>();
 
     constructor(config: FeeIndexerConfig = {}) {
         const env = getEnv();
@@ -240,6 +244,9 @@ export class FeeIndexer {
         const currentBlock = await this.provider.getBlockNumber();
         this.currentBlock = currentBlock;
 
+        // Refresh the poolId → projectId cache from the projects table
+        await this.refreshPoolToProjectCache();
+
         let lastProcessed = await getLastProcessedBlock();
 
         // If no state, start from configured block or current
@@ -252,6 +259,35 @@ export class FeeIndexer {
         if (currentBlock > lastProcessed) {
             await this.processBlockRange(lastProcessed + 1, currentBlock);
             await updateLastProcessedBlock(currentBlock);
+        }
+    }
+
+    /**
+     * Refresh the poolId → projectId mapping from the projects table.
+     * Called each poll cycle so newly deployed tokens are picked up.
+     */
+    private async refreshPoolToProjectCache(): Promise<void> {
+        try {
+            const db = getDb();
+            const rows = await db
+                .select({
+                    poolId: schema.projects.poolId,
+                    projectId: schema.projects.projectId,
+                })
+                .from(schema.projects);
+
+            this.poolToProject.clear();
+            for (const row of rows) {
+                if (row.poolId) {
+                    this.poolToProject.set(row.poolId, row.projectId);
+                }
+            }
+        } catch (err) {
+            if (err instanceof DatabaseUnavailableError) {
+                // No DB — keep existing cache
+                return;
+            }
+            log.warn({ err }, "Failed to refresh pool→project cache");
         }
     }
 
@@ -294,6 +330,14 @@ export class FeeIndexer {
         for (const log of logs) {
             const distribution = this.parseLog(log, blockTimestamps.get(log.blockNumber));
             if (distribution) {
+                // Resolve projectId from poolId cache
+                if (distribution.poolId && !distribution.projectId) {
+                    const projectId = this.poolToProject.get(distribution.poolId);
+                    if (projectId) {
+                        distribution.projectId = projectId;
+                    }
+                }
+
                 const created = await createFeeDistribution(distribution);
                 if (created) {
                     this.eventsIndexed++;
