@@ -156,6 +156,23 @@ claimGas.post(
         }
 
         try {
+            // Auto-fund gas if needed
+            const provider = getProvider();
+            const balance = await provider.getBalance(signer.address);
+            if (balance < GAS_AMOUNT) {
+                log.info(
+                    { wallet: signer.address, balance: balance.toString() },
+                    "Auto-funding gas for claim",
+                );
+                const deployer = getDeployerWallet();
+                const gasTx = await deployer.sendTransaction({
+                    to: signer.address,
+                    value: GAS_AMOUNT,
+                });
+                await gasTx.wait();
+                log.info({ wallet: signer.address, txHash: gasTx.hash }, "Gas funded for claim");
+            }
+
             const feeVault = new ethers.Contract(feeVaultAddress, CLAIM_ABI, signer);
 
             // Parse optional token address from body

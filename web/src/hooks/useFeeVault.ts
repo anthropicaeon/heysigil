@@ -181,34 +181,28 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         setClaiming(true);
         setError(null);
         try {
-            // Step 1: Fund gas from backend
-            await fundGas();
-
-            // Step 2: Claim via backend (server signs the tx)
+            // Backend auto-funds gas + signs claim tx
             await claimViaBackend(USDC_ADDRESS);
         } catch (err) {
             setError(getErrorMessage(err, "Claim failed"));
         } finally {
             setClaiming(false);
         }
-    }, [claimViaBackend, fundGas]);
+    }, [claimViaBackend]);
 
     // ── Claim All ──
     const claimAll = useCallback(async () => {
         setClaiming(true);
         setError(null);
         try {
-            // Step 1: Fund gas from backend
-            await fundGas();
-
-            // Step 2: Claim all via backend
+            // Backend auto-funds gas + signs claim tx
             await claimViaBackend();
         } catch (err) {
             setError(getErrorMessage(err, "Claim failed"));
         } finally {
             setClaiming(false);
         }
-    }, [claimViaBackend, fundGas]);
+    }, [claimViaBackend]);
 
     return {
         claimableUsdc,
