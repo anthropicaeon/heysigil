@@ -41,6 +41,15 @@ export const METHODS: Method[] = [
         popularity: 31,
     },
     {
+        id: "agent_keypair",
+        name: "Agent Key Pair",
+        description: "Sign a challenge message to verify agent identity (no GitHub needed)",
+        projectIdFormat: "agent_name",
+        requiresOAuth: false,
+        badge: "For Agents",
+        popularity: 15,
+    },
+    {
         id: "github_file",
         name: "GitHub File",
         description: "Place a verification file in your GitHub repo",
