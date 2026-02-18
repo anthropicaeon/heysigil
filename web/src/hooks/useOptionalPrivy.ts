@@ -16,6 +16,7 @@ export interface PrivyContext {
     user: PrivyUser | null;
     login: () => void;
     logout: () => Promise<void>;
+    getAccessToken: () => Promise<string | null>;
 }
 
 interface PrivyUser {
