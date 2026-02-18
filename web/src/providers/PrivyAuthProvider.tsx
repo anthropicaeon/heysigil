@@ -15,6 +15,7 @@ interface PrivyState {
     user: any | null;
     login: () => void;
     logout: () => Promise<void>;
+    getAccessToken: () => Promise<string | null>;
 }
 
 const PrivyStateContext = createContext<PrivyState | null>(null);
@@ -49,11 +50,11 @@ export function useIsPrivyConfigured(): boolean {
 // This component lives INSIDE PrivyProvider, so usePrivy() is always valid.
 
 function PrivyStateBridge({ children }: { children: React.ReactNode }) {
-    const { ready, authenticated, user, login, logout } = usePrivy();
+    const { ready, authenticated, user, login, logout, getAccessToken } = usePrivy();
     const { wallets } = useWallets();
 
     return (
-        <PrivyStateContext.Provider value={{ ready, authenticated, user, login, logout }}>
+        <PrivyStateContext.Provider value={{ ready, authenticated, user, login, logout, getAccessToken }}>
             <WalletsContext.Provider value={{ wallets }}>
                 {children}
             </WalletsContext.Provider>
