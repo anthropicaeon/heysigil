@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import ModelViewer from "@/components/ModelViewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PixelCard } from "@/components/ui/pixel-card";
@@ -155,34 +156,52 @@ export default function SigilHero() {
                             className="hidden lg:flex flex-col bg-sage/30"
                             noFocus
                         >
-                            {/* Sigil Visual - Pastel */}
-                            <div className="flex-1 flex items-center justify-center p-8 border-border border-b relative z-10">
-                                <div className="relative">
-                                    {/* Outer frame */}
-                                    <div className="size-56 bg-background/80 backdrop-blur-sm flex items-center justify-center border border-border">
-                                        {/* Middle frame */}
-                                        <div className="size-40 bg-cream/30 flex items-center justify-center border border-border">
-                                            {/* Inner frame with logo */}
-                                            <div className="size-28 bg-background flex items-center justify-center border border-border">
-                                                <Image
-                                                    src="/logo-sage.png"
-                                                    alt="Sigil"
-                                                    width={80}
-                                                    height={80}
-                                                />
-                                            </div>
-                                        </div>
+                            {/* Sigil Visual - Full render stage */}
+                            <div className="flex-1 border-border border-b relative z-10 overflow-hidden">
+                                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,hsl(var(--primary)/0.18),transparent_62%)]" />
+                                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,hsl(var(--sage)/0.14),transparent_40%,hsl(var(--cream)/0.12)_100%)]" />
+                                <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background/80 to-transparent" />
+
+                                <div className="relative h-full min-h-[420px]">
+                                    <div className="absolute inset-0 scale-[1.08] transform-gpu origin-center">
+                                        <ModelViewer
+                                            url="/3D/logo_min.glb"
+                                            width="100%"
+                                            height="100%"
+                                            modelXOffset={-0.06}
+                                            modelYOffset={0.5}
+                                            defaultRotationX={10}
+                                            defaultRotationY={-6}
+                                            enableMouseParallax
+                                            enableHoverRotation={false}
+                                            enableManualRotation
+                                            enableManualZoom={false}
+                                            ambientIntensity={0.2}
+                                            keyLightIntensity={1.25}
+                                            fillLightIntensity={0.45}
+                                            rimLightIntensity={1.05}
+                                            environmentPreset="studio"
+                                            autoFrame
+                                            fadeIn={false}
+                                            autoRotate
+                                            autoRotateSpeed={0.16}
+                                            showScreenshotButton={false}
+                                        />
                                     </div>
-                                    {/* Pastel Badges */}
-                                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-lavender/50 text-foreground border border-border">
-                                        EAS on Base
-                                    </Badge>
-                                    <Badge className="absolute top-1/2 -right-8 -translate-y-1/2 bg-cream/50 text-foreground border border-border">
-                                        zkTLS
-                                    </Badge>
-                                    <Badge className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-sage/50 text-foreground border border-border">
-                                        5 Channels
-                                    </Badge>
+
+                                    <div className="absolute top-5 left-5">
+                                        <Badge className="bg-lavender/50 text-foreground border border-border text-[10px]">
+                                            EAS on Base
+                                        </Badge>
+                                    </div>
+                                    <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                                        <Badge className="bg-cream/50 text-foreground border border-border text-[10px]">
+                                            zkTLS
+                                        </Badge>
+                                        <Badge className="bg-sage/50 text-foreground border border-border text-[10px]">
+                                            5 Channels
+                                        </Badge>
+                                    </div>
                                 </div>
                             </div>
 
