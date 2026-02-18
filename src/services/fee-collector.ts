@@ -143,16 +143,41 @@ export class FeeCollector {
                 // Find the verification wallet for this project
                 // projectId in projects is "github:owner/repo", in verifications it's "owner/repo"
                 const normalizedId = project.projectId.replace("github:", "");
-                const [verification] = await db
+
+                log.info(
+                    { project: project.name, projectId: project.projectId, normalizedId },
+                    "assignDev: looking up verification",
+                );
+
+                // Try normalized first, then original
+                let verification = await db
                     .select({ walletAddress: schema.verifications.walletAddress })
                     .from(schema.verifications)
                     .where(eq(schema.verifications.projectId, normalizedId))
-                    .limit(1);
+                    .then((rows) => rows[0] || null);
 
                 if (!verification) {
+                    // Try original projectId format
+                    verification = await db
+                        .select({ walletAddress: schema.verifications.walletAddress })
+                        .from(schema.verifications)
+                        .where(eq(schema.verifications.projectId, project.projectId))
+                        .then((rows) => rows[0] || null);
+                }
+
+                if (!verification) {
+                    log.info(
+                        { project: project.name, normalizedId },
+                        "assignDev: no verification found",
+                    );
                     skipped++;
                     continue;
                 }
+
+                log.info(
+                    { project: project.name, dev: verification.walletAddress },
+                    "assignDev: verification found",
+                );
 
                 try {
                     const isAssigned = await this.vault.poolAssigned(project.poolId);
