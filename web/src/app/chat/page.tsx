@@ -224,11 +224,58 @@ export default function ChatPage() {
 
                 const data = await res.json();
 
-                if (data.response) {
-                    if (data.sessionId) {
-                        setSessionId(data.sessionId);
+                if (data.sessionId) {
+                    setSessionId(data.sessionId);
+                }
+
+                // Handle multi-part response (rich AI features)
+                if (data.parts && Array.isArray(data.parts)) {
+                    const assistantMessage: MultiStepToolUIMessage = {
+                        id: (Date.now() + 1).toString(),
+                        role: "assistant",
+                        parts: data.parts,
+                    };
+                    setMessages((prev) => [...prev, assistantMessage]);
+                }
+                // Handle response with embedded tools/reasoning (parse from structured response)
+                else if (data.response && typeof data.response === "object") {
+                    const parts: MessagePart[] = [];
+
+                    // Extract reasoning
+                    if (data.response.reasoning) {
+                        parts.push({ type: "reasoning", text: data.response.reasoning });
                     }
 
+                    // Extract tool calls
+                    if (data.response.tools && Array.isArray(data.response.tools)) {
+                        for (const tool of data.response.tools) {
+                            if (tool.type && tool.type.startsWith("tool-")) {
+                                parts.push(tool as MessagePart);
+                            }
+                        }
+                    }
+
+                    // Extract sources
+                    if (data.response.sources && Array.isArray(data.response.sources)) {
+                        for (const source of data.response.sources) {
+                            parts.push({ type: "source-url", url: source });
+                        }
+                    }
+
+                    // Extract main text/answer
+                    if (data.response.text || data.response.answer) {
+                        parts.push({ type: "text", text: data.response.text || data.response.answer });
+                    }
+
+                    const assistantMessage: MultiStepToolUIMessage = {
+                        id: (Date.now() + 1).toString(),
+                        role: "assistant",
+                        parts: parts.length > 0 ? parts : [{ type: "text", text: JSON.stringify(data.response) }],
+                    };
+                    setMessages((prev) => [...prev, assistantMessage]);
+                }
+                // Handle simple text response (fallback)
+                else if (data.response) {
                     const assistantMessage: MultiStepToolUIMessage = {
                         id: (Date.now() + 1).toString(),
                         role: "assistant",
@@ -239,9 +286,10 @@ export default function ChatPage() {
                             },
                         ],
                     };
-
                     setMessages((prev) => [...prev, assistantMessage]);
-                } else {
+                }
+                // Handle error
+                else {
                     const errorMessage: MultiStepToolUIMessage = {
                         id: (Date.now() + 1).toString(),
                         role: "assistant",

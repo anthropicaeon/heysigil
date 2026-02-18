@@ -2,7 +2,7 @@
  * Hooks Barrel Export
  */
 
-export { type Message, useChatMessages } from "./useChatMessages";
+export { type Message, useChatMessages, useMultiStepChat } from "./useChatMessages";
 export { useCountdown } from "./useCountdown";
 export { useFeeVault } from "./useFeeVault";
 export {
