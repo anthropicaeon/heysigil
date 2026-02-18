@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, CheckCircle, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -18,11 +18,17 @@ const ROTATING_PROMPTS = [
 ];
 
 const CHANNELS = [
-    { name: "GitHub", method: "OAuth" },
-    { name: "X", method: "zkTLS" },
-    { name: "Facebook", method: "OAuth" },
-    { name: "Instagram", method: "OAuth" },
-    { name: "Domain", method: "DNS" },
+    { name: "GitHub", method: "OAuth", verified: true },
+    { name: "X", method: "zkTLS", verified: true },
+    { name: "Facebook", method: "OAuth", verified: true },
+    { name: "Instagram", method: "OAuth", verified: true },
+    { name: "Domain", method: "DNS", verified: true },
+];
+
+const HERO_STATS = [
+    { value: "5", label: "Channels", accent: "text-primary" },
+    { value: "Base", label: "Network", accent: "text-blue-500" },
+    { value: "EAS", label: "Attestation", accent: "text-amber-500" },
 ];
 
 export default function SigilHero() {
@@ -38,16 +44,23 @@ export default function SigilHero() {
     return (
         <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r px-0">
-                {/* Channels Bar */}
-                <div className="flex flex-col sm:flex-row bg-background border-border border-b">
+                {/* Channels Bar - Enhanced */}
+                <div className="flex flex-col sm:flex-row bg-sage/10 border-border border-b">
+                    <div className="hidden sm:flex items-center px-4 lg:px-6 border-border border-r bg-sage/20">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                            Channels
+                        </span>
+                    </div>
                     {CHANNELS.map((channel) => (
                         <div
                             key={channel.name}
                             className={cn(
                                 "flex-1 px-4 py-3 lg:px-6 lg:py-4 flex items-center justify-center gap-2",
                                 "border-border border-b sm:border-b-0 sm:border-r sm:last:border-r-0",
+                                "hover:bg-sage/20 transition-colors",
                             )}
                         >
+                            <CheckCircle className="size-3.5 text-green-500" />
                             <span className="text-sm font-medium text-foreground">
                                 {channel.name}
                             </span>
@@ -66,13 +79,16 @@ export default function SigilHero() {
                     noFocus
                     className="border-border border-b bg-lavender/30"
                 >
-                    <div className="grid lg:grid-cols-[1fr_400px]">
+                    <div className="grid lg:grid-cols-[1fr_420px]">
                         {/* Left Column - Content */}
                         <div className="px-6 py-16 lg:px-12 lg:py-24 border-border lg:border-r">
-                            {/* Eyebrow */}
-                            <p className="text-primary text-sm font-medium uppercase tracking-wider mb-6">
-                                verification infrastructure for base
-                            </p>
+                            {/* Eyebrow with sparkle */}
+                            <div className="flex items-center gap-2 mb-6">
+                                <Sparkles className="size-4 text-primary" />
+                                <p className="text-primary text-sm font-medium uppercase tracking-wider">
+                                    verification infrastructure for base
+                                </p>
+                            </div>
 
                             {/* Chat-style prompt */}
                             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-8">
@@ -99,11 +115,13 @@ export default function SigilHero() {
                                 </div>
                             </div>
 
-                            {/* Headline */}
+                            {/* Headline - Enhanced */}
                             <h1 className="text-foreground text-3xl lg:text-4xl xl:text-5xl font-semibold mb-6 leading-tight lowercase">
-                                the trust layer for
+                                <span className="border-l-4 border-l-primary pl-4">
+                                    the trust layer for
+                                </span>
                                 <br />
-                                the agentic economy
+                                <span className="text-primary">the agentic economy</span>
                             </h1>
 
                             {/* Description */}
@@ -116,9 +134,9 @@ export default function SigilHero() {
                             {/* CTAs */}
                             <div className="flex flex-col sm:flex-row gap-4">
                                 <Link href="/verify">
-                                    <Button size="lg" className="w-full sm:w-auto">
+                                    <Button size="lg" className="w-full sm:w-auto gap-2">
                                         Stamp Your Sigil
-                                        <ArrowRight className="ml-2 size-4" />
+                                        <ArrowRight className="size-4" />
                                     </Button>
                                 </Link>
                                 <Link href="/developers">
@@ -139,46 +157,49 @@ export default function SigilHero() {
                             className="hidden lg:flex flex-col bg-sage/30"
                             noFocus
                         >
-                            {/* Sigil Visual */}
+                            {/* Sigil Visual - Enhanced */}
                             <div className="flex-1 flex items-center justify-center p-8 border-border border-b relative z-10">
                                 <div className="relative">
-                                    <div className="size-48 bg-background/80 backdrop-blur-sm flex items-center justify-center border border-border">
-                                        <div className="size-32 bg-primary/10 flex items-center justify-center border border-border">
-                                            <Image
-                                                src="/logo-sage.png"
-                                                alt="Sigil"
-                                                width={80}
-                                                height={80}
-                                            />
+                                    {/* Outer frame */}
+                                    <div className="size-56 bg-background/80 backdrop-blur-sm flex items-center justify-center border-2 border-border">
+                                        {/* Middle frame */}
+                                        <div className="size-40 bg-primary/5 flex items-center justify-center border border-border">
+                                            {/* Inner frame with logo */}
+                                            <div className="size-28 bg-background flex items-center justify-center border border-border">
+                                                <Image
+                                                    src="/logo-sage.png"
+                                                    alt="Sigil"
+                                                    width={80}
+                                                    height={80}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
-                                    {/* Badges */}
-                                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-background text-foreground border border-border shadow-sm">
-                                        EAS on Base
+                                    {/* Enhanced Badges */}
+                                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-background text-foreground border-2 border-primary shadow-sm">
+                                        <span className="text-primary mr-1">●</span> EAS on Base
                                     </Badge>
-                                    <Badge className="absolute top-1/2 -right-6 -translate-y-1/2 bg-background text-foreground border border-border shadow-sm">
-                                        zkTLS
+                                    <Badge className="absolute top-1/2 -right-8 -translate-y-1/2 bg-background text-foreground border-2 border-amber-500 shadow-sm">
+                                        <span className="text-amber-500 mr-1">●</span> zkTLS
                                     </Badge>
-                                    <Badge className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-background text-foreground border border-border shadow-sm">
-                                        5 Channels
+                                    <Badge className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-background text-foreground border-2 border-green-500 shadow-sm">
+                                        <span className="text-green-500 mr-1">●</span> 5 Channels
                                     </Badge>
                                 </div>
                             </div>
 
-                            {/* Stats */}
-                            <div className="grid grid-cols-2 relative z-10 bg-background/60 backdrop-blur-sm">
-                                <div className="px-6 py-4 border-border border-r text-center">
-                                    <p className="text-2xl font-bold text-primary">5</p>
-                                    <p className="text-xs text-muted-foreground uppercase">
-                                        Channels
-                                    </p>
-                                </div>
-                                <div className="px-6 py-4 text-center">
-                                    <p className="text-2xl font-bold text-primary">Base</p>
-                                    <p className="text-xs text-muted-foreground uppercase">
-                                        Network
-                                    </p>
-                                </div>
+                            {/* Stats - Enhanced */}
+                            <div className="flex divide-x divide-border relative z-10 bg-background/60 backdrop-blur-sm">
+                                {HERO_STATS.map((stat) => (
+                                    <div key={stat.label} className="flex-1 px-6 py-4 text-center">
+                                        <p className={cn("text-2xl font-bold", stat.accent)}>
+                                            {stat.value}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                                            {stat.label}
+                                        </p>
+                                    </div>
+                                ))}
                             </div>
                         </PixelCard>
                     </div>
