@@ -12,6 +12,7 @@ import type { Context, Next } from "hono";
 import { getEnv } from "../config/env.js";
 import { unauthorized, serviceUnavailable } from "../api/helpers/responses.js";
 import { loggers } from "../utils/logger.js";
+import { verifyMcpAccessToken } from "../services/mcp-token.js";
 
 let _client: PrivyClient | null = null;
 
@@ -54,6 +55,35 @@ async function verifyToken(token: string): Promise<{ userId: string } | null> {
     }
 }
 
+interface AuthIdentity {
+    userId: string;
+    authType: "privy" | "mcp";
+    scopes?: string[];
+    mcpTokenId?: string;
+}
+
+/**
+ * Authenticate a bearer token as Privy JWT first, then MCP PAT fallback.
+ */
+async function authenticateBearerToken(token: string): Promise<AuthIdentity | null> {
+    const privyIdentity = await verifyToken(token);
+    if (privyIdentity) {
+        return { userId: privyIdentity.userId, authType: "privy" };
+    }
+
+    const mcpIdentity = await verifyMcpAccessToken(token);
+    if (mcpIdentity) {
+        return {
+            userId: mcpIdentity.userId,
+            authType: "mcp",
+            scopes: mcpIdentity.scopes,
+            mcpTokenId: mcpIdentity.tokenId,
+        };
+    }
+
+    return null;
+}
+
 /**
  * Strict auth middleware — rejects requests without valid Privy token.
  * SECURITY: Fails closed (503) when Privy is not configured.
@@ -62,25 +92,24 @@ export function privyAuth() {
     return async (c: Context, next: Next) => {
         const client = getPrivyClient();
 
-        // SECURITY: Fail closed when Privy isn't configured
-        // Never pass through - this could expose protected endpoints in production
-        if (!client) {
-            loggers.auth.error("privyAuth() called but Privy not configured");
-            return serviceUnavailable(c, "Authentication service unavailable");
-        }
-
         const token = extractToken(c);
         if (!token) {
             return unauthorized(c);
         }
 
-        const result = await verifyToken(token);
+        const result = await authenticateBearerToken(token);
         if (!result) {
+            if (!client) {
+                loggers.auth.error("privyAuth() called but no auth providers are configured");
+                return serviceUnavailable(c, "Authentication service unavailable");
+            }
             return unauthorized(c, "Invalid or expired token");
         }
 
-        // Attach userId to context for downstream handlers
         c.set("userId", result.userId);
+        c.set("authType", result.authType);
+        if (result.scopes) c.set("authScopes", result.scopes);
+        if (result.mcpTokenId) c.set("mcpTokenId", result.mcpTokenId);
         await next();
     };
 }
@@ -94,9 +123,12 @@ export function privyAuthOptional() {
         const token = extractToken(c);
 
         if (token) {
-            const result = await verifyToken(token);
+            const result = await authenticateBearerToken(token);
             if (result) {
                 c.set("userId", result.userId);
+                c.set("authType", result.authType);
+                if (result.scopes) c.set("authScopes", result.scopes);
+                if (result.mcpTokenId) c.set("mcpTokenId", result.mcpTokenId);
             }
         }
 
@@ -109,6 +141,20 @@ export function privyAuthOptional() {
  */
 export function getUserId(c: Context): string | undefined {
     return c.get("userId");
+}
+
+/**
+ * Get auth type for the current request.
+ */
+export function getAuthType(c: Context): "privy" | "mcp" | undefined {
+    return c.get("authType");
+}
+
+/**
+ * Get scopes attached to the authenticated MCP token.
+ */
+export function getAuthScopes(c: Context): string[] | undefined {
+    return c.get("authScopes");
 }
 
 /**

@@ -12,5 +12,6 @@ export * from "./chat.js";
 export * from "./claim.js";
 export * from "./fees.js";
 export * from "./launch.js";
+export * from "./mcp.js";
 export * from "./verify.js";
 export * from "./wallet.js";

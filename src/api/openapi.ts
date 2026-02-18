@@ -52,6 +52,7 @@ All endpoints are rate-limited. Rate limit headers are included in responses:
         { name: "Launch", description: "Token deployment" },
         { name: "Wallet", description: "Custodial wallet management" },
         { name: "Fees", description: "Fee distribution audit trail" },
+        { name: "MCP", description: "MCP token management and auth context" },
         { name: "Methods", description: "Available verification methods" },
     ],
     components: {
@@ -60,7 +61,7 @@ All endpoints are rate-limited. Rate limit headers are included in responses:
                 type: "http" as const,
                 scheme: "bearer",
                 bearerFormat: "JWT",
-                description: "Privy JWT access token from authentication",
+                description: "Privy JWT or Sigil MCP personal access token",
             },
         },
     },

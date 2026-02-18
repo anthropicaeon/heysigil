@@ -135,6 +135,38 @@ export const wallets = pgTable("wallets", {
     createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+/**
+ * MCP personal access tokens (PATs) for agent access.
+ * Tokens are stored hashed; plaintext is shown once at creation.
+ */
+export const mcpTokens = pgTable(
+    "mcp_tokens",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        /** Privy user ID (DID) that owns this token */
+        userId: varchar("user_id", { length: 256 }).notNull(),
+        /** Friendly token label shown in UI */
+        name: varchar("name", { length: 128 }).notNull(),
+        /** Stable token prefix (non-secret) for lookup */
+        tokenPrefix: varchar("token_prefix", { length: 64 }).notNull(),
+        /** SHA-256 hash of the full token */
+        tokenHash: varchar("token_hash", { length: 128 }).notNull(),
+        /** Allowed MCP scopes */
+        scopes: jsonb("scopes").$type<string[]>().notNull(),
+        /** Optional expiration date */
+        expiresAt: timestamp("expires_at"),
+        /** Last successful usage */
+        lastUsedAt: timestamp("last_used_at"),
+        /** Revocation timestamp (null = active) */
+        revokedAt: timestamp("revoked_at"),
+        createdAt: timestamp("created_at").notNull().defaultNow(),
+    },
+    (table) => [
+        uniqueIndex("mcp_tokens_token_prefix_uq").on(table.tokenPrefix),
+        uniqueIndex("mcp_tokens_token_hash_uq").on(table.tokenHash),
+    ],
+);
+
 // ─── Fee Distribution Audit Trail ────────────────────────
 
 /**
