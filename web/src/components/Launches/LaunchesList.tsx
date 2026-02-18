@@ -68,7 +68,9 @@ export function LaunchesList() {
                 <div className="px-6 py-3 lg:px-12 border-border border-b bg-sage/20 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-2">
                         <Filter className="size-4 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground uppercase tracking-wider">Filters</span>
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                            Registry Controls
+                        </span>
                     </div>
                     <Badge variant="outline">{launches.length} loaded</Badge>
                 </div>
@@ -142,22 +144,22 @@ export function LaunchesList() {
                 </div>
             </div>
 
-            <div className="bg-background">
+            <div className="bg-background divide-y divide-border border-border border-b">
                 {loading && (
-                    <div className="px-6 py-10 lg:px-12 text-muted-foreground flex items-center gap-2 border-border border-b">
+                    <div className="px-6 py-10 lg:px-12 text-muted-foreground flex items-center gap-2">
                         <Loader2 className="size-4 animate-spin" />
                         Loading launched tokens...
                     </div>
                 )}
 
                 {!loading && error && (
-                    <div className="px-6 py-10 lg:px-12 text-destructive border-border border-b bg-rose/10">
+                    <div className="px-6 py-10 lg:px-12 text-destructive bg-rose/10">
                         Failed to load launches: {error}
                     </div>
                 )}
 
                 {!loading && !error && launches.length === 0 && (
-                    <div className="px-6 py-10 lg:px-12 text-muted-foreground border-border border-b">
+                    <div className="px-6 py-10 lg:px-12 text-muted-foreground">
                         No launched tokens match your filters.
                     </div>
                 )}

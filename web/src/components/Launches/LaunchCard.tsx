@@ -47,9 +47,9 @@ export function LaunchCard({ launch }: { launch: LaunchListItem }) {
     const date = launch.createdAt ? new Date(launch.createdAt).toLocaleDateString() : "Unknown";
 
     return (
-        <article className="bg-background border-border border-b">
-            <div className="flex flex-col lg:flex-row">
-                <div className="flex items-center gap-4 min-w-0 flex-1 px-6 py-4 lg:px-8 border-border border-b lg:border-b-0 lg:border-r">
+        <article className="bg-background hover:bg-secondary/20 transition-colors">
+            <div className="flex items-center justify-between gap-3 px-6 py-4 lg:px-8 border-border border-b">
+                <div className="flex items-center gap-4 min-w-0">
                     <div
                         className={cn(
                             "size-12 flex items-center justify-center text-foreground font-bold text-lg border border-border shrink-0",
@@ -64,7 +64,7 @@ export function LaunchCard({ launch }: { launch: LaunchListItem }) {
                     </div>
                 </div>
 
-                <div className="px-6 py-4 lg:px-8 bg-cream/30 border-border border-b lg:border-b-0 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 shrink-0">
                     <Badge variant="outline" className="border-border capitalize text-xs">
                         {launch.platform}
                     </Badge>
@@ -82,8 +82,8 @@ export function LaunchCard({ launch }: { launch: LaunchListItem }) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-                <div className="px-6 py-4 lg:px-8 border-border border-b sm:border-r lg:border-r">
+            <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border border-border border-b">
+                <div className="flex-1 px-6 py-4 lg:px-8">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Token</p>
                     <a
                         href={`https://basescan.org/address/${launch.poolTokenAddress}`}
@@ -95,22 +95,22 @@ export function LaunchCard({ launch }: { launch: LaunchListItem }) {
                         <ArrowUpRight className="size-3" />
                     </a>
                 </div>
-                <div className="px-6 py-4 lg:px-8 border-border border-b lg:border-r sm:border-b sm:border-r-0 lg:border-b">
+                <div className="flex-1 px-6 py-4 lg:px-8">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Pool</p>
                     <p className="text-sm font-mono text-foreground">{short(launch.poolId, 8, 6)}</p>
                 </div>
-                <div className="px-6 py-4 lg:px-8 border-border border-b sm:border-r lg:border-r">
+                <div className="flex-1 px-6 py-4 lg:px-8">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Owner</p>
                     <p className="text-sm text-foreground">{launch.ownerWallet ? short(launch.ownerWallet) : "Unclaimed"}</p>
                 </div>
-                <div className="px-6 py-4 lg:px-8 border-border border-b">
+                <div className="flex-1 px-6 py-4 lg:px-8">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Launched</p>
                     <p className="text-sm text-foreground">{date}</p>
                 </div>
             </div>
 
-            <div className="flex flex-col lg:flex-row">
-                <div className="px-6 py-3 lg:px-8 border-border border-b lg:border-b-0 lg:border-r bg-sage/10 flex flex-wrap items-center gap-4 text-xs text-muted-foreground flex-1">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3 px-6 py-3 lg:px-8 bg-secondary/10">
+                <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                         <Layers3 className="size-3" />
                         {launch.deployedBy || "unknown deployer"}
@@ -121,7 +121,7 @@ export function LaunchCard({ launch }: { launch: LaunchListItem }) {
                     </span>
                 </div>
 
-                <div className="px-6 py-3 lg:px-8 bg-background flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <a href={launch.explorerUrl} target="_blank" rel="noopener noreferrer">
                         <Button variant="ghost" size="sm" className="gap-1">
                             <ExternalLink className="size-4" />
