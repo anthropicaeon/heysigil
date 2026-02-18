@@ -87,13 +87,22 @@ export default function GovernanceDashboard() {
                 />
 
                 {proposals.length === 0 ? (
-                    <div className="flex-1 flex flex-col border-border border-b bg-background">
-                        <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 lg:px-12 text-center">
-                            <FileCheck className="size-12 mb-4 text-muted-foreground/30" />
-                            <h3 className="text-lg font-semibold text-foreground mb-2">
-                                No proposals yet
+                    <div className="flex-1 flex flex-col bg-background">
+                        {/* Empty State Header */}
+                        <div className="px-6 py-4 lg:px-12 border-border border-b bg-cream/30">
+                            <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                Proposals
+                            </span>
+                        </div>
+                        {/* Empty State Content */}
+                        <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 lg:px-12 text-center border-border border-b">
+                            <div className="size-16 bg-sage/30 border border-border flex items-center justify-center mb-4">
+                                <FileCheck className="size-8 text-muted-foreground/50" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-foreground mb-2 lowercase">
+                                no proposals yet
                             </h3>
-                            <p className="text-muted-foreground max-w-md">
+                            <p className="text-muted-foreground max-w-md text-sm">
                                 Governance launches when the first milestone proposal is created. Token
                                 holders can propose milestones and the community votes to unlock funds.
                             </p>
@@ -108,7 +117,7 @@ export default function GovernanceDashboard() {
                 )}
 
                 {/* Footer */}
-                <div className="border-border border-t px-6 py-4 lg:px-12 bg-sage/30">
+                <div className="border-border border-t px-6 py-5 lg:px-12 bg-sage/40">
                     <p className="text-xs text-muted-foreground text-center">
                         Governance is onchain. All votes are recorded permanently on Base.
                     </p>

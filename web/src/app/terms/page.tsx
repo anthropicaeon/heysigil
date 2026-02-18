@@ -1,3 +1,5 @@
+import { PixelCard } from "@/components/ui/pixel-card";
+
 const sections = [
     {
         title: "Acceptance of Terms",
@@ -52,10 +54,16 @@ const sections = [
 
 export default function TermsPage() {
     return (
-        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0 bg-cream">
-                {/* Header */}
-                <div className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 bg-background">
+        <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r min-h-[calc(100vh-5rem)] px-0 bg-cream flex flex-col">
+                {/* Header with PixelCard */}
+                <PixelCard
+                    variant="lavender"
+                    active
+                    centerFade
+                    noFocus
+                    className="border-border border-b px-6 py-12 lg:px-12 lg:py-16 bg-lavender/30"
+                >
                     <p className="text-primary text-sm font-medium uppercase tracking-wider mb-4">
                         legal
                     </p>
@@ -63,10 +71,10 @@ export default function TermsPage() {
                         terms of service
                     </h1>
                     <p className="text-muted-foreground mt-4">Last updated: February 2026</p>
-                </div>
+                </PixelCard>
 
                 {/* Sections */}
-                <div className="bg-background">
+                <div className="flex-1 bg-background">
                     {sections.map((section, index) => (
                         <div key={section.title} className="border-border border-b">
                             <div className="flex flex-col lg:flex-row">
