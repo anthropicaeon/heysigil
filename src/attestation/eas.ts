@@ -57,8 +57,11 @@ export async function createAttestation(
 ): Promise<AttestationResult> {
     const env = getEnv();
 
-    if (!env.ATTESTATION_SIGNER_KEY) {
-        throw new Error("ATTESTATION_SIGNER_KEY not configured");
+    // Use deployer wallet (already funded) for attestation gas,
+    // fall back to dedicated attestation signer if deployer not set
+    const signerKey = env.DEPLOYER_PRIVATE_KEY || env.ATTESTATION_SIGNER_KEY;
+    if (!signerKey) {
+        throw new Error("DEPLOYER_PRIVATE_KEY or ATTESTATION_SIGNER_KEY must be configured");
     }
     if (!env.EAS_SCHEMA_UID) {
         throw new Error("EAS_SCHEMA_UID not configured — register schema first");
@@ -67,7 +70,7 @@ export async function createAttestation(
     const { EAS, SchemaEncoder, ethers } = await loadEasModules();
 
     const provider = new ethers.JsonRpcProvider(rpcUrl);
-    const signer = new ethers.Wallet(env.ATTESTATION_SIGNER_KEY, provider);
+    const signer = new ethers.Wallet(signerKey, provider);
 
     const eas = new EAS(env.EAS_CONTRACT_ADDRESS);
     eas.connect(signer);
