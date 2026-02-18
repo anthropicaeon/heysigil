@@ -121,26 +121,31 @@ export function DetailsStep({
                 </label>
             </div>
             <div className="px-6 py-4 lg:px-12 border-b border-border">
-                {isConnected && connectedAddress ? (
-                    <div className="py-2.5 px-3 border border-border bg-sage/30 font-mono text-sm text-foreground">
-                        {connectedAddress}
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        <Input
-                            id="wallet"
-                            placeholder="0x..."
-                            value={walletAddress}
-                            onChange={(e) => onWalletAddressChange(e.target.value)}
-                            className="font-mono"
-                        />
+                <div className="space-y-3">
+                    <Input
+                        id="wallet"
+                        placeholder="0x..."
+                        value={walletAddress}
+                        onChange={(e) => onWalletAddressChange(e.target.value)}
+                        className="font-mono"
+                    />
+                    <div className="flex items-center gap-3">
+                        {isConnected && connectedAddress && walletAddress !== connectedAddress && (
+                            <button
+                                type="button"
+                                onClick={() => onWalletAddressChange(connectedAddress)}
+                                className="text-xs text-primary hover:underline"
+                            >
+                                Reset to connected wallet
+                            </button>
+                        )}
                         {privy && !privy.authenticated && (
                             <Button variant="outline" size="sm" onClick={() => privy.login?.()}>
                                 Sign In to Auto-fill
                             </Button>
                         )}
                     </div>
-                )}
+                </div>
             </div>
 
             {/* Info Note */}
