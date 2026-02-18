@@ -22,6 +22,15 @@ function NavLoginButton() {
         );
     }
 
+    // Privy configured but context not yet ready (still initializing)
+    if (!privy) {
+        return (
+            <button className="nav-cta" disabled style={{ opacity: 0.6, cursor: "not-allowed" }}>
+                Sign In
+            </button>
+        );
+    }
+
     const userInfo = getUserDisplay(privy);
     // For email, show only the local part
     const userDisplay = userInfo
