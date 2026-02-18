@@ -49,7 +49,7 @@ export function DetailsStep({
     const hasPrivyGithub = isGithubMethod && !!privyGithubUsername;
 
     return (
-        <div className="bg-background">
+        <div className="flex-1 flex flex-col bg-background">
             {/* Section Header */}
             <div className="px-6 py-3 lg:px-12 border-b border-border bg-secondary/30">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -166,28 +166,31 @@ export function DetailsStep({
                 </div>
             )}
 
-            {/* Actions */}
-            <div className="px-6 py-6 lg:px-12 bg-sage/10 flex gap-3">
-                <Button variant="outline" onClick={onBack}>
-                    <ArrowLeft className="size-4 mr-2" />
-                    Back
-                </Button>
-                <Button
-                    onClick={onSubmit}
-                    disabled={!projectId || !walletAddress || loading}
-                    className="flex-1"
-                >
-                    {loading ? (
-                        <>
-                            <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
-                            Creating...
-                        </>
-                    ) : method.requiresOAuth ? (
-                        "Authorize"
-                    ) : (
-                        "Get Instructions"
-                    )}
-                </Button>
+            {/* Actions - fills remaining space */}
+            <div className="flex-1 flex flex-col px-6 py-6 lg:px-12 bg-sage/20">
+                <div className="flex-1" />
+                <div className="flex gap-3">
+                    <Button variant="outline" onClick={onBack}>
+                        <ArrowLeft className="size-4 mr-2" />
+                        Back
+                    </Button>
+                    <Button
+                        onClick={onSubmit}
+                        disabled={!projectId || !walletAddress || loading}
+                        className="flex-1"
+                    >
+                        {loading ? (
+                            <>
+                                <span className="inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                                Creating...
+                            </>
+                        ) : method.requiresOAuth ? (
+                            "Authorize"
+                        ) : (
+                            "Get Instructions"
+                        )}
+                    </Button>
+                </div>
             </div>
         </div>
     );

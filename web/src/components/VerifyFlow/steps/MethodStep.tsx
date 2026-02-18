@@ -45,7 +45,7 @@ export function MethodStep({ selectedMethod, onSelect, onContinue }: MethodStepP
         selectedMethod !== null && OTHER_METHODS.some((m) => m.id === selectedMethod.id);
 
     return (
-        <div className="bg-background">
+        <div className="flex-1 flex flex-col bg-background">
             {/* Section Header */}
             <div className="px-6 py-3 lg:px-12 border-b border-border bg-secondary/30">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -273,21 +273,24 @@ export function MethodStep({ selectedMethod, onSelect, onContinue }: MethodStepP
                 </>
             )}
 
-            {/* Continue Action */}
-            <div className="px-6 py-6 lg:px-12 bg-sage/10">
-                <Button
-                    onClick={onContinue}
-                    disabled={!selectedMethod}
-                    className="w-full"
-                    size="lg"
-                >
-                    Continue with {selectedMethod?.name || "selected method"}
-                </Button>
-                {selectedMethod && (
-                    <p className="text-xs text-muted-foreground text-center mt-3">
-                        Format: <code className="bg-secondary/50 px-1.5 py-0.5">{selectedMethod.projectIdFormat}</code>
-                    </p>
-                )}
+            {/* Continue Action - fills remaining space */}
+            <div className="flex-1 flex flex-col px-6 py-6 lg:px-12 bg-sage/20">
+                <div className="flex-1" />
+                <div>
+                    <Button
+                        onClick={onContinue}
+                        disabled={!selectedMethod}
+                        className="w-full"
+                        size="lg"
+                    >
+                        Continue with {selectedMethod?.name || "selected method"}
+                    </Button>
+                    {selectedMethod && (
+                        <p className="text-xs text-muted-foreground text-center mt-3">
+                            Format: <code className="bg-secondary/50 px-1.5 py-0.5">{selectedMethod.projectIdFormat}</code>
+                        </p>
+                    )}
+                </div>
             </div>
         </div>
     );
