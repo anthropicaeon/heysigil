@@ -2,10 +2,13 @@
  * ProposalListView
  *
  * Renders proposal list with section header.
- * Border-centric design with flex-1 for screen height adherence.
+ * Border-centric design with memorable empty state.
  */
 
-import { FileCheck } from "lucide-react";
+import { ArrowRight, FileCheck, Lightbulb, Rocket, Users } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { PixelCard } from "@/components/ui/pixel-card";
 
 import type { Proposal, TabFilter } from "../types";
 import { ProposalCard } from "./ProposalCard";
@@ -26,9 +29,16 @@ export function ProposalListView({
             <div className="flex-1 flex flex-col bg-background">
                 {/* Section Header */}
                 <div className="px-6 py-4 lg:px-12 border-border border-b bg-cream/30">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                        {activeTab === "all" ? "All Proposals" : `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Proposals`}
-                    </span>
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                            {activeTab === "all"
+                                ? "All Proposals"
+                                : `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Proposals`}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                            {proposals.length} {proposals.length === 1 ? "proposal" : "proposals"}
+                        </span>
+                    </div>
                 </div>
                 {/* Proposal List */}
                 <div className="flex-1 flex flex-col divide-y divide-border border-border border-b">
@@ -40,6 +50,7 @@ export function ProposalListView({
         );
     }
 
+    // Empty State - Memorable Design
     return (
         <div className="flex-1 flex flex-col bg-background">
             {/* Section Header */}
@@ -48,20 +59,104 @@ export function ProposalListView({
                     Proposals
                 </span>
             </div>
-            {/* Empty State */}
-            <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 lg:px-12 text-center border-border border-b">
-                <div className="size-16 bg-sage/30 border border-border flex items-center justify-center mb-4">
-                    <FileCheck className="size-8 text-muted-foreground/50" />
+
+            {/* Hero Empty State */}
+            <PixelCard
+                variant="sage"
+                active
+                centerFade
+                noFocus
+                className="flex-1 flex flex-col border-border border-b"
+            >
+                <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 lg:px-12 text-center">
+                    {/* Large Icon */}
+                    <div className="size-20 bg-sage/40 border-2 border-border flex items-center justify-center mb-6">
+                        <FileCheck className="size-10 text-muted-foreground/60" />
+                    </div>
+
+                    <h3 className="text-2xl font-semibold text-foreground mb-3 lowercase">
+                        no proposals yet
+                    </h3>
+                    <p className="text-muted-foreground max-w-md mb-8">
+                        {activeTab === "all"
+                            ? "Governance launches when the first milestone proposal is created. Be the pioneer and set the direction for this project."
+                            : `No ${activeTab} proposals found. Check other tabs or create a new proposal.`}
+                    </p>
+
+                    {activeTab === "all" && (
+                        <Button size="lg" className="gap-2">
+                            Create First Proposal
+                            <ArrowRight className="size-4" />
+                        </Button>
+                    )}
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2 lowercase">
-                    no proposals yet
-                </h3>
-                <p className="text-muted-foreground max-w-md text-sm">
-                    {activeTab === "all"
-                        ? "Be the first to propose a milestone for this project."
-                        : `No ${activeTab} proposals found.`}
-                </p>
-            </div>
+            </PixelCard>
+
+            {/* Getting Started Cards */}
+            {activeTab === "all" && (
+                <div className="bg-lavender/10">
+                    <div className="px-6 py-3 lg:px-8 border-border border-b">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                            Getting Started
+                        </span>
+                    </div>
+                    <div className="flex flex-col lg:flex-row divide-y lg:divide-y-0 lg:divide-x divide-border border-border border-b">
+                        {/* Step 1 */}
+                        <div className="flex-1 px-6 py-5 lg:px-8">
+                            <div className="flex items-start gap-3">
+                                <div className="size-10 bg-primary/10 border border-border flex items-center justify-center shrink-0">
+                                    <span className="text-sm font-bold text-primary">1</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+                                        <Lightbulb className="size-4 text-amber-500" />
+                                        Define Your Milestone
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        What will you build? Set a clear, measurable goal with a target date.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Step 2 */}
+                        <div className="flex-1 px-6 py-5 lg:px-8">
+                            <div className="flex items-start gap-3">
+                                <div className="size-10 bg-primary/10 border border-border flex items-center justify-center shrink-0">
+                                    <span className="text-sm font-bold text-primary">2</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+                                        <Users className="size-4 text-blue-500" />
+                                        Community Votes
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        Token holders vote on your proposal. 4% quorum required to pass.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Step 3 */}
+                        <div className="flex-1 px-6 py-5 lg:px-8">
+                            <div className="flex items-start gap-3">
+                                <div className="size-10 bg-primary/10 border border-border flex items-center justify-center shrink-0">
+                                    <span className="text-sm font-bold text-primary">3</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-foreground mb-1 flex items-center gap-2">
+                                        <Rocket className="size-4 text-green-500" />
+                                        Deliver & Earn
+                                    </h3>
+                                    <p className="text-xs text-muted-foreground">
+                                        Complete your milestone, submit proof, and receive your tokens.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
