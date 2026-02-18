@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PixelCard } from "@/components/ui/pixel-card";
 import { cn } from "@/lib/utils";
 
 const ROTATING_PROMPTS = [
@@ -126,13 +127,17 @@ export default function SigilHero() {
                             </div>
                         </div>
 
-                        {/* Right Column - Visual */}
-                        <div className="hidden lg:flex flex-col bg-sage/50">
+                        {/* Right Column - Visual with Pixel Effect */}
+                        <PixelCard
+                            variant="sage"
+                            className="hidden lg:flex flex-col bg-sage/30"
+                            noFocus
+                        >
                             {/* Sigil Visual */}
-                            <div className="flex-1 flex items-center justify-center p-8 border-border border-b">
+                            <div className="flex-1 flex items-center justify-center p-8 border-border border-b relative z-10">
                                 <div className="relative">
-                                    <div className="size-48 bg-primary/10 flex items-center justify-center border border-border">
-                                        <div className="size-32 bg-primary/20 flex items-center justify-center border border-border">
+                                    <div className="size-48 bg-background/80 backdrop-blur-sm flex items-center justify-center border border-border">
+                                        <div className="size-32 bg-primary/10 flex items-center justify-center border border-border">
                                             <Image
                                                 src="/logo-sage.png"
                                                 alt="Sigil"
@@ -142,20 +147,20 @@ export default function SigilHero() {
                                         </div>
                                     </div>
                                     {/* Badges */}
-                                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-background text-foreground border border-border">
+                                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-background text-foreground border border-border shadow-sm">
                                         EAS on Base
                                     </Badge>
-                                    <Badge className="absolute top-1/2 -right-6 -translate-y-1/2 bg-background text-foreground border border-border">
+                                    <Badge className="absolute top-1/2 -right-6 -translate-y-1/2 bg-background text-foreground border border-border shadow-sm">
                                         zkTLS
                                     </Badge>
-                                    <Badge className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-background text-foreground border border-border">
+                                    <Badge className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-background text-foreground border border-border shadow-sm">
                                         5 Channels
                                     </Badge>
                                 </div>
                             </div>
 
                             {/* Stats */}
-                            <div className="grid grid-cols-2">
+                            <div className="grid grid-cols-2 relative z-10 bg-background/60 backdrop-blur-sm">
                                 <div className="px-6 py-4 border-border border-r text-center">
                                     <p className="text-2xl font-bold text-primary">5</p>
                                     <p className="text-xs text-muted-foreground uppercase">
@@ -169,7 +174,7 @@ export default function SigilHero() {
                                     </p>
                                 </div>
                             </div>
-                        </div>
+                        </PixelCard>
                     </div>
                 </div>
             </div>
