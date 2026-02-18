@@ -2,6 +2,9 @@
   "name": "sigil",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "type": "module",
   "scripts": {
     "dev": "bun run src/index.ts",
@@ -15,7 +18,9 @@
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "typecheck": "tsc --noEmit",
+    "typecheck:packages": "npm run --workspaces --if-present typecheck",
     "check": "bun run typecheck && bun run lint && bun run format:check",
+    "build:packages": "npm run --workspaces --if-present build",
     "prepare": "husky"
   },
   "dependencies": {
