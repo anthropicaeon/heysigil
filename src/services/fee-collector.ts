@@ -1,23 +1,17 @@
 /**
  * Fee Collector Service
  *
- * Periodically calls SigilLPLocker.collectFees() to harvest accrued
- * Uniswap V3 LP fees and route them through the SigilFeeVault.
- *
- * V3 LP fees don't auto-collect like V4 hooks — someone must call
- * collectFees(tokenId) on the Locker. This service does that every
- * 60 seconds using the deployer wallet (which already has gas).
- *
- * Flow:
- *   1. Read lockedTokenIds[] from SigilLPLocker
- *   2. Call collectFeesMulti(tokenIds) in a single batch tx
- *   3. Locker splits fees 80/20 → deposits to SigilFeeVault
- *   4. Fee indexer picks up the FeesDeposited/FeesEscrowed events
+ * Two responsibilities:
+ * 1. Periodically calls SigilLPLocker.collectFees() to harvest accrued V3 LP fees
+ * 2. On startup, backfills assignDev() on SigilFeeVault for verified projects
+ *    whose escrowed fees haven't been assigned to a dev wallet yet
  */
 
 import { ethers } from "ethers";
+import { eq } from "drizzle-orm";
 import { getEnv } from "../config/env.js";
 import { loggers } from "../utils/logger.js";
+import { getDb, schema, DatabaseUnavailableError } from "../db/client.js";
 
 const log = loggers.server;
 
@@ -33,12 +27,18 @@ const LP_LOCKER_ABI = [
     "function positions(uint256 tokenId) view returns (bytes32 poolId, address dev, address token0, address token1, bool locked)",
 ];
 
+const FEE_VAULT_ABI = [
+    "function assignDev(bytes32 poolId, address dev) external",
+    "function poolAssigned(bytes32 poolId) view returns (bool)",
+];
+
 // ─── Fee Collector Class ────────────────────────────────
 
 export class FeeCollector {
     private provider: ethers.JsonRpcProvider;
     private wallet: ethers.Wallet;
     private locker: ethers.Contract;
+    private vault: ethers.Contract;
     private lockerAddress: string;
 
     private isRunning = false;
@@ -61,6 +61,9 @@ export class FeeCollector {
         this.provider = new ethers.JsonRpcProvider(env.BASE_RPC_URL);
         this.wallet = new ethers.Wallet(env.DEPLOYER_PRIVATE_KEY, this.provider);
         this.locker = new ethers.Contract(this.lockerAddress, LP_LOCKER_ABI, this.wallet);
+
+        const feeVaultAddress = env.SIGIL_FEE_VAULT_ADDRESS;
+        this.vault = new ethers.Contract(feeVaultAddress, FEE_VAULT_ABI, this.wallet);
     }
 
     async start(): Promise<void> {
@@ -73,7 +76,10 @@ export class FeeCollector {
             "Fee collector starting",
         );
 
-        // Run immediately, then on interval
+        // Backfill: assign dev wallets for verified projects with escrowed fees
+        await this.assignDevBackfill();
+
+        // Run fee collection immediately, then on interval
         await this.collect();
         this.schedulePoll();
     }
@@ -107,6 +113,100 @@ export class FeeCollector {
                 .finally(() => this.schedulePoll());
         }, COLLECT_INTERVAL_MS);
     }
+
+    // ─── Assign Dev Backfill ─────────────────────────────
+
+    /**
+     * On startup, find all verified projects with poolIds and call
+     * vault.assignDev(poolId, devWallet) for any that haven't been
+     * assigned yet. This moves escrowed fees into the dev's claimable balance.
+     */
+    private async assignDevBackfill(): Promise<void> {
+        try {
+            const db = getDb();
+
+            // Get all projects that have a poolId
+            const projects = await db
+                .select({
+                    projectId: schema.projects.projectId,
+                    poolId: schema.projects.poolId,
+                    name: schema.projects.name,
+                })
+                .from(schema.projects);
+
+            let assigned = 0;
+            let skipped = 0;
+
+            for (const project of projects) {
+                if (!project.poolId) continue;
+
+                // Find the verification wallet for this project
+                // projectId in projects is "github:owner/repo", in verifications it's "owner/repo"
+                const normalizedId = project.projectId.replace("github:", "");
+                const [verification] = await db
+                    .select({ walletAddress: schema.verifications.walletAddress })
+                    .from(schema.verifications)
+                    .where(eq(schema.verifications.projectId, normalizedId))
+                    .limit(1);
+
+                if (!verification) {
+                    skipped++;
+                    continue;
+                }
+
+                try {
+                    const isAssigned = await this.vault.poolAssigned(project.poolId);
+                    if (isAssigned) {
+                        skipped++;
+                        continue;
+                    }
+
+                    // Call assignDev
+                    const nonce = await this.provider.getTransactionCount(
+                        this.wallet.address,
+                        "latest",
+                    );
+                    const tx = await this.vault.assignDev(
+                        project.poolId,
+                        verification.walletAddress,
+                        { nonce },
+                    );
+                    await tx.wait(1);
+                    assigned++;
+
+                    log.info(
+                        {
+                            project: project.name,
+                            poolId: project.poolId.slice(0, 18) + "...",
+                            dev: verification.walletAddress,
+                        },
+                        "Dev assigned on fee vault",
+                    );
+                } catch (err) {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    // NoUnclaimedFees or PoolAlreadyAssigned are expected
+                    if (msg.includes("revert") || msg.includes("execution reverted")) {
+                        skipped++;
+                    } else {
+                        log.warn(
+                            { project: project.name, err: msg.slice(0, 120) },
+                            "Failed to assign dev",
+                        );
+                    }
+                }
+            }
+
+            if (assigned > 0) {
+                log.info({ assigned, skipped }, "Dev assignment backfill complete");
+            }
+        } catch (err) {
+            if (err instanceof DatabaseUnavailableError) return;
+            const msg = err instanceof Error ? err.message : String(err);
+            log.warn({ err: msg }, "Dev assignment backfill failed");
+        }
+    }
+
+    // ─── Fee Collection ──────────────────────────────────
 
     private async collect(): Promise<void> {
         try {
