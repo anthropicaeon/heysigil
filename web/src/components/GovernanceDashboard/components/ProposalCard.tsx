@@ -2,7 +2,7 @@
  * ProposalCard Component
  *
  * Card displaying proposal summary in list view.
- * Updated with pastel design system.
+ * Border-centric design with hover state.
  */
 
 import { ChevronRight, Coins, Target, Users } from "lucide-react";
@@ -26,7 +26,7 @@ export function ProposalCard({ proposal, onClick }: ProposalCardProps) {
         <button
             type="button"
             onClick={onClick}
-            className="w-full text-left px-6 py-5 lg:px-12 border-border border-b last:border-b-0 hover:bg-secondary/30 transition-colors"
+            className="w-full text-left px-6 py-5 lg:px-12 hover:bg-secondary/30 transition-colors"
         >
             <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="flex items-center gap-3">
