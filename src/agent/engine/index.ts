@@ -17,7 +17,7 @@ import {
 } from "./session-manager.js";
 import { executeOnlineMode } from "./online-executor.js";
 import { executeOfflineMode } from "./offline-executor.js";
-import { createWallet } from "../../services/wallet.js";
+import { createWallet, createWalletForUser } from "../../services/wallet.js";
 import { loggers } from "../../utils/logger.js";
 
 // Re-export session management
@@ -31,6 +31,8 @@ export interface ProcessMessageConfig {
     provider?: LLMProvider;
     /** Custom system prompt (defaults to AGENT_SYSTEM_PROMPT) */
     systemPrompt?: string;
+    /** Privy user ID — when set, uses persistent user wallet instead of session wallet */
+    privyUserId?: string;
 }
 
 /**
@@ -51,10 +53,24 @@ export async function processMessage(
 ): Promise<string> {
     const session = getOrCreateSession(sessionId);
 
-    // Auto-create a custodial wallet for every chat session (idempotent)
-    createWallet(sessionId).catch((err) => {
-        loggers.crypto.warn({ sessionId, error: err }, "Auto wallet creation failed");
-    });
+    // Determine the wallet key:
+    // - Authenticated users: "user:<privyUserId>" (persistent across sessions)
+    // - Anonymous users: sessionId (ephemeral per chat session)
+    const walletKey = config.privyUserId ? `user:${config.privyUserId}` : sessionId;
+
+    // Auto-create a custodial wallet (idempotent)
+    if (config.privyUserId) {
+        createWalletForUser(config.privyUserId).catch((err) => {
+            loggers.crypto.warn(
+                { privyUserId: config.privyUserId, error: err },
+                "Auto user wallet creation failed",
+            );
+        });
+    } else {
+        createWallet(sessionId).catch((err) => {
+            loggers.crypto.warn({ sessionId, error: err }, "Auto wallet creation failed");
+        });
+    }
 
     if (walletAddress) {
         setSessionWallet(sessionId, walletAddress);
@@ -70,14 +86,14 @@ export async function processMessage(
             provider,
             session,
             userMessage,
-            sessionId,
+            walletKey,
             systemPrompt,
         );
         addMessage(sessionId, "assistant", assistantMessage);
         return assistantMessage;
     }
 
-    const { message, action } = await executeOfflineMode(userMessage, sessionId);
+    const { message, action } = await executeOfflineMode(userMessage, walletKey);
     addMessage(sessionId, "assistant", message, action);
     return message;
 }
