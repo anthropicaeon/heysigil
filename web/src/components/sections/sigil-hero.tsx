@@ -168,11 +168,12 @@ export default function SigilHero() {
                                             url="/3D/logo_min.glb"
                                             width="100%"
                                             height="100%"
-                                            modelXOffset={-0.06}
-                                            modelYOffset={0.5}
+                                            modelXOffset={-0.09}
+                                            modelYOffset={0.14}
                                             defaultRotationX={10}
                                             defaultRotationY={-6}
-                                            enableMouseParallax
+                                            defaultZoom={1.1}
+                                            enableMouseParallax={false}
                                             enableHoverRotation={false}
                                             enableManualRotation
                                             enableManualZoom={false}
@@ -182,9 +183,11 @@ export default function SigilHero() {
                                             rimLightIntensity={1.05}
                                             environmentPreset="studio"
                                             autoFrame
-                                            fadeIn={false}
+                                            autoFramePadding={1.1}
+                                            fadeIn
                                             autoRotate
                                             autoRotateSpeed={0.16}
+                                            showLoader={false}
                                             showScreenshotButton={false}
                                         />
                                     </div>
@@ -206,13 +209,16 @@ export default function SigilHero() {
                             </div>
 
                             {/* Stats - Muted */}
-                            <div className="flex divide-x divide-border relative z-10 bg-background/60 backdrop-blur-sm">
+                            <div className="relative z-10 flex divide-x divide-border bg-background/60 backdrop-blur-sm">
                                 {HERO_STATS.map((stat) => (
-                                    <div key={stat.label} className="flex-1 px-6 py-4 text-center">
-                                        <p className="text-2xl font-bold text-foreground">
+                                    <div
+                                        key={stat.label}
+                                        className="flex min-h-[84px] flex-1 flex-col items-center justify-center gap-1 px-6 py-4 text-center"
+                                    >
+                                        <p className="text-2xl leading-none font-bold text-foreground">
                                             {stat.value}
                                         </p>
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                                        <p className="text-xs leading-none text-muted-foreground uppercase tracking-[0.14em]">
                                             {stat.label}
                                         </p>
                                     </div>
