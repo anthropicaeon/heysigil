@@ -77,8 +77,30 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
         setError("");
 
         try {
-            const data = await apiCreateChallenge(selectedMethod.id, projectId, walletAddress);
+            // If user signed in via GitHub through Privy and using github_oauth method,
+            // get the Privy access token to enable instant verification (no redirect)
+            const isPrivyGithub = privyGithubUsername && selectedMethod.id === "github_oauth";
+            let accessToken: string | undefined;
+            if (isPrivyGithub && privy?.getAccessToken) {
+                const token = await privy.getAccessToken();
+                if (token) accessToken = token;
+            }
+
+            const data = await apiCreateChallenge(selectedMethod.id, projectId, walletAddress, accessToken);
             setChallenge(data);
+
+            // For Privy GitHub: skip OAuth redirect, immediately check
+            if (isPrivyGithub && accessToken) {
+                const checkData = await apiCheckVerification(data.verificationId, accessToken);
+                setCheckResult(checkData);
+                if (checkData.success) {
+                    setStep("result");
+                } else {
+                    setError(checkData.error || "Verification failed — you may not have admin access to this repo.");
+                    setStep("challenge");
+                }
+                return;
+            }
 
             if (data.authUrl) {
                 window.location.href = data.authUrl;
@@ -99,7 +121,14 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
         setError("");
 
         try {
-            const data = await apiCheckVerification(challenge.verificationId);
+            // Pass Privy access token if available
+            let accessToken: string | undefined;
+            if (privy?.getAccessToken) {
+                const token = await privy.getAccessToken();
+                if (token) accessToken = token;
+            }
+
+            const data = await apiCheckVerification(challenge.verificationId, accessToken);
             setCheckResult(data);
 
             if (data.success) {

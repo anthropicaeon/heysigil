@@ -49,16 +49,18 @@ async function request<T>(
 
 export const apiClient = {
     verify: {
-        createChallenge: (method: string, projectId: string, walletAddress: string) =>
+        createChallenge: (method: string, projectId: string, walletAddress: string, accessToken?: string) =>
             request<ChallengeResponse>("/api/verify/challenge", {
                 method: "POST",
                 body: JSON.stringify({ method, projectId, walletAddress }),
+                ...(accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {}),
             }),
 
-        checkVerification: (verificationId: string) =>
+        checkVerification: (verificationId: string, accessToken?: string) =>
             request<CheckResult>("/api/verify/check", {
                 method: "POST",
                 body: JSON.stringify({ verificationId }),
+                ...(accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {}),
             }),
     },
 
