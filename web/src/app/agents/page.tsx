@@ -262,7 +262,7 @@ export default function AgentsPage() {
                                 </Link>
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 divide-x divide-y divide-border bg-background/60 backdrop-blur-sm">
+                        <div className="grid grid-cols-2 border-border border-t lg:border-t-0 lg:border-l divide-x divide-y divide-border bg-background/60 backdrop-blur-sm">
                             {HERO_SIGNALS.map((item) => (
                                 <div key={item.label} className="px-5 py-6">
                                     <div className="size-9 bg-sage/30 border border-border flex items-center justify-center mb-3">
@@ -280,7 +280,7 @@ export default function AgentsPage() {
 
                 <div className="border-border border-b bg-background/80">
                     <div className="flex flex-col sm:flex-row sm:items-center">
-                        <div className="flex border-border border-b sm:border-b-0 sm:border-r">
+                        <div className="flex border-border sm:border-r">
                             <button
                                 onClick={() => setView("humans")}
                                 className={cn(
@@ -305,7 +305,7 @@ export default function AgentsPage() {
                             </button>
                         </div>
                         <div className="hidden sm:block flex-1" />
-                        <div className="px-4 py-3 sm:px-6 sm:py-0">
+                        <div className="border-border border-t sm:border-t-0 sm:border-l px-4 py-3 sm:px-6 sm:py-0">
                             <CopyButton text={SIGIL_SKILL_MD} label="Copy skill.md" />
                         </div>
                     </div>
@@ -341,13 +341,13 @@ export default function AgentsPage() {
                                 </div>
                             </div>
                             <div className="min-w-0">
-                                <div className="px-6 py-3 lg:px-8 border-border border-b bg-foreground/[0.03] flex items-center justify-between gap-3">
+                                <div className="px-6 py-3 lg:px-8 border-border border-b bg-foreground/[0.03] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                     <span className="text-xs text-muted-foreground font-mono">
                                         skill.md - paste into your agent&apos;s system context
                                     </span>
                                     <CopyButton text={SIGIL_SKILL_MD} />
                                 </div>
-                                <div className="px-6 py-6 lg:px-8 bg-foreground/[0.02] max-h-[780px] overflow-auto">
+                                <div className="px-6 py-6 lg:px-8 bg-foreground/[0.02] max-h-[65vh] lg:max-h-[780px] overflow-auto">
                                     <SkillMarkdownView content={SIGIL_SKILL_MD} />
                                 </div>
                             </div>
@@ -423,9 +423,9 @@ export default function AgentsPage() {
                                     quick start
                                 </h2>
                             </div>
-                            <div className="px-6 py-6 lg:px-12 space-y-6">
-                                <div>
-                                    <div className="flex items-center justify-between mb-2">
+                            <div className="px-6 py-6 lg:px-12 space-y-4">
+                                <div className="border border-border bg-background/70">
+                                    <div className="border-border border-b px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                         <span className="text-xs text-muted-foreground font-mono uppercase tracking-wider">
                                             Verify Agent Identity
                                         </span>
@@ -435,7 +435,7 @@ export default function AgentsPage() {
   -d '{"method":"agent_keypair","projectId":"my-agent","walletAddress":"0xYOUR_WALLET"}'`}
                                         />
                                     </div>
-                                    <div className="bg-foreground/5 border border-border px-5 py-4">
+                                    <div className="bg-foreground/5 px-4 py-4">
                                         <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap">
                                             {`curl -X POST https://heysigil.com/api/verify/challenge \\
   -H "Content-Type: application/json" \\
@@ -443,8 +443,8 @@ export default function AgentsPage() {
                                         </pre>
                                     </div>
                                 </div>
-                                <div>
-                                    <div className="flex items-center justify-between mb-2">
+                                <div className="border border-border bg-background/70">
+                                    <div className="border-border border-b px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                         <span className="text-xs text-muted-foreground font-mono uppercase tracking-wider">
                                             Deploy a Token
                                         </span>
@@ -454,7 +454,7 @@ export default function AgentsPage() {
   -d '{"name":"My Token","symbol":"sTOKEN","projectId":"my-agent","devLinks":["agent://my-agent"]}'`}
                                         />
                                     </div>
-                                    <div className="bg-foreground/5 border border-border px-5 py-4">
+                                    <div className="bg-foreground/5 px-4 py-4">
                                         <pre className="text-xs text-muted-foreground font-mono whitespace-pre-wrap">
                                             {`curl -X POST https://heysigil.com/api/deploy \\
   -H "Content-Type: application/json" \\
@@ -472,14 +472,14 @@ export default function AgentsPage() {
                                     what you get
                                 </h2>
                             </div>
-                            <div className="px-6 lg:px-12">
-                                <table className="w-full text-sm">
+                            <div className="px-6 lg:px-12 overflow-x-auto">
+                                <table className="w-full min-w-[560px] text-sm">
                                     <thead>
                                         <tr className="border-border border-b">
                                             <th className="text-left text-xs text-muted-foreground font-mono uppercase tracking-wider py-3 pr-4">
                                                 Feature
                                             </th>
-                                            <th className="text-left text-xs text-muted-foreground font-mono uppercase tracking-wider py-3">
+                                            <th className="text-left text-xs text-muted-foreground font-mono uppercase tracking-wider py-3 border-l border-border pl-4">
                                                 Details
                                             </th>
                                         </tr>
@@ -497,7 +497,7 @@ export default function AgentsPage() {
                                                 <td className="py-3 pr-4 font-medium text-foreground">
                                                     {feature}
                                                 </td>
-                                                <td className="py-3 text-muted-foreground">
+                                                <td className="py-3 text-muted-foreground border-l border-border pl-4">
                                                     {details}
                                                 </td>
                                             </tr>
@@ -514,14 +514,14 @@ export default function AgentsPage() {
                                     infrastructure
                                 </h2>
                             </div>
-                            <div className="px-6 lg:px-12">
-                                <table className="w-full text-sm">
+                            <div className="px-6 lg:px-12 overflow-x-auto">
+                                <table className="w-full min-w-[560px] text-sm">
                                     <thead>
                                         <tr className="border-border border-b">
                                             <th className="text-left text-xs text-muted-foreground font-mono uppercase tracking-wider py-3 pr-4">
                                                 Component
                                             </th>
-                                            <th className="text-left text-xs text-muted-foreground font-mono uppercase tracking-wider py-3">
+                                            <th className="text-left text-xs text-muted-foreground font-mono uppercase tracking-wider py-3 border-l border-border pl-4">
                                                 Details
                                             </th>
                                         </tr>
@@ -539,7 +539,7 @@ export default function AgentsPage() {
                                                 <td className="py-3 pr-4 font-medium text-foreground">
                                                     {component}
                                                 </td>
-                                                <td className="py-3 text-muted-foreground">
+                                                <td className="py-3 text-muted-foreground border-l border-border pl-4">
                                                     {details}
                                                 </td>
                                             </tr>
