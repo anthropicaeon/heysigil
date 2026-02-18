@@ -8,11 +8,12 @@
 
 import { z } from "zod";
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
-import { eq } from "drizzle-orm";
+import { eq, sql, isNull, and } from "drizzle-orm";
 import { getBody, getParams } from "../helpers/request.js";
 import { getDb, schema } from "../../db/client.js";
 import { rateLimit } from "../../middleware/rate-limit.js";
-import { getUserId, privyAuth } from "../../middleware/auth.js";
+import { getUserId, privyAuth, getPrivyGithubUsername } from "../../middleware/auth.js";
+import { loggers } from "../../utils/logger.js";
 import { handler } from "../helpers/route.js";
 import { getErrorMessage } from "../../utils/errors.js";
 import { parseDevLinks, launchToken, isDeployerConfigured } from "../../services/launch.js";
@@ -213,8 +214,13 @@ launch.openapi(
 
 /**
  * GET /api/launch/my-projects
- * List projects owned by the authenticated user.
- * Matches by ownerWallet (from Privy user → users table → walletAddress).
+ * List projects owned by the authenticated user + claimable projects.
+ *
+ * "Claimed" = ownerWallet matches the user's wallet.
+ * "Claimable" = ownerWallet IS NULL and devLinks contains a GitHub
+ *               repo owned by the user's Privy GitHub username.
+ *
+ * Each project is enriched with aggregated fee data from feeDistributions.
  */
 launch.get(
     "/my-projects",
@@ -234,19 +240,101 @@ launch.get(
             .where(eq(schema.users.privyUserId, privyUserId))
             .limit(1);
 
-        if (!user) {
-            // No user record yet — return empty
-            return c.json({ projects: [] });
+        // ── Claimed projects (ownerWallet matches user's wallet) ──
+        let claimedProjects: (typeof schema.projects.$inferSelect)[] = [];
+        if (user) {
+            claimedProjects = await db
+                .select()
+                .from(schema.projects)
+                .where(eq(schema.projects.ownerWallet, user.walletAddress));
         }
 
-        // Query projects where ownerWallet matches the user's wallet
-        const projects = await db
-            .select()
-            .from(schema.projects)
-            .where(eq(schema.projects.ownerWallet, user.walletAddress));
+        // ── Claimable projects (unclaimed, GitHub username matches devLinks) ──
+        let claimableProjects: (typeof schema.projects.$inferSelect)[] = [];
 
-        return c.json({
-            projects: projects.map((p) => ({
+        const githubUsername = await getPrivyGithubUsername(privyUserId);
+        if (githubUsername) {
+            // Load all unclaimed projects — filter in TS for reliability
+            const unclaimed = await db
+                .select()
+                .from(schema.projects)
+                .where(isNull(schema.projects.ownerWallet));
+
+            // Match: devLinks has a GitHub entry with projectId containing the user's username
+            // OR project ID starts with "github:username/"
+            const userLower = githubUsername.toLowerCase();
+            claimableProjects = unclaimed.filter((p) => {
+                // Match by projectId prefix: "github:username/repo"
+                if (p.projectId.toLowerCase().startsWith(`github:${userLower}/`)) {
+                    return true;
+                }
+                // Match by devLinks containing the username
+                if (p.devLinks && Array.isArray(p.devLinks)) {
+                    return p.devLinks.some(
+                        (link) =>
+                            link.platform === "github" &&
+                            link.projectId.toLowerCase().startsWith(`${userLower}/`),
+                    );
+                }
+                return false;
+            });
+
+            loggers.server.info(
+                {
+                    githubUsername,
+                    unclaimedCount: unclaimed.length,
+                    matchedCount: claimableProjects.length,
+                },
+                "Claimable project scan",
+            );
+        }
+
+        // ── Aggregate fees per project ──
+        const allProjectIds = [
+            ...claimedProjects.map((p) => p.projectId),
+            ...claimableProjects.map((p) => p.projectId),
+        ];
+
+        const feesByProject = new Map<string, string>();
+
+        if (allProjectIds.length > 0) {
+            try {
+                // Sum devAmount from deposit events grouped by projectId
+                const feeRows = await db
+                    .select({
+                        projectId: schema.feeDistributions.projectId,
+                        totalDevFees: sql<string>`COALESCE(SUM(CAST(${schema.feeDistributions.devAmount} AS NUMERIC)), 0)`,
+                    })
+                    .from(schema.feeDistributions)
+                    .where(
+                        and(
+                            eq(schema.feeDistributions.eventType, "deposit"),
+                            sql`${schema.feeDistributions.projectId} = ANY(${allProjectIds})`,
+                        ),
+                    )
+                    .groupBy(schema.feeDistributions.projectId);
+
+                for (const row of feeRows) {
+                    if (row.projectId) {
+                        feesByProject.set(row.projectId, row.totalDevFees);
+                    }
+                }
+            } catch (err) {
+                loggers.server.warn({ error: err }, "Failed to aggregate fees, returning 0s");
+            }
+        }
+
+        // ── Format helper ──
+        function formatProject(p: typeof schema.projects.$inferSelect) {
+            const feesWei = feesByProject.get(p.projectId) ?? "0";
+            // USDC has 6 decimals
+            const feesNum = Number(feesWei) / 1e6;
+            const feesUsdc =
+                feesNum > 0
+                    ? `$${feesNum.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : "$0.00";
+
+            return {
                 projectId: p.projectId,
                 name: p.name,
                 description: p.description,
@@ -256,9 +344,16 @@ launch.get(
                 attestationUid: p.attestationUid,
                 devLinks: p.devLinks,
                 deployedBy: p.deployedBy,
+                feesAccruedWei: feesWei,
+                feesAccruedUsdc: feesUsdc,
                 createdAt: p.createdAt?.toISOString() ?? null,
                 verifiedAt: p.verifiedAt?.toISOString() ?? null,
-            })),
+            };
+        }
+
+        return c.json({
+            projects: claimedProjects.map(formatProject),
+            claimableProjects: claimableProjects.map(formatProject),
         });
     }),
 );
