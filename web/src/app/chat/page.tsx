@@ -1,79 +1,235 @@
 "use client";
 
-import { ArrowRightLeft, HelpCircle, Send, Shield, Wallet } from "lucide-react";
+/**
+ * Chat Page
+ *
+ * Multi-step AI agent chat with border-centric design.
+ * Features tool invocations, chain of thought, and portfolio sidebar.
+ */
+
+import {
+    BrainIcon,
+    CheckCircleIcon,
+    CopyIcon,
+    NewspaperIcon,
+    RefreshCcwIcon,
+    ScaleIcon,
+    SearchIcon,
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { type FormEvent, useCallback, useState } from "react";
+import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { Action, Actions } from "@/components/ai-elements/actions";
+import {
+    ChainOfThought,
+    ChainOfThoughtContent,
+    ChainOfThoughtHeader,
+    ChainOfThoughtSearchResult,
+    ChainOfThoughtSearchResults,
+    ChainOfThoughtStep,
+} from "@/components/ai-elements/chain-of-thought";
+import { Conversation, ConversationContent } from "@/components/ai-elements/conversation";
+import { Loader } from "@/components/ai-elements/loader";
+import { Message, MessageContent } from "@/components/ai-elements/message";
+import {
+    PromptInput,
+    PromptInputSubmit,
+    PromptInputTextarea,
+    PromptInputToolbar,
+    PromptInputTools,
+} from "@/components/ai-elements/prompt-input";
+import { Reasoning, ReasoningContent } from "@/components/ai-elements/reasoning";
+import { Response } from "@/components/ai-elements/response";
+import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
+import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
+import { Tool, ToolContent, ToolHeader, ToolInput } from "@/components/ai-elements/tool";
+import {
+    AnalyzeView,
+    DecideView,
+    NewsSearchView,
+    ProvideAnswerView,
+    WebSearchView,
+} from "@/components/tool-views";
+import type { ChatStatus, MessagePart, MultiStepToolUIMessage } from "@/lib/chat-types";
 
-interface Message {
-    id: string;
-    role: "user" | "assistant";
-    content: string;
-}
+// Suggestions for quick actions
+const USE_CASES = [
+    { title: "Verify GitHub", prompt: "Verify my GitHub account" },
+    { title: "Check Portfolio", prompt: "Show my wallet and portfolio" },
+    { title: "Swap Tokens", prompt: "Swap 0.1 ETH to USDC" },
+    { title: "How Fees Work", prompt: "How do protocol fees work?" },
+    { title: "Research AI", prompt: "What are the latest trends in AI?" },
+    { title: "Compare DeFi", prompt: "Compare Uniswap vs SushiSwap" },
+] as const;
 
-const suggestions = [
-    { icon: Wallet, label: "Show my wallet", prompt: "show my wallet" },
-    { icon: ArrowRightLeft, label: "Swap 0.1 ETH to USDC", prompt: "swap 0.1 ETH to USDC" },
-    { icon: Shield, label: "Verify my GitHub", prompt: "verify my github account" },
-    { icon: HelpCircle, label: "How do fees work?", prompt: "how do fees work" },
-];
-
+// Portfolio mock data
 const portfolioTokens = [
     { symbol: "ETH", name: "Ethereum", balance: "2.5", value: "$8,750", color: "#627EEA" },
     { symbol: "USDC", name: "USD Coin", balance: "5,000", value: "$5,000", color: "#2775CA" },
-    {
-        symbol: "VAULT",
-        name: "Vault Protocol",
-        balance: "125,000",
-        value: "$2,340",
-        color: "#627EEA",
-    },
+    { symbol: "SIGIL", name: "Sigil Token", balance: "125,000", value: "$2,340", color: "#627EEA" },
 ];
 
+// Tool step extraction for Chain of Thought
+interface ToolStep {
+    icon: typeof SearchIcon;
+    label: string;
+    description: string;
+    status: "complete" | "active" | "pending";
+    content?: React.ReactNode;
+}
+
+function extractToolSteps(messages: MultiStepToolUIMessage[]): ToolStep[] {
+    const steps: ToolStep[] = [];
+
+    for (const message of messages) {
+        if (message.role === "assistant" && message.parts) {
+            const toolCalls = message.parts.filter((part) => part.type?.startsWith("tool-"));
+            toolCalls.forEach((tool, index) => {
+                const isLast = index === toolCalls.length - 1;
+                const step = getToolStep(tool, isLast);
+                if (step) steps.push(step);
+            });
+        }
+    }
+
+    return steps;
+}
+
+function getToolStep(tool: MessagePart, isLast: boolean): ToolStep | null {
+    const status = isLast ? "active" : "complete";
+
+    if (tool.type === "tool-websearch") {
+        return {
+            icon: SearchIcon,
+            label: "Web Search",
+            description: `Searching for: "${tool.input?.query || "Unknown"}"`,
+            status,
+            content:
+                tool.output?.results?.length && tool.output.state === "ready" ? (
+                    <ChainOfThoughtSearchResults>
+                        {tool.output.results.slice(0, 3).map((result, i) => (
+                            <ChainOfThoughtSearchResult key={i}>
+                                <a
+                                    href={result.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-primary hover:underline"
+                                >
+                                    {result.title}
+                                </a>
+                            </ChainOfThoughtSearchResult>
+                        ))}
+                    </ChainOfThoughtSearchResults>
+                ) : undefined,
+        };
+    }
+
+    if (tool.type === "tool-news") {
+        return {
+            icon: NewspaperIcon,
+            label: "News Search",
+            description: `Searching news for: "${tool.input?.topic || "Unknown"}"`,
+            status,
+        };
+    }
+
+    if (tool.type === "tool-analyze") {
+        return {
+            icon: BrainIcon,
+            label: "Analysis",
+            description: `Analyzing: ${tool.input?.problem || "Unknown"}`,
+            status,
+        };
+    }
+
+    if (tool.type === "tool-decide") {
+        return {
+            icon: ScaleIcon,
+            label: "Decision",
+            description: `Evaluating ${tool.input?.options?.length || 0} options`,
+            status,
+        };
+    }
+
+    if (tool.type === "tool-provideAnswer") {
+        return {
+            icon: CheckCircleIcon,
+            label: "Final Answer",
+            description: "Synthesizing results",
+            status,
+        };
+    }
+
+    return null;
+}
+
 export default function ChatPage() {
-    const [messages, setMessages] = useState<Message[]>([
+    const [messages, setMessages] = useState<MultiStepToolUIMessage[]>([
         {
             id: "1",
             role: "assistant",
-            content:
-                "Hey! I'm Sigil, your verification and funding assistant. I can help you verify your identity, check your portfolio, swap tokens, or answer questions about the protocol. What would you like to do?",
+            parts: [
+                {
+                    type: "text",
+                    text: "Hey! I'm Sigil, your verification and funding assistant. I can help you verify your identity, check your portfolio, swap tokens, or research anything. What would you like to do?",
+                },
+            ],
         },
     ]);
     const [input, setInput] = useState("");
-    const [isTyping, setIsTyping] = useState(false);
+    const [status, setStatus] = useState<ChatStatus>("ready");
 
-    const handleSend = () => {
-        if (!input.trim()) return;
+    const handleSubmit = useCallback(
+        async (_: unknown, e: FormEvent) => {
+            e.preventDefault();
+            if (!input.trim() || status !== "ready") return;
 
-        const userMessage: Message = {
-            id: Date.now().toString(),
-            role: "user",
-            content: input,
-        };
-
-        setMessages((prev) => [...prev, userMessage]);
-        setInput("");
-        setIsTyping(true);
-
-        // Simulate assistant response
-        setTimeout(() => {
-            const assistantMessage: Message = {
-                id: (Date.now() + 1).toString(),
-                role: "assistant",
-                content: `I understand you want to "${input}". This feature is coming soon! In the meantime, you can explore the Verify, Dashboard, or Governance pages.`,
+            const userMessage: MultiStepToolUIMessage = {
+                id: Date.now().toString(),
+                role: "user",
+                parts: [{ type: "text", text: input }],
             };
-            setMessages((prev) => [...prev, assistantMessage]);
-            setIsTyping(false);
-        }, 1500);
-    };
 
-    const handleSuggestion = (prompt: string) => {
-        setInput(prompt);
-    };
+            setMessages((prev) => [...prev, userMessage]);
+            setInput("");
+            setStatus("submitted");
+
+            // Simulate multi-step agent response
+            setTimeout(() => {
+                setStatus("streaming");
+
+                // Simulated response with tool usage
+                const assistantMessage: MultiStepToolUIMessage = {
+                    id: (Date.now() + 1).toString(),
+                    role: "assistant",
+                    parts: [
+                        {
+                            type: "text",
+                            text: `I understand you want to "${input}". This feature is being built with our multi-step AI agent. In the meantime, explore Verify, Dashboard, or Governance pages for full functionality.`,
+                        },
+                    ],
+                };
+
+                setMessages((prev) => [...prev, assistantMessage]);
+                setStatus("ready");
+            }, 1500);
+        },
+        [input, status],
+    );
+
+    const handleRegenerate = useCallback(() => {
+        toast.info("Regenerating response...");
+    }, []);
+
+    const hasToolCalls = (message: MultiStepToolUIMessage) =>
+        message.role === "assistant" &&
+        message.parts.some((part) => part.type?.startsWith("tool-"));
+
+    const hasSources = (message: MultiStepToolUIMessage) =>
+        message.role === "assistant" &&
+        message.parts.filter((part) => part.type === "source-url").length > 0;
 
     return (
         <section className="bg-cream relative overflow-hidden px-2.5 lg:px-0">
@@ -83,19 +239,13 @@ export default function ChatPage() {
                     <div className="flex flex-col lg:flex-row">
                         <div className="flex-1 px-6 py-4 lg:px-12 border-border border-b lg:border-b-0 lg:border-r">
                             <div className="flex items-center gap-3">
-                                <Image
-                                    src="/logo-sage.png"
-                                    alt="Sigil"
-                                    width={40}
-                                    height={40}
-                                    className="rounded"
-                                />
+                                <Image src="/logo-sage.png" alt="Sigil" width={40} height={40} />
                                 <div>
                                     <h1 className="text-xl font-semibold text-foreground lowercase">
                                         talk to sigil
                                     </h1>
                                     <p className="text-sm text-muted-foreground">
-                                        verification and funding assistant
+                                        multi-step ai agent
                                     </p>
                                 </div>
                             </div>
@@ -107,139 +257,289 @@ export default function ChatPage() {
                 </div>
 
                 {/* Main Content */}
-                <div className="flex flex-col lg:flex-row bg-background">
+                <div
+                    className="flex flex-col lg:flex-row bg-background"
+                    style={{ minHeight: "70vh" }}
+                >
                     {/* Chat Area */}
-                    <div
-                        className="flex-1 border-border lg:border-r flex flex-col"
-                        style={{ minHeight: "60vh" }}
-                    >
-                        {/* Messages */}
-                        <div className="flex-1 overflow-auto">
-                            <div className="divide-y divide-border">
+                    <div className="flex-1 border-border lg:border-r flex flex-col">
+                        <Conversation className="flex-1">
+                            <ConversationContent>
                                 {messages.map((message) => (
-                                    <div
-                                        key={message.id}
-                                        className={cn(
-                                            "px-6 py-4 lg:px-12",
-                                            message.role === "user"
-                                                ? "bg-primary/5"
-                                                : "bg-background",
+                                    <div key={message.id} className="flex flex-col">
+                                        {/* Sources */}
+                                        {hasSources(message) && (
+                                            <Sources>
+                                                <SourcesTrigger
+                                                    count={
+                                                        message.parts.filter(
+                                                            (part) => part.type === "source-url",
+                                                        ).length
+                                                    }
+                                                />
+                                                {message.parts
+                                                    .filter((part) => part.type === "source-url")
+                                                    .map((part, i) =>
+                                                        part.type === "source-url" ? (
+                                                            <SourcesContent key={i}>
+                                                                <Source
+                                                                    href={part.url}
+                                                                    title={part.url}
+                                                                />
+                                                            </SourcesContent>
+                                                        ) : null,
+                                                    )}
+                                            </Sources>
                                         )}
-                                    >
-                                        <div className="max-w-2xl">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                {message.role === "assistant" ? (
-                                                    <>
-                                                        <Image
-                                                            src="/logo-sage.png"
-                                                            alt="Sigil"
-                                                            width={20}
-                                                            height={20}
-                                                        />
-                                                        <span className="text-sm font-medium text-primary">
-                                                            Sigil
-                                                        </span>
-                                                    </>
-                                                ) : (
-                                                    <span className="text-sm font-medium text-foreground">
-                                                        You
-                                                    </span>
-                                                )}
+
+                                        {/* Chain of Thought */}
+                                        {hasToolCalls(message) && (
+                                            <div className="mx-6 mb-4 lg:mx-12 max-w-fit">
+                                                <ChainOfThought defaultOpen>
+                                                    <ChainOfThoughtHeader>
+                                                        Agent Reasoning
+                                                    </ChainOfThoughtHeader>
+                                                    <ChainOfThoughtContent>
+                                                        {extractToolSteps([message]).map(
+                                                            (step, index) => (
+                                                                <ChainOfThoughtStep
+                                                                    key={index}
+                                                                    icon={step.icon}
+                                                                    label={step.label}
+                                                                    description={step.description}
+                                                                    status={step.status}
+                                                                >
+                                                                    {step.content}
+                                                                </ChainOfThoughtStep>
+                                                            ),
+                                                        )}
+                                                    </ChainOfThoughtContent>
+                                                </ChainOfThought>
                                             </div>
-                                            <p className="text-sm leading-relaxed text-foreground">
-                                                {message.content}
-                                            </p>
-                                        </div>
+                                        )}
+
+                                        {/* Message Parts */}
+                                        {message.parts.map((part, partIndex) => {
+                                            if (part.type === "text") {
+                                                return (
+                                                    <Message key={partIndex} from={message.role}>
+                                                        <MessageContent>
+                                                            <Response>{part.text}</Response>
+                                                        </MessageContent>
+                                                    </Message>
+                                                );
+                                            }
+
+                                            if (part.type === "reasoning") {
+                                                return (
+                                                    <Reasoning
+                                                        key={partIndex}
+                                                        className="mx-6 lg:mx-12 mt-4"
+                                                    >
+                                                        <ReasoningContent>
+                                                            {part.text}
+                                                        </ReasoningContent>
+                                                    </Reasoning>
+                                                );
+                                            }
+
+                                            if (part.type === "tool-websearch") {
+                                                return (
+                                                    <div
+                                                        key={partIndex}
+                                                        className="mx-6 lg:mx-12 mb-4 max-w-lg"
+                                                    >
+                                                        <Tool>
+                                                            <ToolHeader
+                                                                type={part.type}
+                                                                state={part.output?.state}
+                                                            />
+                                                            <ToolContent>
+                                                                <ToolInput
+                                                                    input={part.input || {}}
+                                                                />
+                                                                <div className="p-4">
+                                                                    <WebSearchView
+                                                                        invocation={part}
+                                                                    />
+                                                                </div>
+                                                            </ToolContent>
+                                                        </Tool>
+                                                    </div>
+                                                );
+                                            }
+
+                                            if (part.type === "tool-news") {
+                                                return (
+                                                    <div
+                                                        key={partIndex}
+                                                        className="mx-6 lg:mx-12 mb-4 max-w-lg"
+                                                    >
+                                                        <Tool>
+                                                            <ToolHeader
+                                                                type={part.type}
+                                                                state={part.output?.state}
+                                                            />
+                                                            <ToolContent>
+                                                                <ToolInput
+                                                                    input={part.input || {}}
+                                                                />
+                                                                <div className="p-4">
+                                                                    <NewsSearchView
+                                                                        invocation={part}
+                                                                    />
+                                                                </div>
+                                                            </ToolContent>
+                                                        </Tool>
+                                                    </div>
+                                                );
+                                            }
+
+                                            if (part.type === "tool-analyze") {
+                                                return (
+                                                    <div
+                                                        key={partIndex}
+                                                        className="mx-6 lg:mx-12 mb-4 max-w-lg"
+                                                    >
+                                                        <Tool>
+                                                            <ToolHeader
+                                                                type={part.type}
+                                                                state={part.output?.state}
+                                                            />
+                                                            <ToolContent>
+                                                                <ToolInput
+                                                                    input={part.input || {}}
+                                                                />
+                                                                <div className="p-4">
+                                                                    <AnalyzeView
+                                                                        invocation={part}
+                                                                    />
+                                                                </div>
+                                                            </ToolContent>
+                                                        </Tool>
+                                                    </div>
+                                                );
+                                            }
+
+                                            if (part.type === "tool-decide") {
+                                                return (
+                                                    <div
+                                                        key={partIndex}
+                                                        className="mx-6 lg:mx-12 mb-4 max-w-lg"
+                                                    >
+                                                        <Tool>
+                                                            <ToolHeader
+                                                                type={part.type}
+                                                                state={part.output?.state}
+                                                            />
+                                                            <ToolContent>
+                                                                <ToolInput
+                                                                    input={part.input || {}}
+                                                                />
+                                                                <div className="p-4">
+                                                                    <DecideView invocation={part} />
+                                                                </div>
+                                                            </ToolContent>
+                                                        </Tool>
+                                                    </div>
+                                                );
+                                            }
+
+                                            if (part.type === "tool-provideAnswer") {
+                                                return (
+                                                    <Message key={partIndex} from={message.role}>
+                                                        <MessageContent>
+                                                            <ProvideAnswerView invocation={part} />
+                                                        </MessageContent>
+                                                    </Message>
+                                                );
+                                            }
+
+                                            return null;
+                                        })}
+
+                                        {/* Actions for assistant messages */}
+                                        {message.role === "assistant" && (
+                                            <Actions>
+                                                <Action label="Retry" onClick={handleRegenerate}>
+                                                    <RefreshCcwIcon className="size-3" />
+                                                </Action>
+                                                <Action
+                                                    label="Copy"
+                                                    onClick={() => {
+                                                        const text = message.parts
+                                                            .filter((p) => p.type === "text")
+                                                            .map(
+                                                                (p) => (p as { text: string }).text,
+                                                            )
+                                                            .join("\n");
+                                                        navigator.clipboard.writeText(text);
+                                                        toast.success("Copied to clipboard");
+                                                    }}
+                                                >
+                                                    <CopyIcon className="size-3" />
+                                                </Action>
+                                            </Actions>
+                                        )}
                                     </div>
                                 ))}
 
-                                {isTyping && (
-                                    <div className="px-6 py-4 lg:px-12 bg-background">
-                                        <div className="max-w-2xl">
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Image
-                                                    src="/logo-sage.png"
-                                                    alt="Sigil"
-                                                    width={20}
-                                                    height={20}
-                                                />
-                                                <span className="text-sm font-medium text-primary">
-                                                    Sigil
-                                                </span>
-                                            </div>
-                                            <div className="flex gap-1">
-                                                <span
-                                                    className="w-2 h-2 bg-muted-foreground animate-bounce"
-                                                    style={{ animationDelay: "0ms" }}
-                                                />
-                                                <span
-                                                    className="w-2 h-2 bg-muted-foreground animate-bounce"
-                                                    style={{ animationDelay: "150ms" }}
-                                                />
-                                                <span
-                                                    className="w-2 h-2 bg-muted-foreground animate-bounce"
-                                                    style={{ animationDelay: "300ms" }}
-                                                />
-                                            </div>
-                                        </div>
+                                {/* Loading indicator */}
+                                {status === "submitted" && (
+                                    <div className="px-6 py-8 lg:px-12 flex items-center justify-center">
+                                        <Loader />
                                     </div>
                                 )}
-                            </div>
-                        </div>
+                            </ConversationContent>
+                        </Conversation>
 
                         {/* Suggestions */}
                         {messages.length === 1 && (
                             <div className="border-border border-t">
-                                <div className="px-6 py-3 lg:px-12 border-border border-b bg-secondary/30">
+                                <div className="px-6 py-2 lg:px-12 border-border border-b bg-secondary/30">
                                     <p className="text-xs text-muted-foreground uppercase tracking-wider">
                                         Try these
                                     </p>
                                 </div>
-                                <div className="divide-y divide-border">
-                                    {suggestions.map((suggestion) => (
-                                        <button
-                                            key={suggestion.label}
-                                            type="button"
-                                            onClick={() => handleSuggestion(suggestion.prompt)}
-                                            className="w-full flex items-center gap-3 px-6 py-3 lg:px-12 text-sm hover:bg-secondary/30 transition-colors text-left"
-                                        >
-                                            <suggestion.icon className="size-4 text-primary" />
-                                            <span className="text-foreground">
-                                                {suggestion.label}
-                                            </span>
-                                        </button>
-                                    ))}
+                                <div className="px-6 py-3 lg:px-12">
+                                    <Suggestions>
+                                        {USE_CASES.map((useCase) => (
+                                            <Suggestion
+                                                key={useCase.title}
+                                                suggestion={useCase.title}
+                                                onClick={() => setInput(useCase.prompt)}
+                                            />
+                                        ))}
+                                    </Suggestions>
                                 </div>
                             </div>
                         )}
 
                         {/* Input */}
-                        <div className="border-t border-border px-6 py-4 lg:px-12">
-                            <div className="max-w-2xl flex gap-3">
-                                <Input
-                                    placeholder="Ask Sigil anything..."
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                                    className="flex-1"
-                                />
-                                <Button onClick={handleSend} disabled={!input.trim()}>
-                                    <Send className="size-4" />
-                                </Button>
-                            </div>
-                        </div>
+                        <PromptInput onSubmit={handleSubmit}>
+                            <PromptInputTextarea
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                placeholder="Ask Sigil anything..."
+                                disabled={status !== "ready"}
+                            />
+                            <PromptInputToolbar>
+                                <PromptInputTools className="ml-auto">
+                                    <PromptInputSubmit disabled={!input.trim()} status={status} />
+                                </PromptInputTools>
+                            </PromptInputToolbar>
+                        </PromptInput>
                     </div>
 
                     {/* Portfolio Sidebar */}
                     <div className="hidden lg:block w-80">
-                        {/* Token List */}
                         {portfolioTokens.map((token) => (
                             <div
                                 key={token.symbol}
                                 className="flex items-center gap-3 px-6 py-4 border-border border-b hover:bg-secondary/20 transition-colors"
                             >
                                 <div
-                                    className="size-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0"
+                                    className="size-10 flex items-center justify-center text-white font-bold text-sm shrink-0"
                                     style={{ backgroundColor: token.color }}
                                 >
                                     {token.symbol.charAt(0)}
@@ -259,7 +559,6 @@ export default function ChatPage() {
                             </div>
                         ))}
 
-                        {/* Total Value */}
                         <div className="px-6 py-4 border-border border-b bg-primary/5">
                             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
                                 Total Value
@@ -267,7 +566,6 @@ export default function ChatPage() {
                             <p className="text-2xl font-bold text-primary">$16,090</p>
                         </div>
 
-                        {/* Quick Links */}
                         <div className="px-6 py-4">
                             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
                                 Quick Links
