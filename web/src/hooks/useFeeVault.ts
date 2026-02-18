@@ -3,14 +3,14 @@
 /**
  * Fee Vault Hook
  *
- * Manages on-chain fee vault reads and claims.
+ * Reads on-chain fee balances and claims via server-side API.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { encodeFunctionData, formatUnits } from "viem";
+import { formatUnits } from "viem";
 
 import { FEE_VAULT_ABI, FEE_VAULT_ADDRESS, publicClient, USDC_ADDRESS } from "@/config/contracts";
-import { useOptionalPrivy, useOptionalWallets } from "@/hooks/useOptionalPrivy";
+import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import { apiClient } from "@/lib/api-client";
 import { getErrorMessage } from "@/lib/errors";
 import { formatCurrency } from "@/lib/format";
@@ -61,7 +61,6 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
     const [error, setError] = useState<string | null>(null);
     const [lastTxHash, setLastTxHash] = useState<string | null>(null);
 
-    const walletsData = useOptionalWallets();
     const privy = useOptionalPrivy();
     const isMounted = useRef(true);
 
@@ -138,56 +137,6 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         refresh();
     }, [refresh]);
 
-    // ── Get wallet provider for writes ──
-    const getProvider = useCallback(async () => {
-        if (!walletsData?.wallets?.length) {
-            throw new Error("No wallet connected");
-        }
-
-        // Find the embedded wallet or first available
-        const wallet =
-            walletsData.wallets.find(
-                (w: { walletClientType: string }) => w.walletClientType === "privy",
-            ) ?? walletsData.wallets[0];
-
-        // Switch to Base if needed
-        await wallet.switchChain(8453); // Base mainnet
-
-        const provider = (await wallet.getEthereumProvider()) as {
-            request: (args: { method: string; params: unknown[] }) => Promise<unknown>;
-        };
-        return { provider, address: wallet.address };
-    }, [walletsData]);
-
-    // ── Send transaction helper ──
-    const sendTx = useCallback(
-        async (data: `0x${string}`) => {
-            const { provider, address } = await getProvider();
-
-            const txHash = await provider.request({
-                method: "eth_sendTransaction",
-                params: [
-                    {
-                        from: address,
-                        to: FEE_VAULT_ADDRESS,
-                        data,
-                    },
-                ],
-            });
-
-            setLastTxHash(txHash as string);
-
-            // Wait for confirmation
-            await publicClient.waitForTransactionReceipt({
-                hash: txHash as `0x${string}`,
-            });
-
-            // Refresh balances after claim
-            await refresh();
-        },
-        [getProvider, refresh],
-    );
-
     // ── Fund gas before claim ──
     const fundGas = useCallback(async () => {
         setFundingGas(true);
@@ -209,6 +158,24 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         }
     }, [privy]);
 
+    // ── Server-side claim helper ──
+    const claimViaBackend = useCallback(
+        async (token?: string) => {
+            const accessToken = await privy?.getAccessToken?.();
+            if (!accessToken) {
+                throw new Error("Not authenticated — sign in to claim fees");
+            }
+            const result = await apiClient.fees.claim(accessToken, token);
+            if (!result.success) {
+                throw new Error(result.error || "Claim failed");
+            }
+            setLastTxHash(result.txHash);
+            // Refresh balances after claim
+            await refresh();
+        },
+        [privy, refresh],
+    );
+
     // ── Claim USDC ──
     const claimUsdc = useCallback(async () => {
         setClaiming(true);
@@ -217,19 +184,14 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
             // Step 1: Fund gas from backend
             await fundGas();
 
-            // Step 2: Send claim tx
-            const data = encodeFunctionData({
-                abi: FEE_VAULT_ABI,
-                functionName: "claimDevFees",
-                args: [USDC_ADDRESS],
-            });
-            await sendTx(data);
+            // Step 2: Claim via backend (server signs the tx)
+            await claimViaBackend(USDC_ADDRESS);
         } catch (err) {
             setError(getErrorMessage(err, "Claim failed"));
         } finally {
             setClaiming(false);
         }
-    }, [sendTx, fundGas]);
+    }, [claimViaBackend, fundGas]);
 
     // ── Claim All ──
     const claimAll = useCallback(async () => {
@@ -239,18 +201,14 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
             // Step 1: Fund gas from backend
             await fundGas();
 
-            // Step 2: Send claim tx
-            const data = encodeFunctionData({
-                abi: FEE_VAULT_ABI,
-                functionName: "claimAllDevFees",
-            });
-            await sendTx(data);
+            // Step 2: Claim all via backend
+            await claimViaBackend();
         } catch (err) {
             setError(getErrorMessage(err, "Claim failed"));
         } finally {
             setClaiming(false);
         }
-    }, [sendTx, fundGas]);
+    }, [claimViaBackend, fundGas]);
 
     return {
         claimableUsdc,
@@ -266,3 +224,4 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         refresh,
     };
 }
+
