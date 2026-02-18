@@ -98,32 +98,39 @@ export function EmptyState({
     return (
         <div
             className={cn(
-                "flex flex-col items-center justify-center py-12 px-6 text-center",
+                "flex flex-col px-4 py-6",
                 className,
             )}
         >
             {/* Progressive disclosure: step hint */}
             {stepHint && (
-                <span className="text-xs font-medium text-primary uppercase tracking-wider mb-4">
+                <span className="text-xs font-medium text-primary uppercase tracking-wider mb-3">
                     {stepHint}
                 </span>
             )}
 
-            {icon && (
-                <div className="size-16 rounded-full bg-lavender flex items-center justify-center mb-4 text-primary">
-                    {icon}
+            {/* Header with icon */}
+            <div className="flex items-start gap-3 mb-4">
+                {icon && (
+                    <div className="size-12 bg-lavender/50 border border-border flex items-center justify-center shrink-0 text-primary">
+                        {icon}
+                    </div>
+                )}
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-foreground">{title}</p>
+                    {description && (
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{description}</p>
+                    )}
+                </div>
+            </div>
+
+            {/* Actions */}
+            {(action || secondaryAction) && (
+                <div className="border-t border-border pt-4 space-y-2">
+                    {action && <div className="w-full">{renderAction(action, true)}</div>}
+                    {secondaryAction && <div>{renderAction(secondaryAction, false)}</div>}
                 </div>
             )}
-
-            <p className="text-lg font-semibold text-foreground mb-2">{title}</p>
-
-            {description && (
-                <p className="text-sm text-muted-foreground max-w-xs mb-6">{description}</p>
-            )}
-
-            {action && <div className="w-full max-w-xs">{renderAction(action, true)}</div>}
-
-            {secondaryAction && <div className="mt-3">{renderAction(secondaryAction, false)}</div>}
         </div>
     );
 }
