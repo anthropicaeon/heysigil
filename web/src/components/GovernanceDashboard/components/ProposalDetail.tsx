@@ -386,24 +386,36 @@ export function ProposalDetail({ proposal, onBack }: ProposalDetailProps) {
                         <button
                             type="button"
                             onClick={() => handleVote(true)}
-                            className="flex-1 px-6 py-8 flex flex-col items-center justify-center gap-2 bg-green-50 hover:bg-green-100 transition-colors group"
+                            className="flex-1 flex flex-col sm:flex-row transition-colors"
                         >
-                            <div className="size-14 bg-green-100 border-2 border-green-300 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <ThumbsUp className="size-7 text-green-600" />
+                            {/* Icon Cell */}
+                            <div className="px-6 py-6 sm:px-8 flex items-center justify-center border-border border-b sm:border-b-0 sm:border-r bg-green-100">
+                                <div className="size-12 bg-green-200 border border-green-400 flex items-center justify-center">
+                                    <ThumbsUp className="size-6 text-green-700" />
+                                </div>
                             </div>
-                            <span className="text-green-700 font-semibold text-lg">Vote Yes</span>
-                            <span className="text-green-600/70 text-xs">Approve this milestone</span>
+                            {/* Content Cell */}
+                            <div className="flex-1 px-6 py-6 sm:px-8 flex flex-col justify-center bg-green-50 hover:bg-green-100 transition-colors">
+                                <span className="text-green-800 font-semibold text-lg lowercase">vote yes</span>
+                                <span className="text-green-600/80 text-sm">Approve this milestone and release tokens</span>
+                            </div>
                         </button>
                         <button
                             type="button"
                             onClick={() => handleVote(false)}
-                            className="flex-1 px-6 py-8 flex flex-col items-center justify-center gap-2 bg-red-50 hover:bg-red-100 transition-colors group"
+                            className="flex-1 flex flex-col sm:flex-row transition-colors"
                         >
-                            <div className="size-14 bg-red-100 border-2 border-red-300 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                <ThumbsDown className="size-7 text-red-600" />
+                            {/* Icon Cell */}
+                            <div className="px-6 py-6 sm:px-8 flex items-center justify-center border-border border-b sm:border-b-0 sm:border-r bg-red-100">
+                                <div className="size-12 bg-red-200 border border-red-400 flex items-center justify-center">
+                                    <ThumbsDown className="size-6 text-red-700" />
+                                </div>
                             </div>
-                            <span className="text-red-700 font-semibold text-lg">Vote No</span>
-                            <span className="text-red-600/70 text-xs">Reject this milestone</span>
+                            {/* Content Cell */}
+                            <div className="flex-1 px-6 py-6 sm:px-8 flex flex-col justify-center bg-red-50 hover:bg-red-100 transition-colors">
+                                <span className="text-red-800 font-semibold text-lg lowercase">vote no</span>
+                                <span className="text-red-600/80 text-sm">Reject this milestone proposal</span>
+                            </div>
                         </button>
                     </div>
                 </>
