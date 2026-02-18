@@ -372,16 +372,17 @@ verify.openapi(
                             record.projectId,
                             record.walletAddress,
                         );
-                    }
 
-                    return c.json({
-                        verificationId: body.verificationId,
-                        status: privyResult.success ? ("verified" as const) : ("pending" as const),
-                        success: privyResult.success,
-                        error: privyResult.success ? undefined : privyResult.error,
-                        method: record.method,
-                        projectId: record.projectId,
-                    });
+                        return c.json({
+                            verificationId: body.verificationId,
+                            status: "verified" as const,
+                            success: true,
+                            method: record.method,
+                            projectId: record.projectId,
+                        });
+                    }
+                    // Privy check failed (e.g. GitHub API 401 for unauthenticated calls)
+                    // Fall through to standard file-based verification below
                 }
             }
         }
