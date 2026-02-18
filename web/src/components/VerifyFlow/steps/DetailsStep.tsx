@@ -15,6 +15,7 @@ interface DetailsStepProps {
     walletAddress: string;
     connectedAddress: string | null;
     privy: PrivyContext | null;
+    privyGithubUsername: string | null;
     loading: boolean;
     error: string;
     onProjectIdChange: (value: string) => void;
@@ -30,6 +31,7 @@ export function DetailsStep({
     walletAddress,
     connectedAddress,
     privy,
+    privyGithubUsername,
     loading,
     error,
     onProjectIdChange,
@@ -39,6 +41,8 @@ export function DetailsStep({
     onClearError,
 }: DetailsStepProps) {
     const isConnected = !!connectedAddress;
+    const isGithubMethod = method.id === "github_oauth" || method.id === "github_file";
+    const hasPrivyGithub = isGithubMethod && !!privyGithubUsername;
 
     return (
         <div>
@@ -46,6 +50,19 @@ export function DetailsStep({
             <div className="card">
                 <div className="form-group">
                     <label>Project Identifier</label>
+                    {hasPrivyGithub && (
+                        <div style={{
+                            padding: "var(--space-2) var(--space-3)",
+                            background: "var(--success-bg, rgba(16, 185, 129, 0.1))",
+                            borderRadius: "var(--radius-md)",
+                            fontSize: "var(--text-xs)",
+                            color: "var(--success, #10b981)",
+                            marginBottom: "var(--space-2)",
+                            border: "1px solid var(--success, #10b981)",
+                        }}>
+                            ✓ Signed in as <strong>{privyGithubUsername}</strong> on GitHub — your identity is already verified
+                        </div>
+                    )}
                     <input
                         type="text"
                         placeholder={method.projectIdFormat}
