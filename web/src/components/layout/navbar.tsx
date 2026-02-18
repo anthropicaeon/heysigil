@@ -4,10 +4,14 @@ import {
     Activity,
     BarChart3,
     BookOpen,
+    Bot,
     ChevronRight,
+    Code2,
     HelpCircle,
+    Landmark,
     Newspaper,
     Plug,
+    Rocket,
     Shield,
     Trophy,
 } from "lucide-react";
@@ -56,11 +60,37 @@ const Navbar = () => {
     const ITEMS = [
         { label: "Verify", href: "/verify", primary: true },
         { label: "Dashboard", href: "/dashboard" },
-        { label: "Launches", href: "/launches" },
-        { label: "Agents", href: "/agents" },
         { label: "Chat", href: "/chat" },
-        { label: "Governance", href: "/governance" },
-        { label: "Developers", href: "/developers" },
+        {
+            label: "Build",
+            href: "#build",
+            dropdownItems: [
+                {
+                    title: "Launches",
+                    href: "/launches",
+                    description: "Browse and analyze launched project tokens",
+                    icon: Rocket,
+                },
+                {
+                    title: "Agents",
+                    href: "/agents",
+                    description: "Agent-first workflow for verification and operations",
+                    icon: Bot,
+                },
+                {
+                    title: "Governance",
+                    href: "/governance",
+                    description: "Track and vote on milestone-driven governance",
+                    icon: Landmark,
+                },
+                {
+                    title: "Developers",
+                    href: "/developers",
+                    description: "Builder docs, integration path, and protocol model",
+                    icon: Code2,
+                },
+            ],
+        },
         {
             label: "Resources",
             href: "#resources",
@@ -155,7 +185,7 @@ const Navbar = () => {
                                                 {/* Dropdown Header */}
                                                 <div className="px-4 py-2 border-b border-border bg-sage/20">
                                                     <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                                                        Resources
+                                                        {link.label}
                                                     </span>
                                                 </div>
                                                 {/* Dropdown Items */}
@@ -316,7 +346,7 @@ const Navbar = () => {
                                         {/* Section Header */}
                                         <div className="px-6 py-2 border-b border-border bg-sage/10">
                                             <span className="text-xs text-muted-foreground uppercase tracking-wider">
-                                                Resources
+                                                {link.label}
                                             </span>
                                         </div>
                                         {/* Items */}
