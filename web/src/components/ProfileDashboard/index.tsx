@@ -3,50 +3,48 @@
 /**
  * Profile Dashboard
  *
- * Main dashboard showing fee claims, portfolio metrics, and token holdings.
- * Updated with pastel design system.
+ * Main dashboard showing fee claims, verified projects, and portfolio metrics.
+ * Fetches real project data from the backend API.
+ * Border-centric pastel design system.
  */
 
 import {
     AlertCircle,
     ChevronRight,
-    Coins,
     DollarSign,
     ExternalLink,
     FolderGit2,
+    Rocket,
     TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { FeeClaimCard } from "@/components/FeeVault/FeeClaimCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MOCK_DEV_TOKENS, MOCK_HELD_TOKENS } from "@/fixtures";
 import { useFeeVault } from "@/hooks/useFeeVault";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
+import { apiClient } from "@/lib/api-client";
 import { truncateAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useIsPrivyConfigured } from "@/providers/PrivyAuthProvider";
+import type { ProjectInfo } from "@/types";
 
-import { TokenSection } from "./TokenSection";
-
-type TabFilter = "all" | "dev" | "held";
-
-const tabs: { id: TabFilter; label: string }[] = [
-    { id: "all", label: "All Tokens" },
-    { id: "dev", label: "My Projects" },
-    { id: "held", label: "Holdings" },
-];
+import { ProjectSection } from "./TokenSection";
 
 export default function ProfileDashboard() {
-    const [activeTab, setActiveTab] = useState<TabFilter>("all");
     const isPrivyConfigured = useIsPrivyConfigured();
 
-    // Get wallet address from Privy
+    // Get wallet address + access token from Privy
     const privy = useOptionalPrivy();
     const walletAddress = privy?.user?.wallet?.address as string | undefined;
     const displayAddress = walletAddress ? truncateAddress(walletAddress) : "Not connected";
+
+    // Real project data from API
+    const [projects, setProjects] = useState<ProjectInfo[]>([]);
+    const [projectsLoading, setProjectsLoading] = useState(false);
+    const [projectsError, setProjectsError] = useState<string | null>(null);
 
     // Fee vault hook — reads on-chain data
     const {
@@ -60,19 +58,35 @@ export default function ProfileDashboard() {
         refresh,
     } = useFeeVault(walletAddress);
 
-    const devTokens = MOCK_DEV_TOKENS;
-    const heldTokens = MOCK_HELD_TOKENS;
-    const allTokens = [...devTokens, ...heldTokens];
+    // Fetch user's projects when authenticated
+    const loadProjects = useCallback(async () => {
+        if (!privy?.authenticated || !privy?.getAccessToken) return;
 
-    const filteredTokens = useMemo(() => {
-        if (activeTab === "all") return allTokens;
-        if (activeTab === "dev") return devTokens;
-        return heldTokens;
-    }, [activeTab, allTokens, devTokens, heldTokens]);
+        setProjectsLoading(true);
+        setProjectsError(null);
+
+        try {
+            const token = await privy.getAccessToken();
+            if (!token) return;
+
+            const data = await apiClient.launch.myProjects(token);
+            setProjects(data.projects);
+        } catch (err) {
+            setProjectsError(err instanceof Error ? err.message : "Failed to load projects");
+        } finally {
+            setProjectsLoading(false);
+        }
+    }, [privy]);
+
+    useEffect(() => {
+        loadProjects();
+    }, [loadProjects]);
+
+    const tokensDeployed = projects.filter((p) => p.poolTokenAddress).length;
 
     const stats = [
-        { label: "Total Tokens", value: allTokens.length.toString(), icon: Coins },
-        { label: "Your Projects", value: devTokens.length.toString(), icon: FolderGit2 },
+        { label: "Your Projects", value: projects.length.toString(), icon: FolderGit2 },
+        { label: "Tokens Deployed", value: tokensDeployed.toString(), icon: Rocket },
         { label: "Lifetime Earned", value: lifetimeUsdc, icon: TrendingUp },
         { label: "Claimable Now", value: claimableUsdc, icon: DollarSign, highlight: true },
     ];
@@ -179,40 +193,52 @@ export default function ProfileDashboard() {
                     </div>
                 </div>
 
-                {/* Portfolio Section */}
+                {/* Projects Section */}
                 <div className="bg-background">
                     <div className="px-6 py-4 lg:px-12 border-border border-b">
                         <h2 className="text-lg font-semibold text-foreground lowercase">
-                            your portfolio
+                            your projects
                         </h2>
                     </div>
 
-                    {/* Tab Bar */}
-                    <div className="flex border-border border-b overflow-x-auto">
-                        {tabs.map((tab) => (
-                            <button
-                                key={tab.id}
-                                type="button"
-                                onClick={() => setActiveTab(tab.id)}
-                                className={cn(
-                                    "px-6 py-4 lg:px-8 text-sm font-medium transition-colors whitespace-nowrap",
-                                    "border-border border-r last:border-r-0",
-                                    activeTab === tab.id
-                                        ? "bg-primary/5 text-primary"
-                                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/30",
-                                )}
-                            >
-                                {tab.label}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Token Grid */}
-                    {filteredTokens.length > 0 ? (
-                        <TokenSection tokens={filteredTokens} showHeader={false} />
-                    ) : (
+                    {/* Loading state */}
+                    {projectsLoading && (
                         <div className="px-6 py-16 lg:px-12 text-center border-border border-b bg-background">
-                            <p className="text-muted-foreground">No tokens found</p>
+                            <p className="text-muted-foreground">Loading your projects…</p>
+                        </div>
+                    )}
+
+                    {/* Error state */}
+                    {projectsError && (
+                        <div className="px-6 py-16 lg:px-12 text-center border-border border-b bg-background">
+                            <p className="text-destructive">{projectsError}</p>
+                        </div>
+                    )}
+
+                    {/* Real projects */}
+                    {!projectsLoading && !projectsError && projects.length > 0 && (
+                        <ProjectSection projects={projects} showHeader={false} />
+                    )}
+
+                    {/* Empty state */}
+                    {!projectsLoading && !projectsError && projects.length === 0 && (
+                        <div className="px-6 py-16 lg:px-12 text-center border-border border-b bg-background">
+                            <FolderGit2 className="size-12 mx-auto mb-4 text-muted-foreground/30" />
+                            <h3 className="text-lg font-semibold text-foreground mb-2">
+                                No verified projects yet
+                            </h3>
+                            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                                Verify your project ownership to see your tokens here and start
+                                earning USDC fees from LP activity.
+                            </p>
+                            <div className="flex items-center justify-center gap-4">
+                                <Link href="/verify">
+                                    <Button>Verify a Project</Button>
+                                </Link>
+                                <Link href="/developers">
+                                    <Button variant="outline">Learn how it works</Button>
+                                </Link>
+                            </div>
                         </div>
                     )}
                 </div>

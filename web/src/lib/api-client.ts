@@ -4,12 +4,19 @@
  * Single source of truth for API endpoints with consistent error handling.
  */
 
-import type { ChallengeResponse, CheckResult, ClaimResult, FeeInfo, WalletInfo } from "@/types";
+import type {
+    ChallengeResponse,
+    CheckResult,
+    ClaimResult,
+    FeeInfo,
+    ProjectInfo,
+    WalletInfo,
+} from "@/types";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 // Re-export types for convenience
-export type { ChallengeResponse, CheckResult, ClaimResult, FeeInfo, WalletInfo };
+export type { ChallengeResponse, CheckResult, ClaimResult, FeeInfo, ProjectInfo, WalletInfo };
 
 // ─── Error Class ───────────────────────────────────────
 
@@ -91,5 +98,12 @@ export const apiClient = {
     fees: {
         getClaimable: (walletAddress: string) =>
             request<FeeInfo>(`/api/fees/claimable/${walletAddress}`),
+    },
+
+    launch: {
+        myProjects: (accessToken: string) =>
+            request<{ projects: ProjectInfo[] }>("/api/launch/my-projects", {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            }),
     },
 };
