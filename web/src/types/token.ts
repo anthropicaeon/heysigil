@@ -25,3 +25,20 @@ export interface ProjectInfo {
     createdAt: string | null;
     verifiedAt: string | null;
 }
+
+export interface LaunchListItem {
+    projectId: string;
+    name: string | null;
+    description: string | null;
+    platform: "github" | "twitter" | "facebook" | "instagram" | "domain" | "unknown";
+    poolTokenAddress: string;
+    poolId: string;
+    deployTxHash: string | null;
+    deployedBy: string | null;
+    attestationUid: string | null;
+    ownerWallet: string | null;
+    createdAt: string | null;
+    verifiedAt: string | null;
+    explorerUrl: string;
+    dexUrl: string;
+}

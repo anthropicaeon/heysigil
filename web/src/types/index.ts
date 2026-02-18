@@ -11,7 +11,7 @@ export type { Proposal, ProposalStatus, TabFilter, Vote } from "./governance";
 export type { ChallengeResponse, CheckResult, ClaimResult, Method, Step } from "./verification";
 
 // Token / Project
-export type { ProjectInfo, TokenBalance } from "./token";
+export type { LaunchListItem, ProjectInfo, TokenBalance } from "./token";
 
 // Wallet
 export type { FeeInfo, WalletInfo } from "./wallet";

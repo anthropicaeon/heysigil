@@ -8,6 +8,7 @@ import {
     HelpCircle,
     Newspaper,
     Plug,
+    Rocket,
     Shield,
     Trophy,
 } from "lucide-react";
@@ -98,6 +99,12 @@ const Navbar = () => {
                     href: "/stats",
                     description: "Protocol analytics and metrics",
                     icon: BarChart3,
+                },
+                {
+                    title: "Launches",
+                    href: "/launches",
+                    description: "All tokens launched through Sigil",
+                    icon: Rocket,
                 },
                 {
                     title: "Integrations",

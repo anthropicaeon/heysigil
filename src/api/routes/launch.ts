@@ -8,8 +8,8 @@
 
 import { z } from "zod";
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
-import { eq, sql, isNull, and, inArray } from "drizzle-orm";
-import { getBody, getParams } from "../helpers/request.js";
+import { eq, sql, isNull, and, inArray, desc, asc, type SQL } from "drizzle-orm";
+import { getBody, getParams, getQuery } from "../helpers/request.js";
 import { getDb, schema } from "../../db/client.js";
 import { rateLimit } from "../../middleware/rate-limit.js";
 import {
@@ -38,6 +38,9 @@ import {
     DeployerNotConfiguredResponseSchema,
     LaunchProjectIdParamSchema,
     ProjectDetailsResponseSchema,
+    LaunchAlreadyLaunchedResponseSchema,
+    LaunchListQuerySchema,
+    LaunchListResponseSchema,
 } from "../schemas/launch.js";
 
 const launch = new OpenAPIHono();
@@ -104,6 +107,14 @@ Developer links are parsed to identify platforms (GitHub, Twitter, Instagram, do
             },
             description: "Rate limit exceeded (10 requests per hour)",
         },
+        409: {
+            content: {
+                "application/json": {
+                    schema: LaunchAlreadyLaunchedResponseSchema,
+                },
+            },
+            description: "Project already has a launched token",
+        },
         500: {
             content: {
                 "application/json": {
@@ -144,6 +155,19 @@ launch.openapi(
         }
 
         // Return appropriate response based on result type
+        if (result.type === "already_launched") {
+            return c.json(
+                {
+                    success: false as const,
+                    deployed: true as const,
+                    error: "Token already launched for this project",
+                    project: result.project,
+                    token: result.token,
+                },
+                409,
+            );
+        }
+
         if (result.type === "registered") {
             return c.json({
                 success: true as const,
@@ -414,6 +438,136 @@ launch.get(
         return c.json({
             projects: claimedProjects.map(formatProject),
             claimableProjects: claimableProjects.map(formatProject),
+        });
+    }),
+);
+
+const launchPlatforms = new Set(["github", "twitter", "facebook", "instagram", "domain"]);
+
+function getLaunchPlatform(
+    projectId: string,
+    devLinks: { platform: string; url: string; projectId: string }[] | null,
+): "github" | "twitter" | "facebook" | "instagram" | "domain" | "unknown" {
+    const prefix = projectId.split(":")[0]?.toLowerCase() ?? "";
+    if (launchPlatforms.has(prefix)) {
+        return prefix as "github" | "twitter" | "facebook" | "instagram" | "domain";
+    }
+
+    const fallback = devLinks?.[0]?.platform?.toLowerCase() ?? "";
+    if (launchPlatforms.has(fallback)) {
+        return fallback as "github" | "twitter" | "facebook" | "instagram" | "domain";
+    }
+
+    return "unknown";
+}
+
+/**
+ * GET /api/launch/list
+ * Public listing of all on-chain launched tokens.
+ */
+const listLaunchesRoute = createRoute({
+    method: "get",
+    path: "/list",
+    tags: ["Launch"],
+    summary: "List launched tokens",
+    description:
+        "List all projects with on-chain token launches created through Sigil. Supports search, filtering, sorting, and pagination.",
+    request: {
+        query: LaunchListQuerySchema,
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: LaunchListResponseSchema,
+                },
+            },
+            description: "List of launched tokens",
+        },
+        400: {
+            content: {
+                "application/json": {
+                    schema: ErrorResponseSchema,
+                },
+            },
+            description: "Invalid query parameters",
+        },
+    },
+});
+
+launch.openapi(
+    listLaunchesRoute,
+    handler(async (c) => {
+        const query = getQuery(c, LaunchListQuerySchema);
+        const db = getDb();
+
+        const conditions: SQL[] = [
+            sql`${schema.projects.poolTokenAddress} IS NOT NULL`,
+            sql`${schema.projects.poolId} IS NOT NULL`,
+        ];
+
+        if (query.q) {
+            const term = `%${query.q.toLowerCase()}%`;
+            conditions.push(
+                sql`(
+                    LOWER(${schema.projects.projectId}) LIKE ${term}
+                    OR LOWER(COALESCE(${schema.projects.name}, '')) LIKE ${term}
+                    OR LOWER(COALESCE(${schema.projects.poolTokenAddress}, '')) LIKE ${term}
+                )`,
+            );
+        }
+
+        if (query.platform) {
+            const platformPrefix = `${query.platform.toLowerCase()}:%`;
+            conditions.push(sql`LOWER(${schema.projects.projectId}) LIKE ${platformPrefix}`);
+        }
+
+        const orderBy =
+            query.sort === "oldest"
+                ? asc(schema.projects.createdAt)
+                : desc(schema.projects.createdAt);
+
+        const rows = await db
+            .select()
+            .from(schema.projects)
+            .where(and(...conditions))
+            .orderBy(orderBy)
+            .limit(query.limit)
+            .offset(query.offset);
+
+        const launches = rows.flatMap((project) => {
+            if (!project.poolTokenAddress || !project.poolId) {
+                return [];
+            }
+
+            return [
+                {
+                    projectId: project.projectId,
+                    name: project.name,
+                    description: project.description,
+                    platform: getLaunchPlatform(project.projectId, project.devLinks),
+                    poolTokenAddress: project.poolTokenAddress,
+                    poolId: project.poolId,
+                    deployTxHash: project.deployTxHash,
+                    deployedBy: project.deployedBy,
+                    attestationUid: project.attestationUid,
+                    ownerWallet: project.ownerWallet,
+                    createdAt: project.createdAt?.toISOString() ?? null,
+                    verifiedAt: project.verifiedAt?.toISOString() ?? null,
+                    explorerUrl: `https://basescan.org/address/${project.poolTokenAddress}`,
+                    dexUrl: `https://dexscreener.com/base/${project.poolTokenAddress}`,
+                },
+            ];
+        });
+
+        return c.json({
+            launches,
+            pagination: {
+                limit: query.limit,
+                offset: query.offset,
+                count: launches.length,
+                hasMore: launches.length === query.limit,
+            },
         });
     }),
 );
