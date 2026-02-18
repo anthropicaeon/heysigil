@@ -7,7 +7,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
+import { useOptionalPrivy, useOptionalWallets } from "@/hooks/useOptionalPrivy";
 import { getErrorMessage } from "@/lib/errors";
 import { ApiError } from "@/lib/api-client";
 
@@ -41,7 +41,16 @@ function mapVerifyError(err: unknown, fallback: string): string {
 
 export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}) {
     const privy = useOptionalPrivy();
-    const address = privy?.user?.wallet?.address ?? null;
+    const walletsData = useOptionalWallets();
+
+    // Get wallet address from embedded wallet (works for all sign-in methods)
+    const embeddedWallet = walletsData?.wallets?.find(
+        (w: { walletClientType: string }) => w.walletClientType === "privy"
+    ) ?? walletsData?.wallets?.[0] ?? null;
+    const address = embeddedWallet?.address ?? privy?.user?.wallet?.address ?? null;
+
+    // Detect if user signed in via GitHub through Privy
+    const privyGithubUsername = privy?.user?.github?.username ?? null;
 
     const { createChallenge: apiCreateChallenge, checkVerification: apiCheckVerification, createAttestation: apiCreateAttestation } =
         useVerificationService({ service: verificationService });
@@ -55,7 +64,7 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    // Auto-fill wallet address from connected wallet
+    // Auto-fill wallet address from connected/embedded wallet
     useEffect(() => {
         if (address) setWalletAddress(address);
     }, [address]);
@@ -170,6 +179,7 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                     walletAddress={walletAddress}
                     connectedAddress={address}
                     privy={privy}
+                    privyGithubUsername={privyGithubUsername}
                     loading={loading}
                     error={error}
                     onProjectIdChange={setProjectId}
