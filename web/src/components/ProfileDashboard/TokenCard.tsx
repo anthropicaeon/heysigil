@@ -143,7 +143,9 @@ export const ProjectCard = memo(function ProjectCard({
             {/* Claim CTA */}
             {claimable && (
                 <Link
-                    href={`/verify?project=${encodeURIComponent(project.projectId)}`}
+                    href={`/verify?project=${encodeURIComponent(
+                        project.projectId.replace(/^github:/, "")
+                    )}`}
                     style={{
                         display: "block",
                         textAlign: "center",

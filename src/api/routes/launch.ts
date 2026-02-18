@@ -254,27 +254,29 @@ launch.get(
 
         const githubUsername = await getPrivyGithubUsername(privyUserId);
         if (githubUsername) {
-            // Find projects where ownerWallet IS NULL and devLinks JSONB
-            // contains a GitHub entry with projectId starting with the user's username
+            // Load all unclaimed projects — filter in TS for reliability
             const unclaimed = await db
                 .select()
                 .from(schema.projects)
-                .where(
-                    and(
-                        isNull(schema.projects.ownerWallet),
-                        sql`${schema.projects.devLinks}::jsonb @> ${JSON.stringify([{ platform: "github" }])}::jsonb`,
-                    ),
-                );
+                .where(isNull(schema.projects.ownerWallet));
 
-            // Filter in TS: match devLinks[].projectId starting with "username/"
-            const prefix = `${githubUsername}/`.toLowerCase();
+            // Match: devLinks has a GitHub entry with projectId containing the user's username
+            // OR project ID starts with "github:username/"
+            const userLower = githubUsername.toLowerCase();
             claimableProjects = unclaimed.filter((p) => {
-                if (!p.devLinks || !Array.isArray(p.devLinks)) return false;
-                return p.devLinks.some(
-                    (link) =>
-                        link.platform === "github" &&
-                        link.projectId.toLowerCase().startsWith(prefix),
-                );
+                // Match by projectId prefix: "github:username/repo"
+                if (p.projectId.toLowerCase().startsWith(`github:${userLower}/`)) {
+                    return true;
+                }
+                // Match by devLinks containing the username
+                if (p.devLinks && Array.isArray(p.devLinks)) {
+                    return p.devLinks.some(
+                        (link) =>
+                            link.platform === "github" &&
+                            link.projectId.toLowerCase().startsWith(`${userLower}/`),
+                    );
+                }
+                return false;
             });
 
             loggers.server.info(
