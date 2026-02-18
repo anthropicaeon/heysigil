@@ -12,7 +12,8 @@ import {
     PoolIdSchema,
     TokenAddressSchema,
     PlatformSchema,
-    VerificationMethodSchema,
+    PaginationQuerySchema,
+    PaginationResponseSchema,
     TimestampSchema,
     WeiAmountSchema,
 } from "./common.js";
@@ -254,3 +255,91 @@ export const ProjectDetailsResponseSchema = z
         verifiedAt: TimestampSchema.nullable(),
     })
     .openapi("ProjectDetailsResponse");
+
+/**
+ * GET /api/launch/list query parameters
+ */
+export const LaunchListQuerySchema = PaginationQuerySchema.extend({
+    q: z
+        .string()
+        .trim()
+        .min(1)
+        .max(120)
+        .optional()
+        .openapi({ example: "github:org/repo", description: "Search by project name/id/token" }),
+    platform: PlatformSchema.optional().openapi({
+        description: "Filter by platform",
+    }),
+    sort: z.enum(["newest", "oldest"]).default("newest").openapi({
+        example: "newest",
+        description: "Sort direction by creation time",
+    }),
+});
+
+const LaunchListPlatformSchema = z
+    .enum(["github", "twitter", "facebook", "instagram", "domain", "unknown"])
+    .openapi({
+        example: "github",
+        description: "Detected primary project platform",
+    });
+
+/**
+ * Single launched token list item
+ */
+export const LaunchListItemSchema = z
+    .object({
+        projectId: z.string().openapi({ example: "github:org/repo" }),
+        name: z.string().nullable().openapi({ example: "Sigil: repo" }),
+        description: z.string().nullable().openapi({ example: "A token for my project" }),
+        platform: LaunchListPlatformSchema,
+        poolTokenAddress: TokenAddressSchema,
+        poolId: PoolIdSchema,
+        deployTxHash: TxHashSchema.nullable(),
+        deployedBy: z.string().nullable().openapi({ example: "api" }),
+        attestationUid: z
+            .string()
+            .nullable()
+            .openapi({ example: "0xabc...", description: "EAS UID" }),
+        ownerWallet: WalletAddressSchema.nullable(),
+        createdAt: TimestampSchema.nullable(),
+        verifiedAt: TimestampSchema.nullable(),
+        explorerUrl: z.string().url().openapi({ example: "https://basescan.org/address/0x..." }),
+        dexUrl: z.string().url().openapi({ example: "https://dexscreener.com/base/0x..." }),
+    })
+    .openapi("LaunchListItem");
+
+/**
+ * GET /api/launch/list response
+ */
+export const LaunchListResponseSchema = z
+    .object({
+        launches: z.array(LaunchListItemSchema),
+        pagination: PaginationResponseSchema,
+    })
+    .openapi("LaunchListResponse");
+
+/**
+ * POST /api/launch conflict response (already launched)
+ */
+export const LaunchAlreadyLaunchedResponseSchema = z
+    .object({
+        success: z.literal(false),
+        deployed: z.literal(true),
+        error: z.string().openapi({ example: "Token already launched for this project" }),
+        project: z.object({
+            id: z.string().openapi({ example: "5ce274f1-d2c9-4a28-9f16-0b0d13b6dcf0" }),
+            projectId: z.string().openapi({ example: "github:org/repo" }),
+            name: z.string().openapi({ example: "Sigil: repo" }),
+        }),
+        token: z.object({
+            address: TokenAddressSchema,
+            poolId: PoolIdSchema,
+            txHash: TxHashSchema.nullable(),
+            explorerUrl: z
+                .string()
+                .url()
+                .openapi({ example: "https://basescan.org/address/0x..." }),
+            dexUrl: z.string().url().openapi({ example: "https://dexscreener.com/base/0x..." }),
+        }),
+    })
+    .openapi("LaunchAlreadyLaunchedResponse");

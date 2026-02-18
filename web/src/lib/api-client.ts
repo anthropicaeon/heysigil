@@ -9,6 +9,7 @@ import type {
     CheckResult,
     ClaimResult,
     FeeInfo,
+    LaunchListItem,
     ProjectInfo,
     WalletInfo,
 } from "@/types";
@@ -16,7 +17,15 @@ import type {
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 // Re-export types for convenience
-export type { ChallengeResponse, CheckResult, ClaimResult, FeeInfo, ProjectInfo, WalletInfo };
+export type {
+    ChallengeResponse,
+    CheckResult,
+    ClaimResult,
+    FeeInfo,
+    LaunchListItem,
+    ProjectInfo,
+    WalletInfo,
+};
 
 // ─── Error Class ───────────────────────────────────────
 
@@ -149,5 +158,24 @@ export const apiClient = {
                     headers: { Authorization: `Bearer ${accessToken}` },
                 },
             ),
+        list: (params?: {
+            limit?: number;
+            offset?: number;
+            q?: string;
+            platform?: "github" | "twitter" | "facebook" | "instagram" | "domain";
+            sort?: "newest" | "oldest";
+        }) => {
+            const query = new URLSearchParams();
+            if (params?.limit) query.set("limit", String(params.limit));
+            if (params?.offset) query.set("offset", String(params.offset));
+            if (params?.q) query.set("q", params.q);
+            if (params?.platform) query.set("platform", params.platform);
+            if (params?.sort) query.set("sort", params.sort);
+            const suffix = query.toString();
+            return request<{
+                launches: LaunchListItem[];
+                pagination: { limit: number; offset: number; count: number; hasMore: boolean };
+            }>(`/api/launch/list${suffix ? `?${suffix}` : ""}`);
+        },
     },
 };

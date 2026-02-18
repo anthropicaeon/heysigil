@@ -10,6 +10,7 @@ import { parseLink } from "../utils/link-parser.js";
 import type { ParsedLink } from "../utils/link-parser.js";
 import { deployToken, isDeployerConfigured, generateName, generateSymbol } from "./deployer.js";
 import { getErrorMessage } from "../utils/errors.js";
+import { eq } from "drizzle-orm";
 
 // ─── Types ──────────────────────────────────────────────
 
@@ -77,7 +78,19 @@ export interface DeployResult {
     }>;
 }
 
-export type LaunchResult = RegisterResult | DeployResult;
+export interface AlreadyLaunchedResult {
+    type: "already_launched";
+    project: RegisteredProject;
+    token: {
+        address: string;
+        poolId: string;
+        txHash: string | null;
+        explorerUrl: string;
+        dexUrl: string;
+    };
+}
+
+export type LaunchResult = RegisterResult | DeployResult | AlreadyLaunchedResult;
 
 // ─── Link Parsing ───────────────────────────────────────
 
@@ -262,6 +275,34 @@ export async function launchToken(
     const parseResult = parseDevLinks(input);
     if (!parseResult.success) {
         return { error: parseResult.error };
+    }
+
+    const db = getDb();
+    const [existingProject] = await db
+        .select()
+        .from(schema.projects)
+        .where(eq(schema.projects.projectId, parseResult.projectId))
+        .limit(1);
+
+    // Prevent duplicate on-chain launches for the same canonical project.
+    if (existingProject?.poolTokenAddress && existingProject.poolId) {
+        return {
+            type: "already_launched",
+            project: {
+                id: existingProject.id,
+                projectId: existingProject.projectId,
+                name: existingProject.name ?? parseResult.tokenName,
+            },
+            token: {
+                address: existingProject.poolTokenAddress,
+                poolId: existingProject.poolId,
+                txHash: existingProject.deployTxHash,
+                explorerUrl: existingProject.deployTxHash
+                    ? `https://basescan.org/tx/${existingProject.deployTxHash}`
+                    : `https://basescan.org/address/${existingProject.poolTokenAddress}`,
+                dexUrl: `https://dexscreener.com/base/${existingProject.poolTokenAddress}`,
+            },
+        };
     }
 
     // Check if deployer is configured
