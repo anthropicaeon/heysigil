@@ -326,6 +326,29 @@ launch.get(
 
         if (allProjectIds.length > 0) {
             try {
+                // DEBUG: Log what we're querying for
+                loggers.server.info(
+                    { allProjectIds, count: allProjectIds.length },
+                    "Fee query: looking for projectIds",
+                );
+
+                // DEBUG: Check total records and records with matching projectIds
+                const [totalCount] = await db
+                    .select({ count: sql<number>`COUNT(*)` })
+                    .from(schema.feeDistributions);
+
+                const distinctProjectIds = await db
+                    .selectDistinct({ projectId: schema.feeDistributions.projectId })
+                    .from(schema.feeDistributions);
+
+                loggers.server.info(
+                    {
+                        totalRecords: totalCount.count,
+                        distinctProjectIds: distinctProjectIds.map((r) => r.projectId),
+                    },
+                    "Fee query: database state",
+                );
+
                 // Sum fees from deposit events (devAmount) and escrow events (amount)
                 const feeRows = await db
                     .select({
@@ -348,6 +371,8 @@ launch.get(
                         ),
                     )
                     .groupBy(schema.feeDistributions.projectId);
+
+                loggers.server.info({ feeRows }, "Fee query: results");
 
                 for (const row of feeRows) {
                     if (row.projectId) {
