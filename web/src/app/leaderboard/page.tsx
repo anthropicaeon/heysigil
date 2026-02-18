@@ -113,7 +113,7 @@ export default function LeaderboardPage() {
                         <div
                             key={stat.label}
                             className={cn(
-                                "px-6 py-6 lg:px-8 bg-background",
+                                "px-6 py-10 lg:px-8 bg-background",
                                 "border-border",
                                 i < 2 && "border-b lg:border-b-0",
                                 i % 2 === 0 && "border-r",
@@ -308,7 +308,7 @@ function StatBriefingCard({ type }: { type: number }) {
     if (type === 0) {
         // Verified users visualization
         return (
-            <div className="h-12 flex items-end gap-0.5">
+            <div className="h-20 flex items-end gap-0.5">
                 {[40, 55, 45, 70, 60, 85, 75, 95].map((h, i) => (
                     <div
                         key={i}
@@ -327,7 +327,7 @@ function StatBriefingCard({ type }: { type: number }) {
     if (type === 1) {
         // Fees distributed
         return (
-            <div className="h-12 flex items-center gap-2">
+            <div className="h-20 flex items-center gap-2">
                 <div className="flex-1 h-2 bg-secondary">
                     <div className="h-full bg-primary" style={{ width: "78%" }} />
                 </div>
@@ -338,7 +338,7 @@ function StatBriefingCard({ type }: { type: number }) {
     if (type === 2) {
         // Milestones
         return (
-            <div className="h-12 flex items-center gap-1">
+            <div className="h-20 flex items-center gap-1">
                 {[1, 1, 1, 1, 1, 0, 0, 0].map((done, i) => (
                     <div
                         key={i}
@@ -355,7 +355,7 @@ function StatBriefingCard({ type }: { type: number }) {
     }
     // Active projects
     return (
-        <div className="h-12 grid grid-cols-4 gap-1">
+        <div className="h-20 grid grid-cols-4 gap-1">
             {[1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0].map((active, i) => (
                 <div
                     key={i}
@@ -399,7 +399,7 @@ function MilestoneBriefingCard({ completed }: { completed: number }) {
 function RankingFactorCard({ type }: { type: "score" | "fees" | "milestones" }) {
     if (type === "score") {
         return (
-            <div className="h-16 border border-border bg-background p-2 flex items-center justify-center gap-1">
+            <div className="h-20 border border-border bg-background p-2 flex items-center justify-center gap-1">
                 {[1, 2, 3, 4, 5].map((n) => (
                     <div
                         key={n}
@@ -416,7 +416,7 @@ function RankingFactorCard({ type }: { type: "score" | "fees" | "milestones" }) 
     }
     if (type === "fees") {
         return (
-            <div className="h-16 border border-border bg-background p-2 flex flex-col justify-center gap-1">
+            <div className="h-20 border border-border bg-background p-2 flex flex-col justify-center gap-1">
                 <div className="flex items-center gap-2 text-xs">
                     <span className="text-muted-foreground">Week 1</span>
                     <div className="flex-1 h-1.5 bg-secondary">
@@ -439,7 +439,7 @@ function RankingFactorCard({ type }: { type: "score" | "fees" | "milestones" }) 
         );
     }
     return (
-        <div className="h-16 border border-border bg-background p-2 flex items-center gap-2">
+        <div className="h-20 border border-border bg-background p-2 flex items-center gap-2">
             <div className="flex-1 flex flex-col gap-1">
                 {[1, 2, 3].map((n) => (
                     <div key={n} className="flex items-center gap-1">
