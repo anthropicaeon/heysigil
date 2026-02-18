@@ -143,7 +143,7 @@ export async function deployToken(
                 log.info({ repoId, devAddress }, "Existing phantom user");
             } else {
                 // 3. Brand new — create phantom user + wallet
-                const result = await createPhantomUser("github", repoId, sessionId);
+                const result = await createPhantomUser("github", repoId, options?.sessionId);
                 devAddress = result.walletAddress;
                 log.info({ repoId, devAddress }, "Created phantom user");
             }

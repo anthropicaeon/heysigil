@@ -5,12 +5,8 @@
 import type { ActionHandler } from "./types.js";
 import { parseLink, parseLinks, bestVerifyMethod } from "../../utils/link-parser.js";
 import type { ParsedLink } from "../../utils/link-parser.js";
-import {
-    deployToken,
-    isDeployerConfigured,
-    generateName,
-    generateSymbol,
-} from "../../services/deployer.js";
+import { isDeployerConfigured, generateName, generateSymbol } from "../../services/deployer.js";
+import { launchToken } from "../../services/launch.js";
 import { getErrorMessage } from "../../utils/errors.js";
 
 export const launchTokenHandler: ActionHandler = async (params) => {
@@ -37,7 +33,7 @@ export const launchTokenHandler: ActionHandler = async (params) => {
             success: true,
             message: [
                 nameParam
-                    ? `**${nameParam}${symbolParam ? ` ($${symbolParam})` : ""}**`
+                    ? `**${nameParam}${symbolParam ? ` ($${symbolParam})` : ""}`
                     : "Need a project link to launch.",
                 "",
                 "Drop a link (GitHub, website, Twitter, Instagram).",
@@ -117,17 +113,55 @@ export const launchTokenHandler: ActionHandler = async (params) => {
         };
     }
 
-    // Deploy on-chain! 🚀
+    // Deploy on-chain + persist to DB! 🚀
     try {
         const isSelfLaunch = params.isSelfLaunch as boolean | undefined;
-        const result = await deployToken({
-            name: tokenName,
-            symbol: tokenSymbol,
-            projectId,
-            isSelfLaunch: isSelfLaunch ?? true,
-            devLinks: parsedLinks.map((l) => l.displayUrl),
-        });
 
+        // Use launchToken() which handles BOTH on-chain deploy AND DB persistence
+        const result = await launchToken(
+            {
+                devLinks: parsedLinks.map((l) => l.displayUrl),
+                name: tokenName,
+                symbol: tokenSymbol,
+                description,
+                sessionId: params.sessionId as string | undefined,
+            },
+            { privyUserId: params.privyUserId as string | undefined },
+        );
+
+        // Handle error from launchToken
+        if ("error" in result) {
+            return {
+                success: false,
+                message: [
+                    `❌ **Deployment failed:** ${result.error}`,
+                    "",
+                    "Could be a gas or network issue. Try again.",
+                ].join("\n"),
+                data: {
+                    name: tokenName,
+                    symbol: tokenSymbol,
+                    projectId,
+                    error: result.error,
+                    status: "failed",
+                },
+            };
+        }
+
+        // Handle "registered" (deployer not configured — shouldn't reach here but handle gracefully)
+        if (result.type === "registered") {
+            return {
+                success: true,
+                message: result.message,
+                data: {
+                    name: result.project.name,
+                    projectId: result.project.projectId,
+                    status: "registered",
+                },
+            };
+        }
+
+        // Handle "deployed" — token launched + project saved to DB
         const linkSummary = parsedLinks.map(
             (l) => `• **${l.platform}** — [${l.projectId}](${l.displayUrl})`,
         );
@@ -135,14 +169,14 @@ export const launchTokenHandler: ActionHandler = async (params) => {
         return {
             success: true,
             message: [
-                `✅ **Deployed: ${tokenName} ($${tokenSymbol})**`,
+                `✅ **Deployed: ${result.project.name} ($${result.project.symbol})**`,
                 "",
-                `**Contract:** \`${result.tokenAddress}\``,
-                `**Tx Hash:** \`${result.txHash}\``,
-                `**Pool ID:** \`${result.poolId}\``,
+                `**Contract:** \`${result.token.address}\``,
+                `**Tx Hash:** \`${result.token.txHash}\``,
+                `**Pool ID:** \`${result.token.poolId}\``,
                 "",
-                `🔗 [View on BaseScan](${result.explorerUrl})`,
-                `📊 [DEX Screener](${result.dexUrl})`,
+                `🔗 [View on BaseScan](${result.token.explorerUrl})`,
+                `📊 [DEX Screener](${result.token.dexUrl})`,
                 "",
                 ...linkSummary,
                 "",
@@ -151,14 +185,14 @@ export const launchTokenHandler: ActionHandler = async (params) => {
                     : "The dev can claim fees by verifying ownership.",
             ].join("\n"),
             data: {
-                name: tokenName,
-                symbol: tokenSymbol,
-                projectId,
-                tokenAddress: result.tokenAddress,
-                poolId: result.poolId,
-                txHash: result.txHash,
-                explorerUrl: result.explorerUrl,
-                dexUrl: result.dexUrl,
+                name: result.project.name,
+                symbol: result.project.symbol,
+                projectId: result.project.projectId,
+                tokenAddress: result.token.address,
+                poolId: result.token.poolId,
+                txHash: result.token.txHash,
+                explorerUrl: result.token.explorerUrl,
+                dexUrl: result.token.dexUrl,
                 isSelfLaunch: isSelfLaunch ?? true,
                 status: "deployed",
             },
