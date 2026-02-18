@@ -3,15 +3,31 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import type { LaunchListItem } from "@/types";
 
-function hashColor(str: string): string {
+function hashIndex(str: string, bucketCount: number): number {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
         hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-    const hue = Math.abs(hash) % 360;
-    return `hsl(${hue}, 35%, 65%)`;
+    return Math.abs(hash) % bucketCount;
+}
+
+function avatarAccent(platform: string, projectId: string): string {
+    const byPlatform: Record<string, string> = {
+        github: "bg-sage/40",
+        twitter: "bg-lavender/40",
+        facebook: "bg-rose/40",
+        instagram: "bg-cream/70",
+        domain: "bg-background",
+    };
+
+    const fromPlatform = byPlatform[platform.toLowerCase()];
+    if (fromPlatform) return fromPlatform;
+
+    const accents = ["bg-sage/40", "bg-lavender/40", "bg-rose/40", "bg-cream/70"];
+    return accents[hashIndex(projectId, accents.length)];
 }
 
 function displayName(launch: LaunchListItem): string {
@@ -27,16 +43,18 @@ function short(value: string, start = 6, end = 4): string {
 
 export function LaunchCard({ launch }: { launch: LaunchListItem }) {
     const name = displayName(launch);
-    const color = hashColor(launch.projectId);
+    const avatarClass = avatarAccent(launch.platform, launch.projectId);
     const date = launch.createdAt ? new Date(launch.createdAt).toLocaleDateString() : "Unknown";
 
     return (
-        <article className="bg-background hover:bg-secondary/20 transition-colors">
-            <div className="flex items-center justify-between px-6 py-4 lg:px-8 border-border border-b">
-                <div className="flex items-center gap-4 min-w-0">
+        <article className="bg-background border-border border-b">
+            <div className="flex flex-col lg:flex-row">
+                <div className="flex items-center gap-4 min-w-0 flex-1 px-6 py-4 lg:px-8 border-border border-b lg:border-b-0 lg:border-r">
                     <div
-                        className="size-12 flex items-center justify-center text-white font-bold text-lg border border-border shrink-0"
-                        style={{ backgroundColor: color }}
+                        className={cn(
+                            "size-12 flex items-center justify-center text-foreground font-bold text-lg border border-border shrink-0",
+                            avatarClass,
+                        )}
                     >
                         {name.charAt(0).toUpperCase()}
                     </div>
@@ -45,8 +63,9 @@ export function LaunchCard({ launch }: { launch: LaunchListItem }) {
                         <p className="text-sm text-muted-foreground font-mono truncate">{launch.projectId}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                    <Badge variant="outline" className="border-border capitalize">
+
+                <div className="px-6 py-4 lg:px-8 bg-cream/30 border-border border-b lg:border-b-0 flex items-center justify-between gap-3">
+                    <Badge variant="outline" className="border-border capitalize text-xs">
                         {launch.platform}
                     </Badge>
                     {launch.attestationUid ? (
@@ -63,8 +82,8 @@ export function LaunchCard({ launch }: { launch: LaunchListItem }) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-border border-border border-b">
-                <div className="px-6 py-4 lg:px-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="px-6 py-4 lg:px-8 border-border border-b sm:border-r lg:border-r">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Token</p>
                     <a
                         href={`https://basescan.org/address/${launch.poolTokenAddress}`}
@@ -76,22 +95,22 @@ export function LaunchCard({ launch }: { launch: LaunchListItem }) {
                         <ArrowUpRight className="size-3" />
                     </a>
                 </div>
-                <div className="px-6 py-4 lg:px-8">
+                <div className="px-6 py-4 lg:px-8 border-border border-b lg:border-r sm:border-b sm:border-r-0 lg:border-b">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Pool</p>
                     <p className="text-sm font-mono text-foreground">{short(launch.poolId, 8, 6)}</p>
                 </div>
-                <div className="px-6 py-4 lg:px-8">
+                <div className="px-6 py-4 lg:px-8 border-border border-b sm:border-r lg:border-r">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Owner</p>
                     <p className="text-sm text-foreground">{launch.ownerWallet ? short(launch.ownerWallet) : "Unclaimed"}</p>
                 </div>
-                <div className="px-6 py-4 lg:px-8">
+                <div className="px-6 py-4 lg:px-8 border-border border-b">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Launched</p>
                     <p className="text-sm text-foreground">{date}</p>
                 </div>
             </div>
 
-            <div className="flex items-center justify-between px-6 py-3 lg:px-8 bg-secondary/10">
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+            <div className="flex flex-col lg:flex-row">
+                <div className="px-6 py-3 lg:px-8 border-border border-b lg:border-b-0 lg:border-r bg-sage/10 flex flex-wrap items-center gap-4 text-xs text-muted-foreground flex-1">
                     <span className="flex items-center gap-1">
                         <Layers3 className="size-3" />
                         {launch.deployedBy || "unknown deployer"}
@@ -101,7 +120,8 @@ export function LaunchCard({ launch }: { launch: LaunchListItem }) {
                         {launch.ownerWallet ? "claimed" : "unclaimed"}
                     </span>
                 </div>
-                <div className="flex items-center gap-2">
+
+                <div className="px-6 py-3 lg:px-8 bg-background flex flex-wrap items-center gap-2">
                     <a href={launch.explorerUrl} target="_blank" rel="noopener noreferrer">
                         <Button variant="ghost" size="sm" className="gap-1">
                             <ExternalLink className="size-4" />
