@@ -26,11 +26,20 @@ import {
     NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
+import { getUserDisplay, useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 
 const Navbar = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
     const pathname = usePathname();
+    const privy = useOptionalPrivy();
+
+    const userInfo = getUserDisplay(privy);
+    const displayName = userInfo
+        ? userInfo.provider === "Email"
+            ? userInfo.name.split("@")[0]
+            : userInfo.name
+        : null;
 
     useEffect(() => {
         if (isMenuOpen) {
@@ -180,7 +189,7 @@ const Navbar = () => {
                                                 className={cn(
                                                     "text-foreground hover:text-primary p-2 text-sm transition-colors",
                                                     pathname === link.href &&
-                                                        "text-primary font-medium",
+                                                    "text-primary font-medium",
                                                     link.primary && "font-medium",
                                                 )}
                                             >
@@ -194,12 +203,39 @@ const Navbar = () => {
 
                         {/* Auth Button */}
                         <div className="flex items-center gap-2.5">
-                            <Link
-                                href="/login"
+                            <div
                                 className={`transition-opacity duration-300 ${isMenuOpen ? "max-lg:pointer-events-none max-lg:opacity-0" : "opacity-100"}`}
                             >
-                                <Button size="sm">Sign In</Button>
-                            </Link>
+                                {privy.authenticated ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-1.5 border border-border px-2.5 py-1">
+                                            <div className="flex size-6 items-center justify-center bg-primary text-[10px] font-semibold text-primary-foreground">
+                                                {displayName ? displayName.charAt(0).toUpperCase() : "U"}
+                                            </div>
+                                            <span className="text-sm font-medium text-foreground max-w-[100px] truncate">
+                                                {displayName || "User"}
+                                            </span>
+                                        </div>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => privy.logout?.()}
+                                            className="text-xs"
+                                        >
+                                            Log out
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <Button
+                                        size="sm"
+                                        onClick={() => privy.login?.()}
+                                        disabled={!privy.ready}
+                                        style={!privy.ready ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+                                    >
+                                        Sign In
+                                    </Button>
+                                )}
+                            </div>
 
                             {/* Hamburger Menu Button (Mobile Only) */}
                             <button
