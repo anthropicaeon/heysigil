@@ -39,7 +39,10 @@ async function request<T>(
 
     if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new ApiError(data.error || `HTTP ${res.status}`, res.status);
+        const errMsg = typeof data.error === "string"
+            ? data.error
+            : (data.error?.message ?? data.message ?? `HTTP ${res.status}`);
+        throw new ApiError(errMsg, res.status);
     }
 
     return res.json();
