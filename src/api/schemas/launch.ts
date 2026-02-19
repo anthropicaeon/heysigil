@@ -61,7 +61,41 @@ export const LaunchRequestSchema = z
  * POST /api/launch/quick request body
  */
 export const QuickLaunchRequestSchema = z
-    .object({})
+    .object({
+        repoUrl: z
+            .string()
+            .url()
+            .max(300)
+            .optional()
+            .openapi({
+                example: "https://github.com/owner/repo",
+                description: "Optional GitHub repo URL for quick-launch metadata (defaults to Sigil repo)",
+            }),
+        name: z
+            .string()
+            .max(64, "Token name too long (max 64 characters)")
+            .optional()
+            .openapi({
+                example: "My Agent Token",
+                description: "Optional token name override",
+            }),
+        symbol: z
+            .string()
+            .max(10, "Token symbol too long (max 10 characters)")
+            .optional()
+            .openapi({
+                example: "MAT",
+                description: "Optional token symbol override",
+            }),
+        description: z
+            .string()
+            .max(500, "Description too long (max 500 characters)")
+            .optional()
+            .openapi({
+                example: "Quick launch for my agent runtime",
+                description: "Optional project description override",
+            }),
+    })
     .openapi("QuickLaunchRequest");
 
 /**

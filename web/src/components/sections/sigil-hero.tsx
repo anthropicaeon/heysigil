@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CheckCircle, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle, Share2, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -8,8 +8,9 @@ import { useEffect, useState } from "react";
 import ModelViewer from "@/components/ModelViewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { PixelCard } from "@/components/ui/pixel-card";
-import { apiClient,ApiError } from "@/lib/api-client";
+import { apiClient, ApiError } from "@/lib/api-client";
 import { HERO_MODEL_FRAME, HERO_MODEL_VIEWER } from "@/lib/hero-model-frame";
 import { getSigilPluginById, SIGIL_PLUGIN_OPTIONS } from "@/lib/sigil-plugins";
 import { cn } from "@/lib/utils";
@@ -46,9 +47,14 @@ export default function SigilHero() {
     const [quickLaunchPluginId, setQuickLaunchPluginId] = useState<string | null>(null);
     const [quickLaunchStatus, setQuickLaunchStatus] = useState<QuickLaunchStatus>("idle");
     const [claimToken, setClaimToken] = useState<string | null>(null);
+    const [quickLaunchRepoUrl, setQuickLaunchRepoUrl] = useState("");
+    const [quickLaunchName, setQuickLaunchName] = useState("");
+    const [quickLaunchSymbol, setQuickLaunchSymbol] = useState("");
+    const [quickLaunchDescription, setQuickLaunchDescription] = useState("");
     const [runtimeEndpoint, setRuntimeEndpoint] = useState<string | null>(null);
     const [runtimeProvisionError, setRuntimeProvisionError] = useState<string | null>(null);
     const [copiedToken, setCopiedToken] = useState(false);
+    const [copiedShareUrl, setCopiedShareUrl] = useState(false);
     const [quickLaunchError, setQuickLaunchError] = useState<string | null>(null);
     const selectedQuickLaunchPlugin = getSigilPluginById(quickLaunchPluginId);
 
@@ -65,20 +71,37 @@ export default function SigilHero() {
         setRuntimeEndpoint(null);
         setRuntimeProvisionError(null);
         setCopiedToken(false);
+        setCopiedShareUrl(false);
         setQuickLaunchError(null);
     };
 
-    const handleQuickLaunch = async () => {
+    const handleQuickLaunch = async ({ requireRepoInput = false }: { requireRepoInput?: boolean } = {}) => {
+        const repoUrl = quickLaunchRepoUrl.trim();
+        if (requireRepoInput && !repoUrl) {
+            setQuickLaunchError("Repo URL is required for guided quick launch.");
+            return;
+        }
+
         if (quickLaunchStatus === "launching") return;
         setQuickLaunchStatus("launching");
         setClaimToken(null);
         setRuntimeEndpoint(null);
         setRuntimeProvisionError(null);
         setCopiedToken(false);
+        setCopiedShareUrl(false);
         setQuickLaunchError(null);
 
         try {
-            const response = await apiClient.launch.quick();
+            const response = await apiClient.launch.quick(
+                requireRepoInput
+                    ? {
+                          repoUrl,
+                          name: quickLaunchName.trim() || undefined,
+                          symbol: quickLaunchSymbol.trim() || undefined,
+                          description: quickLaunchDescription.trim() || undefined,
+                      }
+                    : undefined,
+            );
             setClaimToken(response.claimToken);
             setRuntimeEndpoint(response.runtime.endpoint ?? null);
             setRuntimeProvisionError(response.runtime.provisioned ? null : response.runtime.error || null);
@@ -100,6 +123,27 @@ export default function SigilHero() {
         await navigator.clipboard.writeText(claimToken);
         setCopiedToken(true);
         window.setTimeout(() => setCopiedToken(false), 1200);
+    };
+
+    const shareClaimToken = async () => {
+        if (!claimToken) return;
+        const shareUrl = `${window.location.origin}/connect/${encodeURIComponent(claimToken)}`;
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: "Sigil Quick Launch Claim Link",
+                    text: "Redeem this quick-launch secret after signing in with Privy.",
+                    url: shareUrl,
+                });
+                return;
+            } catch {
+                // fallback to clipboard copy
+            }
+        }
+
+        await navigator.clipboard.writeText(shareUrl);
+        setCopiedShareUrl(true);
+        window.setTimeout(() => setCopiedShareUrl(false), 1400);
     };
 
     return (
@@ -323,10 +367,34 @@ export default function SigilHero() {
 
                                         <div className="flex flex-1 flex-col">
                                             <div className="border-b border-border px-6 py-4 lg:px-12">
+                                                <div className="grid gap-2 sm:grid-cols-2">
+                                                    <Input
+                                                        value={quickLaunchRepoUrl}
+                                                        onChange={(event) => setQuickLaunchRepoUrl(event.target.value)}
+                                                        placeholder="https://github.com/owner/repo"
+                                                        className="sm:col-span-2"
+                                                    />
+                                                    <Input
+                                                        value={quickLaunchName}
+                                                        onChange={(event) => setQuickLaunchName(event.target.value)}
+                                                        placeholder="Token name (optional)"
+                                                    />
+                                                    <Input
+                                                        value={quickLaunchSymbol}
+                                                        onChange={(event) => setQuickLaunchSymbol(event.target.value)}
+                                                        placeholder="Token symbol (optional)"
+                                                    />
+                                                    <Input
+                                                        value={quickLaunchDescription}
+                                                        onChange={(event) => setQuickLaunchDescription(event.target.value)}
+                                                        placeholder="Description (optional)"
+                                                        className="sm:col-span-2"
+                                                    />
+                                                </div>
                                                 <p className="text-xs text-muted-foreground">
-                                                    One click launches immediately as{" "}
+                                                    Guided quick launch uses your repo metadata and still launches{" "}
                                                     <span className="font-medium text-foreground">unclaimed</span>.
-                                                    Default metadata starts at{" "}
+                                                    If you skip repo input, use the top one-click button. Default metadata starts at{" "}
                                                     <span className="font-medium text-foreground">
                                                         github:heysigil/heysigil
                                                     </span>{" "}
@@ -345,7 +413,7 @@ export default function SigilHero() {
                                                 <div className="mt-3">
                                                     <Button
                                                         type="button"
-                                                        onClick={() => void handleQuickLaunch()}
+                                                        onClick={() => void handleQuickLaunch({ requireRepoInput: true })}
                                                         disabled={quickLaunchStatus === "launching"}
                                                         className="w-full sm:w-auto"
                                                     >
@@ -379,10 +447,23 @@ export default function SigilHero() {
                                                         >
                                                             {copiedToken ? "Copied" : "Copy Token"}
                                                         </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={() => void shareClaimToken()}
+                                                            className="w-full sm:w-auto"
+                                                        >
+                                                            <Share2 className="mr-2 size-4" />
+                                                            {copiedShareUrl ? "Link Copied" : "Share Link"}
+                                                        </Button>
                                                         <span className="text-xs text-muted-foreground">
                                                             Save this now. It is shown once and used later to claim ownership.
                                                         </span>
                                                     </div>
+                                                    <p className="mt-2 text-xs text-muted-foreground">
+                                                        Share links open <span className="font-medium text-foreground">/connect/&lt;claim-token&gt;</span>.
+                                                        Redemption is rejected until the recipient signs in with Privy.
+                                                    </p>
                                                     <div className="mt-3 text-xs">
                                                         {runtimeEndpoint ? (
                                                             <p className="text-muted-foreground">

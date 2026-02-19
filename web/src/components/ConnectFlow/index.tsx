@@ -11,7 +11,7 @@ import {
     Sparkles,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,6 +59,10 @@ type McpScopePreset = {
     label: string;
     description: string;
     scopes: string[];
+};
+
+type ConnectFlowProps = {
+    initialClaimToken?: string;
 };
 
 const STACKS: BotStackOption[] = [
@@ -121,7 +125,7 @@ const MOCK_PROMPT_STAGES = {
     reviewer: "Verify task completion, summarize deltas, and mark follow-up todos.",
 };
 
-export default function ConnectFlow() {
+export default function ConnectFlow({ initialClaimToken }: ConnectFlowProps = {}) {
     const privy = useOptionalPrivy();
     const [step, setStep] = useState<ConnectStep>("stack");
     const [selectedStack, setSelectedStack] = useState<BotStackOption["id"]>("sigilbot");
@@ -142,11 +146,12 @@ export default function ConnectFlow() {
     const [freshPat, setFreshPat] = useState<string | null>(null);
     const [patCopied, setPatCopied] = useState(false);
     const [isQuickLaunching, setIsQuickLaunching] = useState(false);
-    const [launchClaimToken, setLaunchClaimToken] = useState("");
+    const [launchClaimToken, setLaunchClaimToken] = useState(initialClaimToken || "");
     const [claimStatus, setClaimStatus] = useState<string | null>(null);
     const [claimedProjectId, setClaimedProjectId] = useState<string | null>(null);
     const [claimRepoUrl, setClaimRepoUrl] = useState("");
     const [claimUpdateStatus, setClaimUpdateStatus] = useState<string | null>(null);
+    const autoClaimAttemptedRef = useRef(false);
 
     const stepIndex = useMemo(() => STEP_SEQUENCE.indexOf(step), [step]);
     const selectedStackData = STACKS.find((item) => item.id === selectedStack) ?? STACKS[0];
@@ -222,6 +227,23 @@ export default function ConnectFlow() {
         const timer = window.setTimeout(() => setPatCopied(false), 2000);
         return () => window.clearTimeout(timer);
     }, [patCopied]);
+
+    useEffect(() => {
+        if (!initialClaimToken) return;
+        setStep("handshake");
+        setLaunchClaimToken(initialClaimToken);
+    }, [initialClaimToken]);
+
+    useEffect(() => {
+        if (!initialClaimToken) return;
+        if (!privy.authenticated) {
+            setClaimStatus("Rejected: please log in first to redeem this shared launch secret.");
+            return;
+        }
+        if (autoClaimAttemptedRef.current) return;
+        autoClaimAttemptedRef.current = true;
+        void redeemLaunchClaimToken(initialClaimToken);
+    }, [initialClaimToken, privy.authenticated]);
 
     // ─── Dev step cycling ───────────────────────────────────
 
@@ -364,8 +386,14 @@ export default function ConnectFlow() {
         }
     }
 
-    async function redeemLaunchClaimToken() {
-        if (!launchClaimToken.trim() || !privy?.getAccessToken) return;
+    async function redeemLaunchClaimToken(tokenOverride?: string) {
+        const tokenToRedeem = (tokenOverride || launchClaimToken).trim();
+        if (!tokenToRedeem) return;
+        if (!privy?.authenticated || !privy?.getAccessToken) {
+            setClaimStatus("Rejected: please log in first to redeem this shared launch secret.");
+            return;
+        }
+
         setClaimStatus(null);
         setError(null);
 
@@ -377,7 +405,7 @@ export default function ConnectFlow() {
                     "Content-Type": "application/json",
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
-                body: JSON.stringify({ claimToken: launchClaimToken.trim() }),
+                body: JSON.stringify({ claimToken: tokenToRedeem }),
             });
 
             const data = (await res.json()) as {
@@ -681,11 +709,26 @@ export default function ConnectFlow() {
                                             type="button"
                                             variant="outline"
                                             onClick={redeemLaunchClaimToken}
-                                            disabled={!launchClaimToken.trim()}
+                                            disabled={!launchClaimToken.trim() || !privy.authenticated}
                                         >
                                             claim launch secret
                                         </Button>
                                     </div>
+                                    {!privy.authenticated && launchClaimToken.trim() && (
+                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                            <p className="text-xs text-red-700">
+                                                Rejected: please log in first to redeem this shared launch secret.
+                                            </p>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => privy.login?.()}
+                                                disabled={!privy.ready}
+                                            >
+                                                sign in with privy
+                                            </Button>
+                                        </div>
+                                    )}
                                     {claimStatus && (
                                         <p className="text-xs text-muted-foreground">{claimStatus}</p>
                                     )}

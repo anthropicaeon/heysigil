@@ -68,6 +68,13 @@ export interface QuickLaunchResponse {
     };
 }
 
+export interface QuickLaunchRequestPayload {
+    repoUrl?: string;
+    name?: string;
+    symbol?: string;
+    description?: string;
+}
+
 // ─── Error Class ───────────────────────────────────────
 
 export class ApiError extends Error {
@@ -207,10 +214,10 @@ export const apiClient = {
     },
 
     launch: {
-        quick: () =>
+        quick: (payload?: QuickLaunchRequestPayload) =>
             request<QuickLaunchResponse>("/api/launch/quick", {
                 method: "POST",
-                body: JSON.stringify({}),
+                body: JSON.stringify(payload || {}),
             }),
         myProjects: (accessToken: string) =>
             request<{ projects: ProjectInfo[]; claimableProjects: ProjectInfo[] }>(

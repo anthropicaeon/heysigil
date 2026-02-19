@@ -21,6 +21,7 @@ import {
 import { loggers } from "../../utils/logger.js";
 import { handler } from "../helpers/route.js";
 import { getErrorMessage } from "../../utils/errors.js";
+import { parseLink } from "../../utils/link-parser.js";
 import {
     QUICK_LAUNCH_DEFAULT_REPO,
     isDeployerConfigured,
@@ -234,7 +235,7 @@ const quickLaunchRoute = createRoute({
     tags: ["Launch"],
     summary: "One-click quick launch",
     description:
-        "Launch a default unclaimed token with no inputs. Returns a one-time claim token shown once.",
+        "Launch an unclaimed token and Sigilbot runtime. Supports one-click defaults or optional repo/metadata overrides. Returns a one-time claim token shown once.",
     request: {
         body: {
             content: {
@@ -253,6 +254,14 @@ const quickLaunchRoute = createRoute({
                 },
             },
             description: "Quick launch created",
+        },
+        400: {
+            content: {
+                "application/json": {
+                    schema: ErrorResponseSchema,
+                },
+            },
+            description: "Invalid quick-launch request",
         },
         429: {
             content: {
@@ -276,6 +285,32 @@ const quickLaunchRoute = createRoute({
 launch.openapi(
     quickLaunchRoute,
     handler(async (c) => {
+        const rawBody = await c.req.json().catch(() => ({}));
+        const parsedRequest = QuickLaunchRequestSchema.safeParse(rawBody);
+        if (!parsedRequest.success) {
+            return c.json({ error: "Invalid quick-launch request" }, 400);
+        }
+
+        const customRepo = parsedRequest.data.repoUrl ? parseLink(parsedRequest.data.repoUrl) : null;
+        if (parsedRequest.data.repoUrl && (!customRepo || customRepo.platform !== "github")) {
+            return c.json(
+                {
+                    error: "repoUrl must be a valid GitHub repository URL",
+                },
+                400,
+            );
+        }
+
+        const launchDefaults = customRepo
+            ? {
+                  repo: `${customRepo.platform}:${customRepo.projectId}`,
+                  repoUrl: customRepo.displayUrl,
+              }
+            : {
+                  repo: `${QUICK_LAUNCH_DEFAULT_REPO.platform}:${QUICK_LAUNCH_DEFAULT_REPO.projectId}`,
+                  repoUrl: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
+              };
+
         const ip = getClientIp(c);
         if (!ip || ip === "unknown") {
             return c.json(
@@ -302,10 +337,19 @@ launch.openapi(
         }
 
         const privyUserId = getUserId(c);
-        const quickResult = await launchQuickToken({ privyUserId });
+        const quickResult = await launchQuickToken({
+            privyUserId,
+            repoUrl: parsedRequest.data.repoUrl,
+            name: parsedRequest.data.name,
+            symbol: parsedRequest.data.symbol,
+            description: parsedRequest.data.description,
+        });
 
         if ("error" in quickResult) {
             await releaseQuickLaunchIpGuardrail(ip).catch(() => undefined);
+            if (quickResult.error.toLowerCase().includes("github repository")) {
+                return c.json({ error: quickResult.error }, 400);
+            }
             return c.json({ error: quickResult.error }, 500);
         }
 
@@ -398,8 +442,8 @@ launch.openapi(
             claimToken: claimToken.token,
             claimTokenExpiresAt: claimToken.expiresAt.toISOString(),
             launchDefaults: {
-                repo: `${QUICK_LAUNCH_DEFAULT_REPO.platform}:${QUICK_LAUNCH_DEFAULT_REPO.projectId}`,
-                repoUrl: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
+                repo: launchDefaults.repo,
+                repoUrl: launchDefaults.repoUrl,
                 claimLaterSupported: true as const,
             },
             runtime: runtimeProvision,

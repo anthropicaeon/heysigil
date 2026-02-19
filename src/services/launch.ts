@@ -303,21 +303,36 @@ export function buildDeployParams(
 }
 
 export function buildQuickLaunchParsedData(input?: {
+    repoUrl?: string;
     name?: string;
     symbol?: string;
-}): ParsedLinksResult {
+}): ParsedLinksResult | ParsedLinksError {
     const quickProjectId = `quick:${randomUUID()}`;
     const seed = quickProjectId.slice(-6).toUpperCase();
     const tokenName = input?.name?.trim() || `Sigil Quick ${seed}`;
     const tokenSymbol = input?.symbol?.trim() || `sQ${seed.slice(0, 5)}`;
+    const repoUrl = input?.repoUrl?.trim();
+    const customRepo = repoUrl ? parseLink(repoUrl) : null;
+    if (repoUrl && (!customRepo || customRepo.platform !== "github")) {
+        return {
+            success: false,
+            error: "Quick launch repo must be a valid GitHub repository URL",
+            hint: "Use full GitHub repo URLs such as https://github.com/owner/repo",
+        };
+    }
 
-    const parsedLink: ParsedLink = {
-        platform: QUICK_LAUNCH_DEFAULT_REPO.platform,
-        projectId: QUICK_LAUNCH_DEFAULT_REPO.projectId,
-        displayUrl: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
-        verifyMethods: [...QUICK_LAUNCH_DEFAULT_REPO.verifyMethods],
-        rawInput: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
-    };
+    const parsedLink: ParsedLink = customRepo
+        ? {
+              ...customRepo,
+              rawInput: repoUrl!,
+          }
+        : {
+              platform: QUICK_LAUNCH_DEFAULT_REPO.platform,
+              projectId: QUICK_LAUNCH_DEFAULT_REPO.projectId,
+              displayUrl: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
+              verifyMethods: [...QUICK_LAUNCH_DEFAULT_REPO.verifyMethods],
+              rawInput: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
+          };
 
     return {
         success: true,
@@ -422,16 +437,22 @@ export async function launchToken(
 }
 
 export async function launchQuickToken(input?: {
+    repoUrl?: string;
     description?: string;
     sessionId?: string;
     privyUserId?: string;
     name?: string;
     symbol?: string;
 }): Promise<LaunchResult | { error: string }> {
-    const parsed = buildQuickLaunchParsedData({
+    const parsedResult = buildQuickLaunchParsedData({
+        repoUrl: input?.repoUrl,
         name: input?.name,
         symbol: input?.symbol,
     });
+    if (!parsedResult.success) {
+        return { error: parsedResult.error };
+    }
+    const parsed = parsedResult;
 
     const description =
         input?.description ||
@@ -472,10 +493,10 @@ export async function launchQuickToken(input?: {
             token,
             claimInstructions: [
                 {
-                    platform: QUICK_LAUNCH_DEFAULT_REPO.platform,
-                    projectId: QUICK_LAUNCH_DEFAULT_REPO.projectId,
-                    displayUrl: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
-                    verifyMethods: [...QUICK_LAUNCH_DEFAULT_REPO.verifyMethods],
+                    platform: parsed.primaryLink.platform,
+                    projectId: parsed.primaryLink.projectId,
+                    displayUrl: parsed.primaryLink.displayUrl,
+                    verifyMethods: [...parsed.primaryLink.verifyMethods],
                 },
             ],
         };
