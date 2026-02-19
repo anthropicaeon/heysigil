@@ -3,7 +3,7 @@
 import { ArrowRight, CheckCircle, Sparkles } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import ModelViewer from "@/components/ModelViewer";
 import { Badge } from "@/components/ui/badge";
@@ -32,8 +32,37 @@ const HERO_STATS = [
     { value: "EAS", label: "Attestation" },
 ];
 
+// TODO(next-todo): Remove mock presets when quick-launch API is implemented.
+const QUICK_LAUNCH_MOCK_PRESETS = [
+    {
+        id: "agent-template",
+        label: "Agent Template",
+        name: "sigil: agent capsule",
+        ownerSource: "agent://autonomous-bot",
+    },
+    {
+        id: "studio-template",
+        label: "Studio Template",
+        name: "sigil: studio sprint",
+        ownerSource: "github.com/sigil-labs/studio",
+    },
+];
+
+// TODO(next-todo): Replace with backend one-time claim token response from quick-launch endpoint.
+const QUICK_LAUNCH_MOCK_TOKEN_SEED = "SIGIL-QLAIM";
+// TODO(next-todo): When global loader completes on "/", fade loader atmosphere first, then
+// smoothly slide/hand off the same 3D model into the current hero right-column stage position.
+
+type QuickLaunchStatus = "idle" | "launching" | "success";
+
 export default function SigilHero() {
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [isQuickLaunchOpen, setIsQuickLaunchOpen] = useState(false);
+    const [quickLaunchName, setQuickLaunchName] = useState("");
+    const [quickLaunchOwnerSource, setQuickLaunchOwnerSource] = useState("");
+    const [quickLaunchStatus, setQuickLaunchStatus] = useState<QuickLaunchStatus>("idle");
+    const [claimToken, setClaimToken] = useState<string | null>(null);
+    const [copiedToken, setCopiedToken] = useState(false);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -41,6 +70,43 @@ export default function SigilHero() {
         }, 3000);
         return () => clearInterval(interval);
     }, []);
+
+    const resetQuickLaunch = () => {
+        setQuickLaunchStatus("idle");
+        setClaimToken(null);
+        setCopiedToken(false);
+    };
+
+    const applyPreset = (presetId: string) => {
+        const preset = QUICK_LAUNCH_MOCK_PRESETS.find((item) => item.id === presetId);
+        if (!preset) return;
+        setQuickLaunchName(preset.name);
+        setQuickLaunchOwnerSource(preset.ownerSource);
+        resetQuickLaunch();
+    };
+
+    const handleQuickLaunchSubmit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        const trimmedName = quickLaunchName.trim();
+        if (!trimmedName || quickLaunchStatus === "launching") return;
+
+        setQuickLaunchStatus("launching");
+        setClaimToken(null);
+        setCopiedToken(false);
+
+        window.setTimeout(() => {
+            const suffix = Math.random().toString(36).slice(2, 10).toUpperCase();
+            setClaimToken(`${QUICK_LAUNCH_MOCK_TOKEN_SEED}-${suffix}`);
+            setQuickLaunchStatus("success");
+        }, 1800);
+    };
+
+    const copyClaimToken = async () => {
+        if (!claimToken) return;
+        await navigator.clipboard.writeText(claimToken);
+        setCopiedToken(true);
+        window.setTimeout(() => setCopiedToken(false), 1200);
+    };
 
     return (
         <section className="bg-background relative overflow-hidden px-2.5 lg:px-0">
@@ -82,7 +148,7 @@ export default function SigilHero() {
                 >
                     <div className="grid lg:grid-cols-[1fr_420px]">
                         {/* Left Column - Content */}
-                        <div className="px-6 py-16 lg:px-12 lg:py-24 border-border lg:border-r">
+                        <div className="flex min-h-full flex-col border-border px-6 pt-16 lg:border-r lg:px-12 lg:pt-24">
                             {/* Eyebrow with sparkle */}
                             <div className="flex items-center gap-2 mb-6">
                                 <Sparkles className="size-4 text-primary" />
@@ -147,6 +213,129 @@ export default function SigilHero() {
                                         Explore Protocol
                                     </Button>
                                 </Link>
+                            </div>
+
+                            <div className="mt-8 -mx-6 flex flex-1 flex-col border-y border-border bg-[linear-gradient(180deg,hsl(var(--lavender)/0.2),hsl(var(--background)/0.85))] lg:-mx-12">
+                                <div className="flex flex-col gap-3 border-border border-b px-6 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-12">
+                                    <div className="space-y-1">
+                                        <p className="text-xs uppercase tracking-[0.14em] text-primary">
+                                            quick launch
+                                        </p>
+                                        <p className="text-sm text-muted-foreground">
+                                            Launch instantly as unclaimed. Claim ownership later using a one-time token.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setIsQuickLaunchOpen((prev) => !prev)}
+                                        className="w-full sm:w-auto border-primary/45 bg-lavender/35 text-foreground hover:bg-lavender/55"
+                                    >
+                                        {isQuickLaunchOpen ? "Hide Quick Launch" : "Open Quick Launch"}
+                                    </Button>
+                                </div>
+
+                                {isQuickLaunchOpen ? (
+                                    <form
+                                        onSubmit={handleQuickLaunchSubmit}
+                                        className="flex flex-1 flex-col bg-background/60 px-6 py-4 lg:px-12"
+                                    >
+                                        <div className="mb-4 flex flex-wrap gap-2">
+                                            {QUICK_LAUNCH_MOCK_PRESETS.map((preset) => (
+                                                <button
+                                                    key={preset.id}
+                                                    type="button"
+                                                    onClick={() => applyPreset(preset.id)}
+                                                    className="border-border bg-sage/25 hover:bg-sage/40 border px-3 py-1.5 text-xs font-medium uppercase tracking-[0.12em] transition-colors"
+                                                >
+                                                    {preset.label}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            <label className="block">
+                                                <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                                                    Token Name
+                                                </span>
+                                                <input
+                                                    value={quickLaunchName}
+                                                    onChange={(event) => {
+                                                        setQuickLaunchName(event.target.value);
+                                                        resetQuickLaunch();
+                                                    }}
+                                                    placeholder="sigil: your project"
+                                                    className="border-border bg-background/90 h-10 w-full border px-3 text-sm text-foreground outline-none focus:border-primary/60"
+                                                    required
+                                                />
+                                            </label>
+
+                                            <label className="block">
+                                                <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                                                    Owner / Source
+                                                </span>
+                                                <input
+                                                    value={quickLaunchOwnerSource}
+                                                    onChange={(event) => {
+                                                        setQuickLaunchOwnerSource(event.target.value);
+                                                        resetQuickLaunch();
+                                                    }}
+                                                    placeholder="github.com/org/repo or agent://id"
+                                                    className="border-border bg-background/90 h-10 w-full border px-3 text-sm text-foreground outline-none focus:border-primary/60"
+                                                />
+                                            </label>
+                                        </div>
+
+                                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <p className="text-xs text-muted-foreground">
+                                                This mode launches immediately as <span className="font-medium text-foreground">unclaimed</span>.
+                                            </p>
+                                            <Button
+                                                type="submit"
+                                                disabled={quickLaunchStatus === "launching" || quickLaunchName.trim().length === 0}
+                                                className="w-full sm:w-auto"
+                                            >
+                                                {quickLaunchStatus === "launching" ? "Launching..." : "Launch Unclaimed Token"}
+                                            </Button>
+                                        </div>
+
+                                        {quickLaunchStatus === "success" && claimToken ? (
+                                            <div className="mt-4 border-border border-t pt-4">
+                                                <p className="text-xs uppercase tracking-[0.12em] text-primary">
+                                                    One-Time Claim Token
+                                                </p>
+                                                <p className="mt-1 font-mono text-sm text-foreground break-all">
+                                                    {claimToken}
+                                                </p>
+                                                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={() => void copyClaimToken()}
+                                                        className="w-full sm:w-auto"
+                                                    >
+                                                        {copiedToken ? "Copied" : "Copy Token"}
+                                                    </Button>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        Save this now. It is shown once and used later to claim ownership.
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="mt-4 flex-1 bg-[linear-gradient(180deg,transparent,hsl(var(--sage)/0.08))]">
+                                                <div className="text-xs text-muted-foreground">
+                                                    Launching here skips verification and creates an unclaimed token.
+                                                </div>
+                                            </div>
+                                        )}
+                                    </form>
+                                ) : (
+                                    <div className="flex flex-1 flex-col justify-end border-border border-t bg-[linear-gradient(180deg,transparent,hsl(var(--sage)/0.08))] px-6 py-4 lg:px-12">
+                                        <div className="text-xs text-muted-foreground">
+                                            Open quick launch to create an unclaimed token and receive a one-time claim token.
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

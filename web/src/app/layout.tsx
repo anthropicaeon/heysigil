@@ -80,6 +80,12 @@ export default function RootLayout({
 }: Readonly<{
     children: React.ReactNode;
 }>) {
+    // TODO(next-todo): Add a global 3D page loader overlay.
+    // Requirements:
+    // - Full-screen center-aligned 3D model (no other UI visible while loading).
+    // - Subtle lavender PixelCard styling behind/around the model.
+    // - Intentional minimum 2s display before reveal.
+    // - On non-home direct routes, loader should fade out when done (no slide handoff).
     return (
         <html lang="en" suppressHydrationWarning>
             <body className={`h-screen ${figtree.variable} antialiased`}>

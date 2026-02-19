@@ -83,12 +83,12 @@ function DesktopDropdownPanel({ label, items }: { label: string; items: Dropdown
 
     return (
         <NavigationMenuContent className="p-0">
-            <div className="w-[min(92vw,760px)] border border-t-0 border-border bg-background/95 shadow-[0_24px_50px_-40px_hsl(var(--foreground)/0.7)] backdrop-blur-sm">
-                <div className="grid min-h-[300px] grid-cols-[230px_1fr]">
-                    <div className="flex flex-col border-r border-border">
+            <div className="w-[min(92vw,780px)] border-x border-b border-border bg-background/95 shadow-[0_24px_50px_-40px_hsl(var(--foreground)/0.7)] backdrop-blur-sm">
+                <div className="grid min-h-[320px] grid-cols-[220px_1fr]">
+                    <aside className="flex flex-col border-r border-border bg-background">
                         <div
                             className={cn(
-                                "border-b border-border px-5 py-4",
+                                "border-b border-border px-5 py-3.5",
                                 meta.accentClassName,
                             )}
                         >
@@ -111,49 +111,56 @@ function DesktopDropdownPanel({ label, items }: { label: string; items: Dropdown
                                 </p>
                             </div>
                         </div>
+                    </aside>
+
+                    <div className="flex flex-col">
+                        <div className="border-b border-border bg-background/70 px-4 py-3">
+                            <p className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
+                                {label}
+                            </p>
+                        </div>
+                        <ul className="grid flex-1 grid-cols-2 bg-background/60">
+                            {items.map((item, index) => {
+                                const isLastRow = index >= (rowCount - 1) * columns;
+                                const isRightColumn = index % columns === 1;
+
+                                return (
+                                    <li
+                                        key={item.title}
+                                        className={cn(
+                                            "group border-border",
+                                            "border-b",
+                                            isLastRow && "border-b-0",
+                                            isRightColumn && "border-l",
+                                        )}
+                                    >
+                                        <NavigationMenuLink asChild>
+                                            <Link
+                                                href={item.href}
+                                                className="flex h-full min-h-[108px] items-start gap-3 px-4 py-4 no-underline outline-none transition-colors hover:bg-sage/15 focus:bg-sage/15"
+                                            >
+                                                <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center border border-border bg-background transition-colors group-hover:bg-lavender/35 group-focus:bg-lavender/35">
+                                                    <item.icon className="size-4 text-muted-foreground" />
+                                                </div>
+                                                <div className="flex min-w-0 flex-1 flex-col">
+                                                    <p className="text-sm leading-none font-medium text-foreground">
+                                                        {item.title}
+                                                    </p>
+                                                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                                                        {item.description}
+                                                    </p>
+                                                    <span className="mt-3 inline-flex items-center gap-1 text-[11px] tracking-[0.12em] text-primary uppercase opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100">
+                                                        Open
+                                                        <ArrowUpRight className="size-3" />
+                                                    </span>
+                                                </div>
+                                            </Link>
+                                        </NavigationMenuLink>
+                                    </li>
+                                );
+                            })}
+                        </ul>
                     </div>
-
-                    <ul className="grid grid-cols-2 bg-background/60">
-                        {items.map((item, index) => {
-                            const isLastRow = index >= (rowCount - 1) * columns;
-                            const isRightColumn = index % columns === 1;
-
-                            return (
-                                <li
-                                    key={item.title}
-                                    className={cn(
-                                        "group border-border",
-                                        "border-b",
-                                        isLastRow && "border-b-0",
-                                        isRightColumn && "border-l",
-                                    )}
-                                >
-                                    <NavigationMenuLink asChild>
-                                        <Link
-                                            href={item.href}
-                                            className="flex h-full min-h-[118px] items-start gap-3 px-4 py-4 no-underline outline-none transition-colors hover:bg-sage/15 focus:bg-sage/15"
-                                        >
-                                            <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center border border-border bg-background transition-colors group-hover:bg-lavender/35 group-focus:bg-lavender/35">
-                                                <item.icon className="size-4 text-muted-foreground" />
-                                            </div>
-                                            <div className="flex min-w-0 flex-1 flex-col">
-                                                <p className="text-sm leading-none font-medium text-foreground">
-                                                    {item.title}
-                                                </p>
-                                                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                                                    {item.description}
-                                                </p>
-                                                <span className="mt-3 inline-flex items-center gap-1 text-[11px] tracking-[0.12em] text-primary uppercase opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100">
-                                                    Open
-                                                    <ArrowUpRight className="size-3" />
-                                                </span>
-                                            </div>
-                                        </Link>
-                                    </NavigationMenuLink>
-                                </li>
-                            );
-                        })}
-                    </ul>
                 </div>
             </div>
         </NavigationMenuContent>
@@ -278,7 +285,7 @@ const Navbar = () => {
     return (
         <header className="relative z-50 h-20 border-b border-border bg-background px-2.5 lg:px-0">
             <div className="container flex h-20 items-center border-x border-border">
-                <div className="flex w-full items-center justify-between py-3">
+                <div className="flex h-full w-full items-center justify-between">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-2">
                         <Image
@@ -293,20 +300,16 @@ const Navbar = () => {
 
                     {/* Desktop Navigation */}
                     <div className="flex items-center justify-center">
-                        <NavigationMenu className="mr-4 hidden items-center gap-8 lg:flex">
-                            <NavigationMenuList>
+                        <NavigationMenu className="mr-4 hidden lg:flex">
+                            <NavigationMenuList className="h-10 divide-x divide-border border border-border bg-background/80 backdrop-blur-sm">
                                 {ITEMS.map((link) =>
                                     link.dropdownItems ? (
-                                        <NavigationMenuItem key={link.label} className="text-sm">
+                                        <NavigationMenuItem key={link.label} className="h-full text-sm">
                                             <NavigationMenuTrigger
                                                 className={cn(
-                                                    "h-9 px-3 text-sm font-normal text-foreground",
-                                                    "hover:bg-sage/20",
-                                                    "focus:bg-sage/20",
-                                                    "data-[state=open]:bg-background",
-                                                    "hover:shadow-[inset_0_0_0_1px_hsl(var(--border))]",
-                                                    "focus:shadow-[inset_0_0_0_1px_hsl(var(--border))]",
-                                                    "data-[state=open]:text-foreground data-[state=open]:shadow-[inset_0_0_0_1px_hsl(var(--border))]",
+                                                    "h-full rounded-none border-0 px-4 text-sm leading-none font-medium text-foreground shadow-none",
+                                                    "hover:bg-sage/15 focus:bg-sage/15",
+                                                    "data-[state=open]:bg-sage/20 data-[state=open]:text-foreground",
                                                     "transition-colors",
                                                 )}
                                             >
@@ -318,13 +321,16 @@ const Navbar = () => {
                                             />
                                         </NavigationMenuItem>
                                     ) : (
-                                        <NavigationMenuItem key={link.label}>
+                                        <NavigationMenuItem key={link.label} className="h-full">
                                             <Link
                                                 href={link.href}
                                                 className={cn(
-                                                    "text-foreground hover:text-primary p-2 text-sm transition-colors",
-                                                    pathname === link.href && "text-primary font-medium",
-                                                    link.primary && "font-medium",
+                                                    "flex h-full items-center px-4 text-sm leading-none font-medium text-foreground transition-colors",
+                                                    "hover:bg-sage/15 hover:text-foreground",
+                                                    pathname === link.href && "bg-sage/20 text-primary",
+                                                    link.primary &&
+                                                        pathname !== link.href &&
+                                                        "bg-lavender/20",
                                                 )}
                                             >
                                                 {link.label}

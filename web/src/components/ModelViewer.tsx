@@ -2,10 +2,10 @@ import { ContactShadows, Environment, Html, OrbitControls, useProgress } from "@
 import { Canvas, invalidate, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { FC, Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader";
-import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader";
-import { type GLTF, GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
+import { type GLTF, GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 export interface ViewerProps {
@@ -572,7 +572,7 @@ const ModelViewer: FC<ViewerProps> = ({
   }, [loaderClass, url]);
 
   const pivot = useRef(new THREE.Vector3()).current;
-  const contactRef = useRef<THREE.Object3D | null>(null);
+  const contactRef = useRef<THREE.Group | null>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
