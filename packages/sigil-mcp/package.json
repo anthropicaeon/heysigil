@@ -1,12 +1,23 @@
 {
   "name": "@heysigil/sigil-mcp",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
-  "main": "dist/sigil-mcp/src/index.js",
-  "types": "dist/sigil-mcp/src/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "bin": {
-    "sigil-mcp": "dist/sigil-mcp/src/index.js"
+    "sigil-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

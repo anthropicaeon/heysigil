@@ -20,3 +20,4 @@ bun.lock
 /.docs
 /.backups
 nul
+/.npm-cache

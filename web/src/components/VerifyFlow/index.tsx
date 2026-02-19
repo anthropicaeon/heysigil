@@ -51,6 +51,12 @@ const CHANNELS = [
 ];
 
 const STEP_SEQUENCE: Step[] = ["method", "details", "challenge", "result"];
+const FLOW_STAGES = [
+    { num: "01", label: "channel" },
+    { num: "02", label: "details" },
+    { num: "03", label: "verify" },
+    { num: "04", label: "stamp" },
+] as const;
 
 interface VerifyFlowProps {
     /** Optional service for testing/DI */
@@ -284,145 +290,55 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                 </PixelCard>
 
                 {/* Flow Visualization */}
-                <div className="border-border border-b px-6 py-8 lg:px-12 lg:py-12 bg-background">
-                    <div className="max-w-3xl mx-auto">
+                <PixelCard
+                    variant="lavender"
+                    active
+                    centerFade
+                    noFocus
+                    className="border-border border-b bg-lavender/25"
+                >
+                    <div className="px-4 py-6 sm:px-6 lg:px-12 lg:py-10">
                         <p className="mb-4 text-center text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
                             verification pipeline
                         </p>
-                        {/* Flow Diagram */}
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-0">
-                            {/* Node 1: Select Channel */}
-                            <div
-                                className={cn(
-                                    "flex flex-col items-center",
-                                    stepIndex >= 0 ? "opacity-100" : "opacity-40",
-                                )}
-                            >
-                                <div
-                                    className={cn(
-                                        "w-28 h-20 sm:w-32 sm:h-24 border-2 flex flex-col items-center justify-center text-center px-2 gap-0.5",
-                                        stepIndex === 0
-                                            ? "border-primary bg-primary/10"
-                                            : stepIndex > 0
-                                                ? "border-primary/50 bg-sage/50"
-                                                : "border-border bg-background",
-                                    )}
-                                >
-                                    <span className="text-xs font-bold text-primary">01</span>
-                                    <span className="text-[11px] font-semibold tracking-[0.12em] text-foreground uppercase">
-                                        channel
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
-                                        select source
-                                    </span>
-                                </div>
-                            </div>
+                            {FLOW_STAGES.map((stage, index) => {
+                                const isCurrent = stepIndex === index;
+                                const isCompleted = stepIndex > index;
 
-                            {/* Connector */}
-                            <div
-                                className={cn(
-                                    "w-px h-6 sm:w-8 sm:h-px",
-                                    stepIndex >= 1 ? "bg-primary" : "bg-border",
-                                )}
-                            />
+                                return (
+                                    <div key={stage.num} className="flex flex-col sm:flex-row items-center">
+                                        <div
+                                            className={cn(
+                                                "w-24 h-16 sm:w-28 sm:h-20 border-2 flex flex-col items-center justify-center text-center px-2",
+                                                isCurrent
+                                                    ? "border-primary bg-lavender/35"
+                                                    : isCompleted
+                                                      ? "border-primary/50 bg-sage/35"
+                                                      : "border-border bg-background/80",
+                                                stepIndex >= index ? "opacity-100" : "opacity-40",
+                                            )}
+                                        >
+                                            <span className="text-xs font-bold text-primary">{stage.num}</span>
+                                            <span className="text-[11px] font-semibold tracking-[0.12em] text-foreground uppercase">
+                                                {stage.label}
+                                            </span>
+                                        </div>
 
-                            {/* Node 2: Enter Details */}
-                            <div
-                                className={cn(
-                                    "flex flex-col items-center",
-                                    stepIndex >= 1 ? "opacity-100" : "opacity-40",
-                                )}
-                            >
-                                <div
-                                    className={cn(
-                                        "w-28 h-20 sm:w-32 sm:h-24 border-2 flex flex-col items-center justify-center text-center px-2 gap-0.5",
-                                        stepIndex === 1
-                                            ? "border-primary bg-primary/10"
-                                            : stepIndex > 1
-                                                ? "border-primary/50 bg-sage/50"
-                                                : "border-border bg-background",
-                                    )}
-                                >
-                                    <span className="text-xs font-bold text-primary">02</span>
-                                    <span className="text-[11px] font-semibold tracking-[0.12em] text-foreground uppercase">
-                                        details
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
-                                        project + wallet
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Connector */}
-                            <div
-                                className={cn(
-                                    "w-px h-6 sm:w-8 sm:h-px",
-                                    stepIndex >= 2 ? "bg-primary" : "bg-border",
-                                )}
-                            />
-
-                            {/* Node 3: Verify */}
-                            <div
-                                className={cn(
-                                    "flex flex-col items-center",
-                                    stepIndex >= 2 ? "opacity-100" : "opacity-40",
-                                )}
-                            >
-                                <div
-                                    className={cn(
-                                        "w-28 h-20 sm:w-32 sm:h-24 border-2 flex flex-col items-center justify-center text-center px-2 gap-0.5",
-                                        stepIndex === 2
-                                            ? "border-primary bg-primary/10"
-                                            : stepIndex > 2
-                                                ? "border-primary/50 bg-sage/50"
-                                                : "border-border bg-background",
-                                    )}
-                                >
-                                    <span className="text-xs font-bold text-primary">03</span>
-                                    <span className="text-[11px] font-semibold tracking-[0.12em] text-foreground uppercase">
-                                        verify
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
-                                        prove control
-                                    </span>
-                                </div>
-                            </div>
-
-                            {/* Connector */}
-                            <div
-                                className={cn(
-                                    "w-px h-6 sm:w-8 sm:h-px",
-                                    stepIndex >= 3 ? "bg-primary" : "bg-border",
-                                )}
-                            />
-
-                            {/* Node 4: Stamp */}
-                            <div
-                                className={cn(
-                                    "flex flex-col items-center",
-                                    stepIndex >= 3 ? "opacity-100" : "opacity-40",
-                                )}
-                            >
-                                <div
-                                    className={cn(
-                                        "w-28 h-20 sm:w-32 sm:h-24 border-2 flex flex-col items-center justify-center text-center px-2 gap-0.5",
-                                        stepIndex === 3
-                                            ? "border-primary bg-primary/10"
-                                            : "border-border bg-background",
-                                    )}
-                                >
-                                    <span className="text-xs font-bold text-primary">04</span>
-                                    <span className="text-[11px] font-semibold tracking-[0.12em] text-foreground uppercase">
-                                        stamp
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
-                                        mint onchain
-                                    </span>
-                                </div>
-                            </div>
+                                        {index < FLOW_STAGES.length - 1 && (
+                                            <div
+                                                className={cn(
+                                                    "w-px h-6 sm:w-8 sm:h-px",
+                                                    stepIndex >= index + 1 ? "bg-primary" : "bg-border",
+                                                )}
+                                            />
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
-                </div>
+                </PixelCard>
 
                 {/* Step Content - fills remaining space */}
                 <div className="flex-1 flex flex-col bg-cream/30">
