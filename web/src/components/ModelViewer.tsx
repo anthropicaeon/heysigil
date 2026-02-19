@@ -45,6 +45,8 @@ export interface ViewerProps {
   fadeIn?: boolean;
   autoRotate?: boolean;
   autoRotateSpeed?: number;
+  autoRotateSyncKey?: string;
+  showContactShadows?: boolean;
   onModelLoaded?: () => void;
 }
 
@@ -64,6 +66,18 @@ const PARALLAX_MAG = 0.05;
 const PARALLAX_EASE = 0.12;
 const HOVER_MAG = deg2rad(6);
 const HOVER_EASE = 0.15;
+const autoRotateEpochByKey = new Map<string, number>();
+
+const getAutoRotateEpoch = (key: string): number => {
+  const existing = autoRotateEpochByKey.get(key);
+  if (typeof existing === "number") {
+    return existing;
+  }
+
+  const next = typeof performance !== "undefined" ? performance.now() : Date.now();
+  autoRotateEpochByKey.set(key, next);
+  return next;
+};
 
 const getLoaderForExt = (ext: string): SupportedLoader => {
   if (ext === "fbx") return FBXLoader;
@@ -213,6 +227,11 @@ const ModelInner: FC<ModelInnerProps> = ({
 
   const modelReady = useRef(false);
   const pivotW = useRef(new THREE.Vector3());
+  const onLoadedRef = useRef<ModelInnerProps["onLoaded"]>(onLoaded);
+
+  useEffect(() => {
+    onLoadedRef.current = onLoaded;
+  }, [onLoaded]);
 
   useLayoutEffect(() => {
     if (!content) return;
@@ -293,12 +312,12 @@ const ModelInner: FC<ModelInnerProps> = ({
             clearInterval(fadeId);
           }
           invalidate();
-          onLoaded?.();
+          onLoadedRef.current?.();
         }
       }, 16);
     } else {
       invalidate();
-      onLoaded?.();
+      onLoadedRef.current?.();
     }
 
     return () => {
@@ -306,7 +325,7 @@ const ModelInner: FC<ModelInnerProps> = ({
         clearInterval(fadeId);
       }
     };
-  }, [autoFrame, autoFramePadding, camera, content, fadeIn, initPitch, initYaw, onLoaded, pivot, xOff, yOff]);
+  }, [autoFrame, autoFramePadding, camera, content, fadeIn, initPitch, initYaw, pivot, xOff, yOff]);
 
   useEffect(() => {
     if (!enableManualRotation || isTouch) return;
@@ -562,6 +581,8 @@ const ModelViewer: FC<ViewerProps> = ({
   fadeIn = false,
   autoRotate = false,
   autoRotateSpeed = 0.35,
+  autoRotateSyncKey,
+  showContactShadows = true,
   onModelLoaded,
 }) => {
   const ext = useMemo(() => getFileExt(url), [url]);
@@ -579,7 +600,18 @@ const ModelViewer: FC<ViewerProps> = ({
 
   const initYaw = deg2rad(defaultRotationX);
   const initPitch = deg2rad(defaultRotationY);
+  const syncedInitYaw = useMemo(() => {
+    if (!autoRotate || !autoRotateSyncKey) {
+      return initYaw;
+    }
+
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const epoch = getAutoRotateEpoch(autoRotateSyncKey);
+    const elapsedSeconds = (now - epoch) / 1000;
+    return initYaw + autoRotateSpeed * elapsedSeconds;
+  }, [autoRotate, autoRotateSpeed, autoRotateSyncKey, initYaw]);
   const cameraZ = Math.min(Math.max(defaultZoom, minZoomDistance), maxZoomDistance);
+  const requiresContinuousFrame = autoRotate || enableMouseParallax || enableHoverRotation;
 
   const capture = () => {
     const renderer = rendererRef.current;
@@ -636,15 +668,16 @@ const ModelViewer: FC<ViewerProps> = ({
       )}
 
       <Canvas
-        shadows
-        frameloop="demand"
-        gl={{ preserveDrawingBuffer: true }}
+        shadows={showContactShadows}
+        frameloop={requiresContinuousFrame ? "always" : "demand"}
+        gl={{ preserveDrawingBuffer: true, alpha: true }}
         onCreated={({ gl, scene, camera }) => {
           rendererRef.current = gl;
           sceneRef.current = scene;
           cameraRef.current = camera;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
           gl.outputColorSpace = THREE.SRGBColorSpace;
+          gl.setClearColor(0x000000, 0);
         }}
         camera={{ fov: 50, position: [0, 0, cameraZ], near: 0.01, far: 100 }}
         style={{ touchAction: "pan-y pinch-zoom" }}
@@ -657,11 +690,13 @@ const ModelViewer: FC<ViewerProps> = ({
         )}
 
         <ambientLight intensity={ambientIntensity} />
-        <directionalLight position={[5, 5, 5]} intensity={keyLightIntensity} castShadow />
+        <directionalLight position={[5, 5, 5]} intensity={keyLightIntensity} castShadow={showContactShadows} />
         <directionalLight position={[-5, 2, 5]} intensity={fillLightIntensity} />
         <directionalLight position={[0, 4, -5]} intensity={rimLightIntensity} />
 
-        <ContactShadows ref={contactRef} position={[0, -0.5, 0]} opacity={0.35} scale={10} blur={2} />
+        {showContactShadows && (
+          <ContactShadows ref={contactRef} position={[0, -0.5, 0]} opacity={0.35} scale={10} blur={2} />
+        )}
 
         <Suspense fallback={showLoader ? <Loader placeholderSrc={placeholderSrc} /> : null}>
           <ModelInner
@@ -669,7 +704,7 @@ const ModelViewer: FC<ViewerProps> = ({
             xOff={modelXOffset}
             yOff={modelYOffset}
             pivot={pivot}
-            initYaw={initYaw}
+            initYaw={syncedInitYaw}
             initPitch={initPitch}
             minZoom={minZoomDistance}
             maxZoom={maxZoomDistance}

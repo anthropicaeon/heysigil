@@ -9,6 +9,7 @@ import ModelViewer from "@/components/ModelViewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PixelCard } from "@/components/ui/pixel-card";
+import { StarBorder } from "@/components/ui/star-border";
 import { cn } from "@/lib/utils";
 
 const ROTATING_PROMPTS = [
@@ -225,14 +226,18 @@ export default function SigilHero() {
                                             Launch instantly as unclaimed. Claim ownership later using a one-time token.
                                         </p>
                                     </div>
-                                    <Button
+                                    <StarBorder
+                                        as="button"
                                         type="button"
-                                        variant="outline"
                                         onClick={() => setIsQuickLaunchOpen((prev) => !prev)}
-                                        className="w-full sm:w-auto border-primary/45 bg-lavender/35 text-foreground hover:bg-lavender/55"
+                                        className="w-full sm:w-auto"
+                                        innerClassName="bg-lavender/85 hover:bg-lavender/92 border-primary/35"
+                                        color="hsl(var(--primary) / 0.55)"
+                                        speed="6s"
+                                        thickness={0.75}
                                     >
                                         {isQuickLaunchOpen ? "Hide Quick Launch" : "Open Quick Launch"}
-                                    </Button>
+                                    </StarBorder>
                                 </div>
 
                                 {isQuickLaunchOpen ? (
@@ -352,7 +357,10 @@ export default function SigilHero() {
                                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background/80 to-transparent" />
 
                                 <div className="relative h-full min-h-[420px]">
-                                    <div className="absolute inset-0 scale-[1.08] transform-gpu origin-center">
+                                    <div
+                                        className="absolute inset-0 scale-[1.08] transform-gpu origin-center"
+                                        data-home-loader-target="sigil-hero-model"
+                                    >
                                         <ModelViewer
                                             url="/3D/logo_min.glb"
                                             width="100%"
@@ -373,9 +381,11 @@ export default function SigilHero() {
                                             environmentPreset="studio"
                                             autoFrame
                                             autoFramePadding={1.1}
-                                            fadeIn
+                                            fadeIn={false}
                                             autoRotate
                                             autoRotateSpeed={0.16}
+                                            autoRotateSyncKey="sigil-hero-main"
+                                            showContactShadows={false}
                                             showLoader={false}
                                             showScreenshotButton={false}
                                         />

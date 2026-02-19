@@ -2,10 +2,8 @@ import "./globals.css";
 
 import type { Metadata } from "next";
 import { Figtree } from "next/font/google";
-import { Toaster } from "sonner";
 
-import { Footer } from "@/components/layout/footer";
-import Navbar from "@/components/layout/navbar";
+import AppShell from "@/components/layout/app-shell";
 import { ThemeProvider } from "@/components/theme-provider";
 import { SessionProvider } from "@/contexts/SessionContext";
 import PrivyAuthProvider from "@/providers/PrivyAuthProvider";
@@ -97,10 +95,7 @@ export default function RootLayout({
                 >
                     <PrivyAuthProvider>
                         <SessionProvider>
-                            <Navbar />
-                            <main>{children}</main>
-                            <Footer />
-                            <Toaster position="bottom-right" />
+                            <AppShell>{children}</AppShell>
                         </SessionProvider>
                     </PrivyAuthProvider>
                 </ThemeProvider>
