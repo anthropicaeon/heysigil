@@ -1,9 +1,5 @@
 import {
     CalendarClock,
-    ExternalLink,
-    GitCommitHorizontal,
-    Github,
-    ShieldCheck,
     Sparkles,
     Trophy,
     Users,
@@ -11,7 +7,6 @@ import {
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { PixelCard } from "@/components/ui/pixel-card";
 import {
     type ChangelogEntry,
@@ -32,9 +27,6 @@ const TYPE_STYLES: Record<ChangelogEntry["type"], string> = {
 };
 
 export const revalidate = 3600;
-const SIGIL_REPO_URL = "https://github.com/anthropicaeon/heysigil";
-const SIGIL_FORK_URL = `${SIGIL_REPO_URL}/fork`;
-const SIGIL_GH_DESKTOP_URL = `x-github-client://openRepo/${SIGIL_REPO_URL}`;
 
 function formatDateTime(value: string): string {
     const date = new Date(value);
@@ -62,9 +54,10 @@ function formatPercentage(value: number): string {
 }
 
 export default async function ChangelogPage() {
-    const { data, error, filePath } = await getChangelogData();
+    const { data, error } = await getChangelogData();
     const contributionShare = data ? await getContributorShareData(data.entries) : null;
     const topContributor = contributionShare?.contributors[0] ?? null;
+    const contributorCount = contributionShare?.contributors.length ?? 0;
     const weeklyGroups = data ? groupChangelogByWeek(data.entries) : [];
     const defaultOpenWeeks = weeklyGroups.slice(0, 1).map((group) => group.key);
 
@@ -86,35 +79,8 @@ export default async function ChangelogPage() {
                             product and protocol updates
                         </h1>
                         <p className="text-muted-foreground text-base lg:text-lg">
-                            Real release notes rendered from <code>.changelog.json</code>. Manual edits in
-                            that file are reflected here on deploy.
+                            Product improvements, launches, and quality updates delivered week by week.
                         </p>
-                        <div className="mt-6 border border-border bg-background/70 px-4 py-4">
-                            <p className="text-xs uppercase tracking-[0.14em] text-primary">
-                                build on sigil
-                            </p>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Open this repo in GitHub Desktop and fork it for your own build track.
-                            </p>
-                            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                                <Button asChild variant="soft" size="sm" className="gap-2">
-                                    <a href={SIGIL_GH_DESKTOP_URL}>
-                                        <Github className="size-3.5" />
-                                        Build on Sigil
-                                    </a>
-                                </Button>
-                                <Button asChild variant="outline" size="sm" className="gap-2">
-                                    <a href={SIGIL_FORK_URL} target="_blank" rel="noreferrer">
-                                        Fork on GitHub
-                                        <ExternalLink className="size-3.5" />
-                                    </a>
-                                </Button>
-                            </div>
-                            <p className="mt-3 text-xs text-muted-foreground">
-                                GitHub Desktop opens/clones first, then prompts fork on push if you do not have
-                                write access.
-                            </p>
-                        </div>
                     </div>
                 </PixelCard>
 
@@ -137,11 +103,11 @@ export default async function ChangelogPage() {
                     </div>
                     <div className="px-6 py-4 lg:px-12">
                         <div className="flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-primary">
-                            <ShieldCheck className="size-3.5" />
-                            source
+                            <Users className="size-3.5" />
+                            contributors
                         </div>
-                        <p className="mt-2 text-xs text-muted-foreground break-all">
-                            {filePath || ".changelog.json not found"}
+                        <p className="mt-2 text-xl font-semibold text-foreground">
+                            {contributorCount.toLocaleString()}
                         </p>
                     </div>
                 </div>
@@ -156,8 +122,8 @@ export default async function ChangelogPage() {
                                 </div>
                                 <p className="mt-2 text-xs text-muted-foreground">
                                     {contributionShare.source === "github"
-                                        ? `Live from ${contributionShare.repository}@${contributionShare.branch} (hourly cache)`
-                                        : "From changelog author totals"}
+                                        ? "Live contributor insights, refreshed hourly."
+                                        : "Contributor insights from the latest release data."}
                                 </p>
                                 <p className="mt-1 text-xs text-muted-foreground">
                                     {contributionShare.metric === "weighted_lines"
@@ -165,7 +131,9 @@ export default async function ChangelogPage() {
                                         : "Ranked by commit count."}
                                 </p>
                                 {contributionShare.warning && (
-                                    <p className="mt-2 text-xs text-amber-700">{contributionShare.warning}</p>
+                                    <p className="mt-2 text-xs text-amber-700">
+                                        Showing a cached contributor snapshot.
+                                    </p>
                                 )}
                             </div>
                             <div className="px-6 py-4 lg:px-12">
@@ -223,8 +191,8 @@ export default async function ChangelogPage() {
 
                 {error && (
                     <div className="border-border border-b bg-background px-6 py-6 lg:px-12">
-                        <div className="border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
-                            Failed to load changelog: {error}
+                        <div className="border border-border bg-secondary/40 px-4 py-3 text-sm text-foreground">
+                            We are syncing the latest update log. Please check back shortly.
                         </div>
                     </div>
                 )}
@@ -310,15 +278,6 @@ export default async function ChangelogPage() {
                                                         <p className="text-sm text-muted-foreground leading-relaxed">
                                                             {entry.reason}
                                                         </p>
-                                                        <div className="mt-4 border border-border bg-background/80 px-3 py-2">
-                                                            <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground mb-1">
-                                                                commit
-                                                            </p>
-                                                            <p className="text-xs text-foreground flex items-center gap-1.5 break-all">
-                                                                <GitCommitHorizontal className="size-3.5 shrink-0 text-primary" />
-                                                                {entry.commit}
-                                                            </p>
-                                                        </div>
                                                     </div>
 
                                                     <div className="px-6 py-5 lg:px-12">

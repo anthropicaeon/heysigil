@@ -64,41 +64,71 @@ function resolveChangelogPath(): string | null {
     return null;
 }
 
+function parseAndSortChangelog(raw: string): ChangelogDocument {
+    const parsed = changelogSchema.parse(JSON.parse(raw));
+    const sortedEntries = [...parsed.entries].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
+
+    return {
+        ...parsed,
+        entries: sortedEntries,
+    };
+}
+
+function getChangelogRemoteUrl(): string {
+    const explicitUrl = process.env.CHANGELOG_PUBLIC_URL?.trim();
+    if (explicitUrl) return explicitUrl;
+
+    const repository = process.env.CHANGELOG_GITHUB_REPO || "anthropicaeon/heysigil";
+    const rawBranch =
+        process.env.CHANGELOG_GITHUB_BRANCH ||
+        process.env.RAILWAY_GIT_BRANCH ||
+        process.env.VERCEL_GIT_COMMIT_REF ||
+        "main";
+    const branch = rawBranch.startsWith("refs/heads/")
+        ? rawBranch.slice("refs/heads/".length)
+        : rawBranch;
+
+    return `https://raw.githubusercontent.com/${repository}/${encodeURIComponent(branch)}/.changelog.json`;
+}
+
 export async function getChangelogData(): Promise<{
     data: ChangelogDocument | null;
     error: string | null;
     filePath: string | null;
 }> {
     const filePath = resolveChangelogPath();
-    if (!filePath) {
-        return {
-            data: null,
-            error: "Could not find .changelog.json in repo root.",
-            filePath: null,
-        };
-    }
+    const remoteUrl = getChangelogRemoteUrl();
 
     try {
-        const raw = await fs.promises.readFile(filePath, "utf8");
-        const parsed = changelogSchema.parse(JSON.parse(raw));
-        const sortedEntries = [...parsed.entries].sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-        );
+        if (filePath) {
+            const raw = await fs.promises.readFile(filePath, "utf8");
+            const data = parseAndSortChangelog(raw);
+            return {
+                data,
+                error: null,
+                filePath,
+            };
+        }
 
+        const response = await fetch(remoteUrl, { next: { revalidate: 3600 } });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch changelog source (${response.status} ${response.statusText}).`);
+        }
+        const raw = await response.text();
+        const data = parseAndSortChangelog(raw);
         return {
-            data: {
-                ...parsed,
-                entries: sortedEntries,
-            },
+            data,
             error: null,
-            filePath,
+            filePath: remoteUrl,
         };
     } catch (err) {
         const message = err instanceof Error ? err.message : "Invalid changelog format.";
         return {
             data: null,
             error: message,
-            filePath,
+            filePath: filePath || remoteUrl,
         };
     }
 }
