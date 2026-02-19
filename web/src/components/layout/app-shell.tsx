@@ -27,6 +27,14 @@ type ModelFrame = {
     opacity: number;
 };
 
+const INITIAL_MODEL_FRAME: ModelFrame = {
+    top: "50%",
+    left: "50%",
+    width: 340,
+    height: 340,
+    opacity: 1,
+};
+
 const getHomeStageRect = () => {
     if (typeof window === "undefined") return null;
     const targetElement = document.querySelector<HTMLElement>(HERO_MODEL_STAGE_SELECTOR);
@@ -98,12 +106,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const [minDelayDone, setMinDelayDone] = useState(false);
     const [modelLoaded, setModelLoaded] = useState(false);
     const [fallbackDone, setFallbackDone] = useState(false);
-    const [modelFrame, setModelFrame] = useState<ModelFrame>(getCenteredFrame);
+    const [modelFrame, setModelFrame] = useState<ModelFrame>(INITIAL_MODEL_FRAME);
+    const [loaderModelVisible, setLoaderModelVisible] = useState(false);
+    const [handoffActive, setHandoffActive] = useState(false);
     const handleLoaderModelLoaded = useCallback(() => {
         setModelLoaded(true);
     }, []);
 
     const dismissStartedRef = useRef(false);
+    const initialFrameSyncedRef = useRef(false);
 
     useEffect(() => {
         const minTimer = window.setTimeout(
@@ -127,6 +138,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         }
     }, [overlayVisible]);
 
+    useEffect(() => {
+        if (!overlayVisible) return;
+        setLoaderModelVisible(false);
+        setHandoffActive(false);
+        initialFrameSyncedRef.current = false;
+    }, [overlayVisible]);
+
     useLayoutEffect(() => {
         document.body.dataset.loaderActive = overlayVisible ? "true" : "false";
         return () => {
@@ -145,6 +163,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         };
 
         syncCenterFrame();
+        if (!initialFrameSyncedRef.current) {
+            initialFrameSyncedRef.current = true;
+            window.requestAnimationFrame(() => setLoaderModelVisible(true));
+        }
         window.addEventListener("resize", syncCenterFrame);
         return () => window.removeEventListener("resize", syncCenterFrame);
     }, [atmosphereHidden, overlayVisible, pathname]);
@@ -176,6 +198,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         }
 
         setAtmosphereHidden(true);
+        setHandoffActive(true);
 
         window.setTimeout(() => {
             setContentVisible(true);
@@ -259,14 +282,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     />
 
                     <div
-                        className="loader-model-shell pointer-events-none fixed z-[121] transition-[top,left,width,height,opacity] ease-[cubic-bezier(0.22,1,0.36,1)]"
+                        className={cn(
+                            "loader-model-shell pointer-events-none fixed z-[121] ease-[cubic-bezier(0.22,1,0.36,1)]",
+                            handoffActive
+                                ? "transition-[top,left,width,height,opacity]"
+                                : "transition-opacity duration-300",
+                        )}
                         style={{
                             top: modelFrame.top,
                             left: modelFrame.left,
                             width: modelFrame.width,
                             height: modelFrame.height,
-                            opacity: modelFrame.opacity,
-                            transitionDuration: `${HERO_MODEL_LOADER_TIMING.handoffSlideMs}ms`,
+                            opacity: modelFrame.opacity * (loaderModelVisible ? 1 : 0),
+                            transitionDuration: handoffActive
+                                ? `${HERO_MODEL_LOADER_TIMING.handoffSlideMs}ms`
+                                : "320ms",
                         }}
                     >
                         <div className="relative size-full">
