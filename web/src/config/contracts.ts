@@ -12,6 +12,10 @@ export const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as cons
 export const FEE_VAULT_ADDRESS = (process.env.NEXT_PUBLIC_FEE_VAULT_ADDRESS ??
     "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
+// V1 legacy FeeVault (old positions still claimable)
+export const FEE_VAULT_ADDRESS_V1 = (process.env.NEXT_PUBLIC_FEE_VAULT_ADDRESS_V1 ??
+    "") as `0x${string}`;
+
 export const LP_LOCKER_ADDRESS = (process.env.NEXT_PUBLIC_LP_LOCKER_ADDRESS ??
     "0x0000000000000000000000000000000000000000") as `0x${string}`;
 

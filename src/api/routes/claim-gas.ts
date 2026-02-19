@@ -144,7 +144,8 @@ claimGas.post(
 
         const env = getEnv();
         const feeVaultAddress = env.SIGIL_FEE_VAULT_ADDRESS;
-        if (!feeVaultAddress) {
+        const feeVaultAddressV1 = env.SIGIL_FEE_VAULT_ADDRESS_V1;
+        if (!feeVaultAddress && !feeVaultAddressV1) {
             return c.json({ error: "Fee vault not configured" }, 503);
         }
 
@@ -173,8 +174,6 @@ claimGas.post(
                 log.info({ wallet: signer.address, txHash: gasTx.hash }, "Gas funded for claim");
             }
 
-            const feeVault = new ethers.Contract(feeVaultAddress, CLAIM_ABI, signer);
-
             // Parse optional token address from body
             let body: { token?: string } = {};
             try {
@@ -183,25 +182,42 @@ claimGas.post(
                 // No body is fine — defaults to claimAll
             }
 
-            let tx: ethers.TransactionResponse;
-            if (body.token) {
-                tx = await feeVault.claimDevFees(body.token);
-                log.info(
-                    { wallet: signer.address, token: body.token, txHash: tx.hash },
-                    "Claiming dev fees for token",
-                );
-            } else {
-                tx = await feeVault.claimAllDevFees();
-                log.info({ wallet: signer.address, txHash: tx.hash }, "Claiming all dev fees");
+            // Try claiming from both V2 and V1 vaults
+            const vaults = [feeVaultAddress, feeVaultAddressV1].filter(Boolean) as string[];
+            const txHashes: string[] = [];
+
+            for (const vaultAddr of vaults) {
+                const feeVault = new ethers.Contract(vaultAddr, CLAIM_ABI, signer);
+                try {
+                    let tx: ethers.TransactionResponse;
+                    if (body.token) {
+                        tx = await feeVault.claimDevFees(body.token);
+                    } else {
+                        tx = await feeVault.claimAllDevFees();
+                    }
+                    log.info(
+                        { wallet: signer.address, vault: vaultAddr, txHash: tx.hash },
+                        "Claiming dev fees",
+                    );
+                    await tx.wait();
+                    txHashes.push(tx.hash);
+                } catch (err) {
+                    // NothingToClaim is expected for vaults with no fees — skip silently
+                    const msg = err instanceof Error ? err.message : String(err);
+                    if (!msg.includes("NothingToClaim") && !msg.includes("revert")) {
+                        log.warn({ vault: vaultAddr, error: msg }, "Claim attempt failed");
+                    }
+                }
             }
 
-            // Wait for confirmation
-            const receipt = await tx.wait();
+            if (txHashes.length === 0) {
+                return c.json({ error: "No claimable fees found in any vault" }, 400);
+            }
 
             return c.json({
                 success: true,
-                txHash: tx.hash,
-                blockNumber: receipt?.blockNumber,
+                txHash: txHashes[0],
+                txHashes,
                 walletAddress: signer.address,
                 message: "Fees claimed successfully",
             });
