@@ -2,6 +2,7 @@ export type VerificationMethod =
     | "github_oauth"
     | "github_oidc"
     | "github_file"
+    | "sigil_file"
     | "facebook_oauth"
     | "instagram_graph"
     | "tweet_zktls"
@@ -84,6 +85,7 @@ export const METHOD_TO_PLATFORM: Record<VerificationMethod, Platform> = {
     github_oauth: "github",
     github_oidc: "github",
     github_file: "github",
+    sigil_file: "github",
     facebook_oauth: "facebook",
     instagram_graph: "instagram",
     tweet_zktls: "twitter",

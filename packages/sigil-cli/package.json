@@ -1,0 +1,27 @@
+{
+    "name": "@heysigil/cli",
+    "version": "1.0.0",
+    "description": "Verify your GitHub project on Sigil without leaving the terminal",
+    "license": "MIT",
+    "type": "module",
+    "bin": {
+        "heysigil": "./src/cli.mjs"
+    },
+    "files": [
+        "src/cli.mjs",
+        "README.md"
+    ],
+    "keywords": [
+        "sigil",
+        "attestation",
+        "web3",
+        "eas",
+        "verification"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/anthropicaeon/heysigil.git",
+        "directory": "packages/sigil-cli"
+    },
+    "homepage": "https://heysigil.com"
+}
