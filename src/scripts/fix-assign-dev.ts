@@ -11,7 +11,11 @@ import { ethers } from "ethers";
 const RPC = "https://base-rpc.publicnode.com";
 const LP_LOCKER = "0x2fFffA6519cFFB738c0f017252384A8c5B18219F";
 const FEE_VAULT = "0xc7A27840141C7e89cb39d58BED0E75689bb6f933";
-const DEPLOYER_KEY = "0x9b5609e3d758b5ce2137db4ed97fddeeeb75d4968d1b20e01b99099ea46bafe9";
+const DEPLOYER_KEY = process.env.DEPLOYER_PRIVATE_KEY;
+if (!DEPLOYER_KEY) {
+    console.error("❌ Set DEPLOYER_PRIVATE_KEY env var");
+    process.exit(1);
+}
 const DEV_WALLET = "0xfcf2D394aA196026981746608c3a66825502Ad0E";
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
