@@ -63,6 +63,11 @@ Set project env vars in Railway dashboard before deploy.
 When launched through Sigil backend one-click connect:
 
 - Provisioning is orchestrated by `src/services/infra/railway-provisioner.ts`
+- Source repo/branch/root directory defaults are backend-configurable:
+  - `RAILWAY_SOURCE_REPO` (default `heysigil/heysigil`)
+  - `RAILWAY_SOURCE_BRANCH` (default `main`)
+  - `RAILWAY_SOURCE_ROOT_DIR` (default `packages/sigilbot`)
+  - `RAILWAY_SERVICE_DOMAIN_SUFFIX` (default `up.railway.app`)
 - Runtime env vars are injected automatically:
   - `SIGIL_API_URL`
   - `SIGIL_MAIN_APP_URL`

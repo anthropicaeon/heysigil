@@ -80,6 +80,7 @@ export async function provisionSigilBotRuntime(input: {
     const suffix = input.userId.slice(-8).replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
     const timestamp = Date.now().toString(36);
     const serviceName = `${env.RAILWAY_SERVICE_NAME_PREFIX}-${suffix}-${timestamp}`;
+    const sourceRootDirectory = env.RAILWAY_SOURCE_ROOT_DIR.trim();
 
     // Create service in existing Railway project.
     const serviceCreateData = await requestRailwayGraphql<RailwayServiceCreateData>(
@@ -97,9 +98,9 @@ export async function provisionSigilBotRuntime(input: {
                 projectId: env.RAILWAY_PROJECT_ID,
                 name: serviceName,
                 source: {
-                    repo: "heysigil/heysigil",
-                    branch: "main",
-                    rootDirectory: "packages/sigilbot",
+                    repo: env.RAILWAY_SOURCE_REPO,
+                    branch: env.RAILWAY_SOURCE_BRANCH,
+                    ...(sourceRootDirectory ? { rootDirectory: sourceRootDirectory } : {}),
                 },
             },
         },
@@ -180,8 +181,8 @@ export async function provisionSigilBotRuntime(input: {
         throw new Error("Railway deployment did not return a deployment ID");
     }
 
-    // Railway commonly exposes `<service>.up.railway.app` domains.
-    const endpoint = `https://${serviceName}.up.railway.app`;
+    const domainSuffix = env.RAILWAY_SERVICE_DOMAIN_SUFFIX.trim().replace(/^\.+/, "") || "up.railway.app";
+    const endpoint = `https://${serviceName}.${domainSuffix}`;
 
     return {
         projectId: env.RAILWAY_PROJECT_ID,
