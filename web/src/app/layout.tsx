@@ -1,7 +1,7 @@
 import "./globals.css";
 
 import type { Metadata } from "next";
-import { Figtree } from "next/font/google";
+import { Inter_Tight } from "next/font/google";
 import { Toaster } from "sonner";
 
 import { Footer } from "@/components/layout/footer";
@@ -10,7 +10,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { SessionProvider } from "@/contexts/SessionContext";
 import PrivyAuthProvider from "@/providers/PrivyAuthProvider";
 
-const figtree = Figtree({
+const interTight = Inter_Tight({
     subsets: ["latin"],
     weight: ["400", "500", "600", "700"],
     variable: "--font-figtree",
@@ -82,7 +82,7 @@ export default function RootLayout({
 }>) {
     return (
         <html lang="en" suppressHydrationWarning>
-            <body className={`h-screen ${figtree.variable} antialiased`}>
+            <body className={`h-screen ${interTight.variable} antialiased`}>
                 <ThemeProvider
                     attribute="class"
                     defaultTheme="light"

@@ -83,7 +83,7 @@ function DesktopDropdownPanel({ label, items }: { label: string; items: Dropdown
 
     return (
         <NavigationMenuContent className="p-0">
-            <div className="w-[min(92vw,760px)] border border-t-0 border-border bg-background/95 shadow-[0_24px_50px_-40px_hsl(var(--foreground)/0.7)] backdrop-blur-sm">
+            <div className="w-[min(92vw,760px)] border border-t-0 border-border bg-background/95 shadow-[0_24px_50px_-40px_oklch(var(--foreground)/0.7)] backdrop-blur-sm">
                 <div className="grid min-h-[300px] grid-cols-[230px_1fr]">
                     <div className="flex flex-col border-r border-border">
                         <div
@@ -304,9 +304,9 @@ const Navbar = () => {
                                                     "hover:bg-sage/20",
                                                     "focus:bg-sage/20",
                                                     "data-[state=open]:bg-background",
-                                                    "hover:shadow-[inset_0_0_0_1px_hsl(var(--border))]",
-                                                    "focus:shadow-[inset_0_0_0_1px_hsl(var(--border))]",
-                                                    "data-[state=open]:text-foreground data-[state=open]:shadow-[inset_0_0_0_1px_hsl(var(--border))]",
+                                                    "hover:shadow-[inset_0_0_0_1px_oklch(var(--border))]",
+                                                    "focus:shadow-[inset_0_0_0_1px_oklch(var(--border))]",
+                                                    "data-[state=open]:text-foreground data-[state=open]:shadow-[inset_0_0_0_1px_oklch(var(--border))]",
                                                     "transition-colors",
                                                 )}
                                             >
