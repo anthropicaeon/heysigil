@@ -1,0 +1,45 @@
+{
+  "name": "@heysigil/sigilbot",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "sigilbot": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "Dockerfile",
+    "railway.toml",
+    ".env.example",
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "start": "node dist/cli.js",
+    "dev": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@heysigil/sigil-core": "^0.1.1",
+    "@heysigil/sigil-mcp": "^0.1.2",
+    "@heysigil/sigil-sdk": "^0.1.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.6.0"
+  }
+}

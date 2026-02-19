@@ -213,6 +213,12 @@ const Navbar = () => {
                     icon: Bot,
                 },
                 {
+                    title: "Connect",
+                    href: "/connect",
+                    description: "Handshake deployed SigilBot/OpenClaw runtimes and manage task pipelines",
+                    icon: Plug,
+                },
+                {
                     title: "Governance",
                     href: "/governance",
                     description: "Track and vote on milestone-driven governance",

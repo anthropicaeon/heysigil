@@ -9,6 +9,7 @@ const navigation = [
             { name: "Verify", href: "/verify" },
             { name: "Dashboard", href: "/dashboard" },
             { name: "Chat", href: "/chat" },
+            { name: "Connect", href: "/connect" },
             { name: "Agents", href: "/agents" },
             { name: "Governance", href: "/governance" },
         ],
