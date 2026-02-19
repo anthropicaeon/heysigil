@@ -1,7 +1,17 @@
-import { CalendarClock, GitCommitHorizontal, ShieldCheck, Sparkles, Trophy, Users } from "lucide-react";
+import {
+    CalendarClock,
+    ExternalLink,
+    GitCommitHorizontal,
+    Github,
+    ShieldCheck,
+    Sparkles,
+    Trophy,
+    Users,
+} from "lucide-react";
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { PixelCard } from "@/components/ui/pixel-card";
 import {
     type ChangelogEntry,
@@ -22,6 +32,9 @@ const TYPE_STYLES: Record<ChangelogEntry["type"], string> = {
 };
 
 export const revalidate = 3600;
+const SIGIL_REPO_URL = "https://github.com/anthropicaeon/heysigil";
+const SIGIL_FORK_URL = `${SIGIL_REPO_URL}/fork`;
+const SIGIL_GH_DESKTOP_URL = `x-github-client://openRepo/${SIGIL_REPO_URL}`;
 
 function formatDateTime(value: string): string {
     const date = new Date(value);
@@ -76,6 +89,32 @@ export default async function ChangelogPage() {
                             Real release notes rendered from <code>.changelog.json</code>. Manual edits in
                             that file are reflected here on deploy.
                         </p>
+                        <div className="mt-6 border border-border bg-background/70 px-4 py-4">
+                            <p className="text-xs uppercase tracking-[0.14em] text-primary">
+                                build on sigil
+                            </p>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Open this repo in GitHub Desktop and fork it for your own build track.
+                            </p>
+                            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                                <Button asChild variant="soft" size="sm" className="gap-2">
+                                    <a href={SIGIL_GH_DESKTOP_URL}>
+                                        <Github className="size-3.5" />
+                                        Build on Sigil
+                                    </a>
+                                </Button>
+                                <Button asChild variant="outline" size="sm" className="gap-2">
+                                    <a href={SIGIL_FORK_URL} target="_blank" rel="noreferrer">
+                                        Fork on GitHub
+                                        <ExternalLink className="size-3.5" />
+                                    </a>
+                                </Button>
+                            </div>
+                            <p className="mt-3 text-xs text-muted-foreground">
+                                GitHub Desktop opens/clones first, then prompts fork on push if you do not have
+                                write access.
+                            </p>
+                        </div>
                     </div>
                 </PixelCard>
 
