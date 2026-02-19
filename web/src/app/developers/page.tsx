@@ -360,7 +360,7 @@ export default function DevelopersPage() {
                                         key={guide.value}
                                         value={guide.value}
                                         className={cn(
-                                            "h-10 rounded-none border-border border px-4 py-2 text-xs font-mono uppercase tracking-wider data-[state=active]:border-primary data-[state=active]:bg-background",
+                                            "h-10 rounded-none border border-border px-4 py-2 text-xs font-mono uppercase tracking-wider data-[state=active]:border-border data-[state=active]:bg-lavender/40",
                                             index > 0 && "-ml-px",
                                         )}
                                     >
