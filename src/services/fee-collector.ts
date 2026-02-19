@@ -40,6 +40,9 @@ export class FeeCollector {
     private locker: ethers.Contract;
     private vault: ethers.Contract;
     private lockerAddress: string;
+    // V1 legacy contracts (old positions)
+    private lockerV1: ethers.Contract | null = null;
+    private vaultV1: ethers.Contract | null = null;
 
     private isRunning = false;
     private pollTimer: ReturnType<typeof setTimeout> | null = null;
@@ -64,6 +67,22 @@ export class FeeCollector {
 
         const feeVaultAddress = env.SIGIL_FEE_VAULT_ADDRESS;
         this.vault = new ethers.Contract(feeVaultAddress, FEE_VAULT_ABI, this.wallet);
+
+        // Wire up V1 legacy contracts if configured
+        if (env.SIGIL_LP_LOCKER_ADDRESS_V1) {
+            this.lockerV1 = new ethers.Contract(
+                env.SIGIL_LP_LOCKER_ADDRESS_V1,
+                LP_LOCKER_ABI,
+                this.wallet,
+            );
+        }
+        if (env.SIGIL_FEE_VAULT_ADDRESS_V1) {
+            this.vaultV1 = new ethers.Contract(
+                env.SIGIL_FEE_VAULT_ADDRESS_V1,
+                FEE_VAULT_ABI,
+                this.wallet,
+            );
+        }
     }
 
     async start(): Promise<void> {
@@ -245,48 +264,58 @@ export class FeeCollector {
 
     private async collect(): Promise<void> {
         try {
-            // 1. Get all locked token IDs
-            const count = await this.locker.getLockedCount();
-            const lockedCount = Number(count);
+            let totalCollected = 0;
+            let totalSkipped = 0;
 
-            if (lockedCount === 0) {
-                log.debug("No locked positions — skipping fee collection");
-                return;
-            }
+            // Collect from all lockers (V2 + V1)
+            const lockers = [
+                { label: "V2", contract: this.locker },
+                ...(this.lockerV1 ? [{ label: "V1", contract: this.lockerV1 }] : []),
+            ];
 
-            // 2. Read all token IDs
-            const tokenIds: bigint[] = [];
-            for (let i = 0; i < lockedCount; i++) {
-                const tokenId = await this.locker.lockedTokenIds(i);
-                tokenIds.push(tokenId);
-            }
-
-            log.info({ positionCount: tokenIds.length }, "Collecting LP fees");
-
-            // 3. Collect fees one position at a time
-            //    (collectFeesMulti reverts entirely if ANY position fails)
-            let collected = 0;
-            let skipped = 0;
-
-            for (const tokenId of tokenIds) {
+            for (const { label, contract } of lockers) {
                 try {
-                    const nonce = await this.provider.getTransactionCount(
-                        this.wallet.address,
-                        "latest",
-                    );
-                    const tx = await this.locker.collectFees(tokenId, { nonce });
-                    await tx.wait(1);
-                    collected++;
-                } catch {
-                    skipped++;
+                    const count = await contract.getLockedCount();
+                    const lockedCount = Number(count);
+
+                    if (lockedCount === 0) continue;
+
+                    const tokenIds: bigint[] = [];
+                    for (let i = 0; i < lockedCount; i++) {
+                        const tokenId = await contract.lockedTokenIds(i);
+                        tokenIds.push(tokenId);
+                    }
+
+                    for (const tokenId of tokenIds) {
+                        try {
+                            const nonce = await this.provider.getTransactionCount(
+                                this.wallet.address,
+                                "latest",
+                            );
+                            const tx = await contract.collectFees(tokenId, { nonce });
+                            await tx.wait(1);
+                            totalCollected++;
+                        } catch {
+                            totalSkipped++;
+                        }
+                    }
+                } catch (err) {
+                    log.warn({ label, err: String(err) }, "Skipping locker during collection");
                 }
             }
 
             this.collectCount++;
             this.lastError = null;
 
-            if (collected > 0) {
-                log.info({ collected, skipped, totalRuns: this.collectCount }, "LP fees collected");
+            if (totalCollected > 0) {
+                log.info(
+                    {
+                        collected: totalCollected,
+                        skipped: totalSkipped,
+                        totalRuns: this.collectCount,
+                    },
+                    "LP fees collected",
+                );
             }
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
