@@ -50,6 +50,8 @@ const CHANNELS = [
     { name: "Domain", method: "DNS" },
 ];
 
+const STEP_SEQUENCE: Step[] = ["method", "details", "challenge", "result"];
+
 interface VerifyFlowProps {
     /** Optional service for testing/DI */
     verificationService?: IVerificationService;
@@ -106,14 +108,13 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
         if (address && !walletAddress) setWalletAddress(address);
     }, [address]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const stepIndex = ["method", "details", "challenge", "result"].indexOf(step);
-    const steps: Step[] = ["method", "details", "challenge", "result"];
+    const stepIndex = STEP_SEQUENCE.indexOf(step);
 
     // Dev mode: Shift+D to cycle through steps
     const cycleDevStep = useCallback(() => {
-        const currentIndex = steps.indexOf(step);
-        const nextIndex = (currentIndex + 1) % steps.length;
-        const nextStep = steps[nextIndex];
+        const currentIndex = STEP_SEQUENCE.indexOf(step);
+        const nextIndex = (currentIndex + 1) % STEP_SEQUENCE.length;
+        const nextStep = STEP_SEQUENCE[nextIndex];
 
         // Set up mock data for each step
         if (nextStep === "details" && !selectedMethod) {
@@ -132,7 +133,7 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
         }
 
         setStep(nextStep);
-    }, [step, selectedMethod, projectId, walletAddress, challenge, checkResult, steps]);
+    }, [step, selectedMethod, projectId, walletAddress, challenge, checkResult]);
 
     useEffect(() => {
         if (process.env.NODE_ENV !== "development") return;
@@ -285,6 +286,9 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                 {/* Flow Visualization */}
                 <div className="border-border border-b px-6 py-8 lg:px-12 lg:py-12 bg-background">
                     <div className="max-w-3xl mx-auto">
+                        <p className="mb-4 text-center text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
+                            verification pipeline
+                        </p>
                         {/* Flow Diagram */}
                         <div className="flex flex-col sm:flex-row items-center justify-center gap-0">
                             {/* Node 1: Select Channel */}
@@ -296,7 +300,7 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                             >
                                 <div
                                     className={cn(
-                                        "w-24 h-16 sm:w-28 sm:h-20 border-2 flex flex-col items-center justify-center text-center px-2",
+                                        "w-28 h-20 sm:w-32 sm:h-24 border-2 flex flex-col items-center justify-center text-center px-2 gap-0.5",
                                         stepIndex === 0
                                             ? "border-primary bg-primary/10"
                                             : stepIndex > 0
@@ -305,7 +309,12 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                                     )}
                                 >
                                     <span className="text-xs font-bold text-primary">01</span>
-                                    <span className="text-xs text-foreground">channel</span>
+                                    <span className="text-[11px] font-semibold tracking-[0.12em] text-foreground uppercase">
+                                        channel
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+                                        select source
+                                    </span>
                                 </div>
                             </div>
 
@@ -326,7 +335,7 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                             >
                                 <div
                                     className={cn(
-                                        "w-24 h-16 sm:w-28 sm:h-20 border-2 flex flex-col items-center justify-center text-center px-2",
+                                        "w-28 h-20 sm:w-32 sm:h-24 border-2 flex flex-col items-center justify-center text-center px-2 gap-0.5",
                                         stepIndex === 1
                                             ? "border-primary bg-primary/10"
                                             : stepIndex > 1
@@ -335,7 +344,12 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                                     )}
                                 >
                                     <span className="text-xs font-bold text-primary">02</span>
-                                    <span className="text-xs text-foreground">details</span>
+                                    <span className="text-[11px] font-semibold tracking-[0.12em] text-foreground uppercase">
+                                        details
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+                                        project + wallet
+                                    </span>
                                 </div>
                             </div>
 
@@ -356,7 +370,7 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                             >
                                 <div
                                     className={cn(
-                                        "w-24 h-16 sm:w-28 sm:h-20 border-2 flex flex-col items-center justify-center text-center px-2",
+                                        "w-28 h-20 sm:w-32 sm:h-24 border-2 flex flex-col items-center justify-center text-center px-2 gap-0.5",
                                         stepIndex === 2
                                             ? "border-primary bg-primary/10"
                                             : stepIndex > 2
@@ -365,7 +379,12 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                                     )}
                                 >
                                     <span className="text-xs font-bold text-primary">03</span>
-                                    <span className="text-xs text-foreground">verify</span>
+                                    <span className="text-[11px] font-semibold tracking-[0.12em] text-foreground uppercase">
+                                        verify
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+                                        prove control
+                                    </span>
                                 </div>
                             </div>
 
@@ -386,14 +405,19 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                             >
                                 <div
                                     className={cn(
-                                        "w-24 h-16 sm:w-28 sm:h-20 border-2 flex flex-col items-center justify-center text-center px-2",
+                                        "w-28 h-20 sm:w-32 sm:h-24 border-2 flex flex-col items-center justify-center text-center px-2 gap-0.5",
                                         stepIndex === 3
                                             ? "border-primary bg-primary/10"
                                             : "border-border bg-background",
                                     )}
                                 >
                                     <span className="text-xs font-bold text-primary">04</span>
-                                    <span className="text-xs text-foreground">stamp</span>
+                                    <span className="text-[11px] font-semibold tracking-[0.12em] text-foreground uppercase">
+                                        stamp
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+                                        mint onchain
+                                    </span>
                                 </div>
                             </div>
                         </div>
