@@ -232,3 +232,31 @@ export const indexerState = pgTable("indexer_state", {
     /** When this state was last updated */
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+// ─── Connected Bot Instances ─────────────────────────────
+
+/**
+ * Tracks SigilBot / OpenClaw instances connected via /connect handshake.
+ * Each record maps a user to a deployed bot runtime.
+ */
+export const connectedBots = pgTable("connected_bots", {
+    id: uuid("id").primaryKey().defaultRandom(),
+    /** Privy user ID (DID) that owns this connection */
+    userId: varchar("user_id", { length: 256 }).notNull(),
+    /** Bot stack type */
+    stack: varchar("stack", { length: 32 }).notNull(),
+    /** Deployed bot endpoint URL */
+    endpoint: varchar("endpoint", { length: 512 }).notNull(),
+    /** Connection ID returned by the bot's /v1/handshake */
+    connectionId: varchar("connection_id", { length: 128 }),
+    /** Bot's self-reported ID */
+    botId: varchar("bot_id", { length: 128 }),
+    /** "connected" | "disconnected" */
+    status: varchar("status", { length: 16 }).notNull().default("connected"),
+    /** Scopes granted during handshake */
+    scopes: jsonb("scopes").$type<string[]>(),
+    /** Last health-check or interaction */
+    lastSeenAt: timestamp("last_seen_at"),
+    connectedAt: timestamp("connected_at").notNull().defaultNow(),
+    disconnectedAt: timestamp("disconnected_at"),
+});

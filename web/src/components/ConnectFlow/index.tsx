@@ -33,7 +33,11 @@ type ConnectedBot = {
     id: string;
     stack: "sigilbot" | "openclaw";
     endpoint: string;
-    status: "connected" | "degraded";
+    status: "connected" | "disconnected";
+    connectionId?: string | null;
+    botId?: string | null;
+    scopes?: string[] | null;
+    connectedAt?: string;
     activeTasks: number;
     updatedAt: string;
 };
@@ -63,25 +67,7 @@ const FLOW_STAGES = [
 
 const STEP_SEQUENCE: ConnectStep[] = ["stack", "handshake", "configure", "run", "manage"];
 
-// TODO(connect-data): Replace with /api/connect/bots after handshake persistence lands.
-const MOCK_CONNECTED_BOTS: ConnectedBot[] = [
-    {
-        id: "bot_01",
-        stack: "sigilbot",
-        endpoint: "https://sigilbot-prod.up.railway.app",
-        status: "connected",
-        activeTasks: 4,
-        updatedAt: "2m ago",
-    },
-    {
-        id: "bot_02",
-        stack: "openclaw",
-        endpoint: "https://openclaw-agent.up.railway.app",
-        status: "degraded",
-        activeTasks: 1,
-        updatedAt: "11m ago",
-    },
-];
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 // TODO(connect-data): Replace prompt/task mocks with API data from bot profile store.
 const MOCK_PROMPT_STAGES = {
@@ -99,10 +85,44 @@ export default function ConnectFlow() {
     const [notes, setNotes] = useState(MOCK_PROMPT_STAGES.planner);
     const [isChecking, setIsChecking] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
+    const [connectedBots, setConnectedBots] = useState<ConnectedBot[]>([]);
+    const [error, setError] = useState<string | null>(null);
 
     const stepIndex = useMemo(() => STEP_SEQUENCE.indexOf(step), [step]);
     const selectedStackData = STACKS.find((item) => item.id === selectedStack) ?? STACKS[0];
     const isDev = process.env.NODE_ENV === "development";
+
+    // ─── Fetch connected bots ───────────────────────────────
+
+    const fetchBots = useCallback(async () => {
+        if (!privy?.authenticated || !privy?.getAccessToken) return;
+        try {
+            const token = await privy.getAccessToken();
+            const res = await fetch(`${API_BASE}/api/connect/bots`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            if (res.ok) {
+                const data = (await res.json()) as { bots: ConnectedBot[] };
+                setConnectedBots(
+                    data.bots.map((b) => ({
+                        ...b,
+                        activeTasks: 0,
+                        updatedAt: b.connectedAt
+                            ? new Date(b.connectedAt).toLocaleDateString()
+                            : "—",
+                    })),
+                );
+            }
+        } catch {
+            /* silent — sidebar just stays empty */
+        }
+    }, [privy?.authenticated, privy?.getAccessToken]);
+
+    useEffect(() => {
+        fetchBots();
+    }, [fetchBots]);
+
+    // ─── Dev step cycling ───────────────────────────────────
 
     const cycleDevStep = useCallback(() => {
         setStep((current) => {
@@ -135,13 +155,56 @@ export default function ConnectFlow() {
         return () => window.removeEventListener("keydown", onKeyDown);
     }, [cycleDevStep, isDev]);
 
-    function runHandshakeMock() {
+    // ─── Real handshake ─────────────────────────────────────
+
+    async function runHandshake() {
+        if (!privy?.getAccessToken) return;
         setIsChecking(true);
-        window.setTimeout(() => {
-            setIsChecking(false);
+        setError(null);
+
+        try {
+            const token = await privy.getAccessToken();
+            const res = await fetch(`${API_BASE}/api/connect/handshake`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ endpoint, stack: selectedStack, secret: secret || undefined }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                setError(data.error || data.detail || "Handshake failed");
+                return;
+            }
+
             setIsConnected(true);
             setStep("configure");
-        }, 800);
+            // Refresh bot list
+            await fetchBots();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Network error");
+        } finally {
+            setIsChecking(false);
+        }
+    }
+
+    // ─── Disconnect bot ─────────────────────────────────────
+
+    async function disconnectBot(botId: string) {
+        if (!privy?.getAccessToken) return;
+        try {
+            const token = await privy.getAccessToken();
+            await fetch(`${API_BASE}/api/connect/bots/${botId}`, {
+                method: "DELETE",
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            await fetchBots();
+        } catch {
+            /* silent */
+        }
     }
 
     return (
@@ -190,7 +253,7 @@ export default function ConnectFlow() {
                                     )}
                                 />
                                 <span className="text-xs text-muted-foreground">
-                                    {MOCK_CONNECTED_BOTS.length} connected instances (mock)
+                                    {connectedBots.length} connected instance{connectedBots.length !== 1 ? "s" : ""}
                                 </span>
                             </div>
                         </div>
@@ -320,11 +383,16 @@ export default function ConnectFlow() {
                                 </div>
 
                                 <div className="flex flex-wrap gap-2">
+                                    {error && (
+                                        <div className="border border-red-300 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-xs text-red-800 dark:text-red-300">
+                                            {error}
+                                        </div>
+                                    )}
                                     <Button
-                                        onClick={runHandshakeMock}
+                                        onClick={runHandshake}
                                         disabled={!privy.authenticated || !endpoint || isChecking}
                                     >
-                                        {isChecking ? "checking..." : "run handshake"}
+                                        {isChecking ? "connecting..." : "run handshake"}
                                     </Button>
                                     <Button variant="outline" onClick={() => setStep("stack")}>
                                         back
@@ -426,7 +494,12 @@ export default function ConnectFlow() {
                         {step === "manage" && (
                             <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-4">
                                 <div className="space-y-2">
-                                    {MOCK_CONNECTED_BOTS.map((bot) => (
+                                    {connectedBots.length === 0 && (
+                                        <p className="text-sm text-muted-foreground py-4">
+                                            No bots connected yet. Start by running a handshake.
+                                        </p>
+                                    )}
+                                    {connectedBots.map((bot) => (
                                         <div
                                             key={bot.id}
                                             className="border border-border bg-background px-4 py-3"
@@ -434,22 +507,34 @@ export default function ConnectFlow() {
                                             <div className="flex items-center justify-between gap-2">
                                                 <div>
                                                     <p className="text-sm font-medium text-foreground">
-                                                        {bot.stack} ({bot.id})
+                                                        {bot.stack} ({bot.id.slice(0, 8)})
                                                     </p>
                                                     <p className="text-xs text-muted-foreground">{bot.endpoint}</p>
                                                 </div>
-                                                <Badge
-                                                    variant="outline"
-                                                    className={cn(
-                                                        bot.status === "connected" && "bg-sage/30",
-                                                        bot.status === "degraded" && "bg-lavender/35",
+                                                <div className="flex items-center gap-2">
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={cn(
+                                                            bot.status === "connected" && "bg-sage/30",
+                                                            bot.status === "disconnected" && "bg-lavender/35",
+                                                        )}
+                                                    >
+                                                        {bot.status}
+                                                    </Badge>
+                                                    {bot.status === "connected" && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="text-xs h-6"
+                                                            onClick={() => disconnectBot(bot.id)}
+                                                        >
+                                                            disconnect
+                                                        </Button>
                                                     )}
-                                                >
-                                                    {bot.status}
-                                                </Badge>
+                                                </div>
                                             </div>
                                             <p className="mt-2 text-[11px] text-muted-foreground">
-                                                {bot.activeTasks} tasks, updated {bot.updatedAt}
+                                                connected {bot.updatedAt}
                                             </p>
                                         </div>
                                     ))}
@@ -471,10 +556,15 @@ export default function ConnectFlow() {
                         </div>
 
                         <div className="divide-y divide-border">
-                            {MOCK_CONNECTED_BOTS.map((bot) => (
+                            {connectedBots.length === 0 && (
+                                <div className="px-6 py-4">
+                                    <p className="text-xs text-muted-foreground">No bots connected</p>
+                                </div>
+                            )}
+                            {connectedBots.map((bot) => (
                                 <div key={`aside-${bot.id}`} className="px-6 py-4">
                                     <div className="flex items-center justify-between gap-2 mb-1">
-                                        <p className="text-sm font-medium text-foreground">{bot.id}</p>
+                                        <p className="text-sm font-medium text-foreground">{bot.id.slice(0, 8)}</p>
                                         <div
                                             className={cn(
                                                 "size-2",
