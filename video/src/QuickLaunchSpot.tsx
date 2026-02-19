@@ -5,7 +5,6 @@ import {
     spring,
     useCurrentFrame,
     useVideoConfig,
-    Easing,
     staticFile,
     Sequence,
 } from "remotion";
@@ -19,53 +18,97 @@ const { fontFamily } = loadFont("normal", {
 // ─── Design tokens ───────────────────────────────────────────
 const C = {
     bg: "#0C0A14",
-    bgCard: "rgba(22, 18, 36, 0.95)",
     purple: "#7E56DA",
     purpleLight: "#A48AE7",
-    purpleMuted: "#5A3DAA",
     lavender: "#C5B3F0",
     textPrimary: "#FAF8FF",
     textSecondary: "#9B8FB0",
     textGhost: "#6A5D80",
-    border: "rgba(126, 86, 218, 0.25)",
-    borderBright: "rgba(126, 86, 218, 0.5)",
-    green: "#4ADE80",
-    greenDark: "rgba(74, 222, 128, 0.15)",
 };
 
-// ─── Sections (frame ranges at 30fps, 300 total = 10s) ──────
-const SCENE = {
-    // 0–90: Hero intro — "Quick Launch" text slam
+// ─── Timeline (30fps, 300 frames = 10s) ──────────────────────
+const S = {
+    // 0–60:   Hero text slam
     heroStart: 0,
-    heroEnd: 90,
-    // 45–180: UI card with form fields animating in
-    cardStart: 45,
-    cardEnd: 180,
-    // 140–220: Plugin badges fly in (OpenClaw, SigilBot)
-    pluginStart: 140,
-    pluginEnd: 220,
-    // 180–260: "Launch" button press + success burst
-    launchStart: 180,
-    launchEnd: 260,
-    // 220–300: 3D logo spin + tagline fade
-    outroStart: 220,
+    heroEnd: 60,
+    // 45–130:  Full-page screenshot, zoom toward Quick Launch, cursor clicks it
+    zoomStart: 45,
+    zoomEnd: 130,
+    // 120–240: Zoomed Quick Launch form – cursor fills fields, clicks Launch
+    formStart: 120,
+    formEnd: 240,
+    // 230–300: Logo spin outro
+    outroStart: 230,
     outroEnd: 300,
+};
+
+
+// ─── Animated cursor ─────────────────────────────────────────
+const Cursor: React.FC<{
+    x: number;
+    y: number;
+    clicking: boolean;
+    opacity: number;
+}> = ({ x, y, clicking, opacity }) => {
+    const clickScale = clicking ? 0.85 : 1;
+    return (
+        <div
+            style={{
+                position: "absolute",
+                left: x,
+                top: y,
+                zIndex: 100,
+                opacity,
+                transform: `scale(${clickScale})`,
+                transition: "transform 0.08s",
+                pointerEvents: "none",
+            }}
+        >
+            {/* macOS-style cursor arrow */}
+            <svg width="24" height="28" viewBox="0 0 24 28" fill="none">
+                <path
+                    d="M3 2L3 22L8.5 16.5L13.5 25L16.5 23.5L11.5 14.5L19 14.5L3 2Z"
+                    fill="white"
+                    stroke="#333"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                />
+            </svg>
+            {/* Click ripple */}
+            {clicking && (
+                <div
+                    style={{
+                        position: "absolute",
+                        left: 3,
+                        top: 2,
+                        width: 20,
+                        height: 20,
+                        borderRadius: "50%",
+                        border: `2px solid rgba(126, 86, 218, 0.6)`,
+                        transform: "translate(-50%, -50%)",
+                        animation: "none",
+                    }}
+                />
+            )}
+        </div>
+    );
 };
 
 
 // ─── Components ──────────────────────────────────────────────
 
-/** Dark grid background with subtle purple glow */
-const DarkBackground: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) => {
+/** Dark grid background with animated purple glow */
+const DarkBackground: React.FC<{ frame: number; fps: number }> = ({
+    frame,
+    fps,
+}) => {
     const time = frame / fps;
     const glowX = 50 + Math.sin(time * 0.3) * 8;
     const glowY = 45 + Math.cos(time * 0.25) * 6;
 
     return (
         <AbsoluteFill>
-            {/* Base */}
             <AbsoluteFill style={{ background: C.bg }} />
-
             {/* Grid overlay */}
             <AbsoluteFill
                 style={{
@@ -77,8 +120,7 @@ const DarkBackground: React.FC<{ frame: number; fps: number }> = ({ frame, fps }
                     opacity: 0.7,
                 }}
             />
-
-            {/* Purple glow center */}
+            {/* Floating glow */}
             <div
                 style={{
                     position: "absolute",
@@ -96,7 +138,7 @@ const DarkBackground: React.FC<{ frame: number; fps: number }> = ({ frame, fps }
 };
 
 
-/** Hero text — "QUICK LAUNCH" with slam-in effect */
+/** Hero text – "QUICK LAUNCH" slam-in */
 const HeroText: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) => {
     const slamIn = spring({
         frame,
@@ -114,8 +156,7 @@ const HeroText: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) => {
         delay: 22,
     });
 
-    // Fade out when card comes in
-    const fadeOut = interpolate(frame, [70, 90], [1, 0], {
+    const fadeOut = interpolate(frame, [45, 60], [1, 0], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
     });
@@ -169,50 +210,67 @@ const HeroText: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) => {
 };
 
 
-/** Token form card that slides up */
-const LaunchCard: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) => {
-    const cardFrame = Math.max(0, frame - SCENE.cardStart);
+/**
+ * Scene 2: Full-page screenshot → zoom into Quick Launch → cursor clicks it
+ * The page starts at full view and zooms to the Quick Launch section header.
+ * A cursor glides in and clicks "Quick Launch".
+ */
+const ZoomToQuickLaunch: React.FC<{ frame: number; fps: number }> = ({
+    frame,
+    fps,
+}) => {
+    const localFrame = Math.max(0, frame - S.zoomStart);
+    const duration = S.zoomEnd - S.zoomStart; // 85 frames
 
-    const slideUp = spring({
-        frame: cardFrame,
+    // Fade/slide in
+    const enterProgress = spring({
+        frame: localFrame,
         fps,
-        config: { damping: 16, stiffness: 100, mass: 0.7 },
-        durationInFrames: 30,
+        config: { damping: 18, stiffness: 80, mass: 0.7 },
+        durationInFrames: 25,
     });
+    const slideY = interpolate(enterProgress, [0, 1], [60, 0]);
+    const enterOpacity = interpolate(enterProgress, [0, 1], [0, 1]);
 
-    const cardY = interpolate(slideUp, [0, 1], [120, 0]);
-    const cardOpacity = interpolate(slideUp, [0, 1], [0, 1]);
-
-    // Token name typing animation
-    const LABEL = "sigil: my-agent-project";
-    const typeProgress = interpolate(cardFrame, [20, 60], [0, 1], {
+    // Zoom: start at full view, zoom into Quick Launch area
+    // The Quick Launch header is about 70% down from the top of the page
+    const zoomProgress = interpolate(localFrame, [10, 65], [0, 1], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
-        easing: Easing.out(Easing.quad),
     });
-    const typedChars = Math.round(typeProgress * LABEL.length);
-    const typedText = LABEL.slice(0, typedChars);
+    const scale = interpolate(zoomProgress, [0, 1], [0.75, 1.8]);
 
-    // Owner typing
-    const OWNER = "github.com/heysigil";
-    const ownerProgress = interpolate(cardFrame, [40, 75], [0, 1], {
+    // Pan upward as we zoom to keep Quick Launch area centered
+    // The Quick Launch section is in the lower portion of the screenshot
+    const panY = interpolate(zoomProgress, [0, 1], [0, -140]);
+
+    // Cursor: appears mid-way through zoom, moves toward Quick Launch header
+    const cursorAppear = interpolate(localFrame, [35, 45], [0, 1], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
-        easing: Easing.out(Easing.quad),
     });
-    const ownerChars = Math.round(ownerProgress * OWNER.length);
-    const ownerText = OWNER.slice(0, ownerChars);
+    // Cursor glides from center-right to the Quick Launch area
+    const cursorX = interpolate(localFrame, [35, 60], [550, 370], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+    });
+    const cursorY = interpolate(localFrame, [35, 60], [200, 310], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+    });
+    // Click happens at frame 60
+    const isClicking = localFrame >= 60 && localFrame <= 65;
 
-    // Cursor blink
-    const cursorOpacity = interpolate(
-        cardFrame % 16,
-        [0, 8, 16],
-        [1, 0, 1],
-        { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
-    );
+    // Click ripple flash
+    const clickFlash = localFrame >= 60 && localFrame <= 68
+        ? interpolate(localFrame, [60, 64, 68], [0, 0.4, 0], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+        })
+        : 0;
 
-    // Card fade out at outro
-    const exitFade = interpolate(frame, [SCENE.outroStart, SCENE.outroStart + 20], [1, 0], {
+    // Fade out
+    const fadeOut = interpolate(localFrame, [duration - 20, duration], [1, 0], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
     });
@@ -223,367 +281,416 @@ const LaunchCard: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) =>
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                opacity: cardOpacity * exitFade,
-                transform: `translateY(${cardY}px)`,
+                opacity: enterOpacity * fadeOut,
+                transform: `translateY(${slideY}px)`,
             }}
         >
+            {/* Browser frame */}
             <div
                 style={{
-                    width: 620,
-                    background: C.bgCard,
-                    border: `1px solid ${C.border}`,
-                    borderRadius: 20,
+                    position: "relative",
+                    width: 820,
+                    borderRadius: 16,
                     overflow: "hidden",
                     boxShadow: `
-                        0 4px 60px rgba(126, 86, 218, 0.15),
-                        0 0 0 1px rgba(126, 86, 218, 0.1) inset
+                        0 12px 60px rgba(126, 86, 218, 0.25),
+                        0 0 0 1px rgba(126, 86, 218, 0.15)
                     `,
+                    border: `1px solid rgba(126, 86, 218, 0.2)`,
+                    background: "#1A1527",
                 }}
             >
-                {/* Header */}
+                {/* Browser chrome */}
                 <div
                     style={{
-                        padding: "20px 28px 14px",
+                        height: 32,
                         display: "flex",
                         alignItems: "center",
-                        gap: 8,
-                        borderBottom: `1px solid ${C.border}`,
+                        padding: "0 12px",
+                        gap: 6,
+                        background: "rgba(22, 18, 36, 0.9)",
+                        borderBottom: "1px solid rgba(126, 86, 218, 0.12)",
                     }}
                 >
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FF5F57" }} />
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FEBC2E" }} />
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#28C840" }} />
                     <div
                         style={{
+                            flex: 1,
+                            marginLeft: 12,
+                            background: "rgba(255,255,255,0.05)",
+                            borderRadius: 6,
+                            height: 18,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                             fontFamily,
-                            fontSize: 10,
-                            fontWeight: 700,
-                            color: C.purple,
-                            letterSpacing: "0.14em",
-                            textTransform: "uppercase",
-                        }}
-                    >
-                        QUICK LAUNCH
-                    </div>
-                    <div
-                        style={{
-                            fontFamily,
-                            fontSize: 10,
+                            fontSize: 9,
                             fontWeight: 500,
                             color: C.textGhost,
-                            marginLeft: "auto",
+                            letterSpacing: "0.02em",
                         }}
                     >
-                        unclaimed mode
+                        heysigil.fund
                     </div>
                 </div>
 
-                {/* Form fields */}
-                <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
-                    {/* Token Name */}
-                    <div>
-                        <div
-                            style={{
-                                fontFamily,
-                                fontSize: 10,
-                                fontWeight: 600,
-                                color: C.textGhost,
-                                letterSpacing: "0.1em",
-                                textTransform: "uppercase",
-                                marginBottom: 6,
-                            }}
-                        >
-                            TOKEN NAME
-                        </div>
-                        <div
-                            style={{
-                                background: "rgba(255, 255, 255, 0.04)",
-                                border: `1px solid ${C.border}`,
-                                borderRadius: 10,
-                                padding: "12px 16px",
-                                fontFamily,
-                                fontSize: 16,
-                                fontWeight: 500,
-                                color: typedChars > 0 ? C.textPrimary : C.textGhost,
-                                display: "flex",
-                                alignItems: "center",
-                            }}
-                        >
-                            {typedText || "sigil: your project"}
-                            {cardFrame < 65 && (
-                                <span
-                                    style={{
-                                        width: 2,
-                                        height: 18,
-                                        backgroundColor: C.purple,
-                                        marginLeft: 1,
-                                        opacity: cursorOpacity,
-                                        borderRadius: 1,
-                                    }}
-                                />
-                            )}
-                        </div>
-                    </div>
+                {/* Screenshot with zoom/pan */}
+                <div
+                    style={{
+                        overflow: "hidden",
+                        height: 460,
+                        position: "relative",
+                    }}
+                >
+                    <Img
+                        src={staticFile("real-ui-full.png")}
+                        style={{
+                            width: "100%",
+                            display: "block",
+                            transform: `scale(${scale}) translateY(${panY}px)`,
+                            transformOrigin: "center 65%",
+                        }}
+                    />
 
-                    {/* Owner */}
-                    <div>
+                    {/* Click flash overlay */}
+                    {clickFlash > 0 && (
                         <div
                             style={{
-                                fontFamily,
-                                fontSize: 10,
-                                fontWeight: 600,
-                                color: C.textGhost,
-                                letterSpacing: "0.1em",
-                                textTransform: "uppercase",
-                                marginBottom: 6,
+                                position: "absolute",
+                                inset: 0,
+                                background: `rgba(126, 86, 218, ${clickFlash})`,
+                                pointerEvents: "none",
                             }}
-                        >
-                            OWNER / SOURCE
-                        </div>
-                        <div
-                            style={{
-                                background: "rgba(255, 255, 255, 0.04)",
-                                border: `1px solid ${C.border}`,
-                                borderRadius: 10,
-                                padding: "12px 16px",
-                                fontFamily,
-                                fontSize: 16,
-                                fontWeight: 500,
-                                color: ownerChars > 0 ? C.textPrimary : C.textGhost,
-                                display: "flex",
-                                alignItems: "center",
-                            }}
-                        >
-                            {ownerText || "github.com/org/repo"}
-                            {cardFrame >= 35 && cardFrame < 80 && (
-                                <span
-                                    style={{
-                                        width: 2,
-                                        height: 18,
-                                        backgroundColor: C.purple,
-                                        marginLeft: 1,
-                                        opacity: cursorOpacity,
-                                        borderRadius: 1,
-                                    }}
-                                />
-                            )}
-                        </div>
-                    </div>
+                        />
+                    )}
                 </div>
 
-                {/* Plugins section */}
-                <PluginBadges frame={frame} fps={fps} />
-
-                {/* Launch button */}
-                <LaunchButton frame={frame} fps={fps} />
+                {/* Cursor overlay */}
+                <Cursor
+                    x={cursorX}
+                    y={cursorY}
+                    clicking={isClicking}
+                    opacity={cursorAppear}
+                />
             </div>
         </AbsoluteFill>
     );
 };
 
 
-/** Plugin badges that fly in */
-const PluginBadges: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) => {
-    const pFrame = Math.max(0, frame - SCENE.pluginStart);
+/**
+ * Scene 3: The Quick Launch form – interactive demo
+ * 1. Zoomed view of the form appears
+ * 2. Cursor moves to Token Name → text types in
+ * 3. Cursor moves to Owner/Source → text types in
+ * 4. Cursor moves to "Launch Unclaimed Token" → clicks it
+ */
+const FormInteraction: React.FC<{ frame: number; fps: number }> = ({
+    frame,
+    fps,
+}) => {
+    const localFrame = Math.max(0, frame - S.formStart);
+    const duration = S.formEnd - S.formStart; // 120 frames
 
-    const badge1In = spring({
-        frame: pFrame,
+    // Entrance
+    const enterProgress = spring({
+        frame: localFrame,
         fps,
-        config: { damping: 14, stiffness: 160 },
-        durationInFrames: 18,
+        config: { damping: 16, stiffness: 100, mass: 0.7 },
+        durationInFrames: 25,
     });
+    const enterScale = interpolate(enterProgress, [0, 1], [0.95, 1]);
+    const enterOpacity = interpolate(enterProgress, [0, 1], [0, 1]);
 
-    const badge2In = spring({
-        frame: pFrame,
-        fps,
-        config: { damping: 14, stiffness: 160 },
-        durationInFrames: 18,
-        delay: 8,
-    });
-
-    const badges = [
-        { name: "OpenClaw Agent", tag: "Container", progress: badge1In },
-        { name: "SigilBot", tag: "Alternative", progress: badge2In },
-    ];
-
-    return (
-        <div
-            style={{
-                padding: "0 28px 16px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-            }}
-        >
-            <div
-                style={{
-                    fontFamily,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: C.purple,
-                    letterSpacing: "0.14em",
-                    textTransform: "uppercase",
-                    marginBottom: 4,
-                    opacity: badge1In,
-                }}
-            >
-                PLUGINS (OPTIONAL)
-            </div>
-            {badges.map((b, i) => (
-                <div
-                    key={i}
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "10px 14px",
-                        border: `1px solid ${C.border}`,
-                        borderRadius: 10,
-                        background: "rgba(126, 86, 218, 0.04)",
-                        opacity: b.progress,
-                        transform: `translateX(${(1 - b.progress) * 40}px)`,
-                    }}
-                >
-                    {/* Checkbox */}
-                    <div
-                        style={{
-                            width: 18,
-                            height: 18,
-                            borderRadius: 4,
-                            border: `2px solid ${C.borderBright}`,
-                            background: b.progress > 0.8 ? C.purple : "transparent",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            transition: "background 0.2s",
-                        }}
-                    >
-                        {b.progress > 0.8 && (
-                            <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
-                                <path
-                                    d="M2 6L5 9L10 3"
-                                    stroke="white"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                />
-                            </svg>
-                        )}
-                    </div>
-                    <span
-                        style={{
-                            fontFamily,
-                            fontSize: 14,
-                            fontWeight: 600,
-                            color: C.textPrimary,
-                        }}
-                    >
-                        {b.name}
-                    </span>
-                    <span
-                        style={{
-                            fontFamily,
-                            fontSize: 9,
-                            fontWeight: 600,
-                            color: C.textSecondary,
-                            background: "rgba(255, 255, 255, 0.06)",
-                            border: `1px solid ${C.border}`,
-                            borderRadius: 4,
-                            padding: "2px 8px",
-                            letterSpacing: "0.04em",
-                            textTransform: "uppercase",
-                        }}
-                    >
-                        {b.tag}
-                    </span>
-                </div>
-            ))}
-        </div>
-    );
-};
-
-
-/** Launch button with press + success flash */
-const LaunchButton: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) => {
-    const lFrame = Math.max(0, frame - SCENE.launchStart);
-
-    // Button press animation
-    const pressDown = spring({
-        frame: lFrame,
-        fps,
-        config: { damping: 8, stiffness: 300 },
-        durationInFrames: 6,
-        delay: 8,
-    });
-
-    const pressUp = spring({
-        frame: lFrame,
-        fps,
-        config: { damping: 12, stiffness: 200 },
-        durationInFrames: 10,
-        delay: 14,
-    });
-
-    const pressScale = 1 - pressDown * 0.06 + pressUp * 0.06;
-
-    // Success state
-    const showSuccess = lFrame > 24;
-    const successIn = spring({
-        frame: lFrame,
-        fps,
-        config: { damping: 14, stiffness: 120 },
-        durationInFrames: 20,
-        delay: 24,
-    });
-
-    // Success flash
-    const flashOpacity = interpolate(lFrame, [22, 26, 40], [0, 0.6, 0], {
+    // Fade out at end
+    const fadeOut = interpolate(localFrame, [duration - 20, duration], [1, 0], {
         extrapolateLeft: "clamp",
         extrapolateRight: "clamp",
     });
 
-    const buttonBg = showSuccess
-        ? `linear-gradient(135deg, ${C.green}, #22C55E)`
-        : `linear-gradient(135deg, ${C.purple}, ${C.purpleLight})`;
+    // ─── Interaction timeline (relative to formStart) ───
+    // Phase 1: Cursor moves to Token Name field (frames 10–25)
+    // Phase 2: Text types into Token Name (frames 25–55)
+    // Phase 3: Cursor moves to Owner/Source (frames 55–65)
+    // Phase 4: Text types into Owner/Source (frames 65–85)
+    // Phase 5: Cursor moves to Launch button (frames 85–95)
+    // Phase 6: Click Launch (frames 95–105)
 
-    const buttonText = showSuccess ? "✓ LAUNCHED" : "Launch Unclaimed Token";
+    // ─── Cursor position ───
+    // Token Name field: approximately x=300, y=310
+    // Owner/Source field: approximately x=540, y=310
+    // Launch button: approximately x=530, y=365
+
+    const cursorAppear = interpolate(localFrame, [5, 12], [0, 1], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+    });
+
+    // Cursor phases
+    let cursorX: number;
+    let cursorY: number;
+
+    if (localFrame < 25) {
+        // Moving to Token Name field
+        cursorX = interpolate(localFrame, [5, 20], [600, 300], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+        });
+        cursorY = interpolate(localFrame, [5, 20], [200, 313], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+        });
+    } else if (localFrame < 55) {
+        // Resting on Token Name while typing
+        cursorX = 300;
+        cursorY = 313;
+    } else if (localFrame < 65) {
+        // Moving to Owner/Source
+        cursorX = interpolate(localFrame, [55, 62], [300, 550], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+        });
+        cursorY = 313;
+    } else if (localFrame < 85) {
+        // Resting on Owner/Source while typing
+        cursorX = 550;
+        cursorY = 313;
+    } else if (localFrame < 95) {
+        // Moving to Launch button
+        cursorX = interpolate(localFrame, [85, 93], [550, 530], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+        });
+        cursorY = interpolate(localFrame, [85, 93], [313, 370], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+        });
+    } else {
+        // On the launch button
+        cursorX = 530;
+        cursorY = 370;
+    }
+
+    // Click on Token Name (frame 22)
+    const tokenClick = localFrame >= 22 && localFrame <= 25;
+    // Click on Owner/Source (frame 63)
+    const ownerClick = localFrame >= 63 && localFrame <= 66;
+    // Click on Launch (frame 95)
+    const launchClick = localFrame >= 95 && localFrame <= 100;
+
+    const isClicking = tokenClick || ownerClick || launchClick;
+
+    // ─── Typing animation ───
+    const tokenName = "SIGIL";
+    const ownerSource = "github.com/anthropicaeon";
+
+    // Token Name typing: frames 25–50 (25 frames for the text)
+    const tokenChars = Math.floor(
+        interpolate(localFrame, [26, 42], [0, tokenName.length], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+        })
+    );
+    const tokenText = tokenName.slice(0, tokenChars);
+
+    // Owner/Source typing: frames 65–83
+    const ownerChars = Math.floor(
+        interpolate(localFrame, [66, 82], [0, ownerSource.length], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+        })
+    );
+    const ownerText = ownerSource.slice(0, ownerChars);
+
+    // Blinking cursor at active field
+    const blinkPhase = Math.sin(localFrame * 0.4) > 0;
+    const showTokenCaret = localFrame >= 23 && localFrame < 55 && blinkPhase;
+    const showOwnerCaret = localFrame >= 63 && localFrame < 85 && blinkPhase;
+
+    // Launch button glow after click
+    const launchGlow = localFrame >= 95
+        ? interpolate(localFrame, [95, 105, 115], [0, 1, 0.6], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+        })
+        : 0;
+
+    // Subtle zoom on the card
+    const cardZoom = interpolate(localFrame, [0, duration], [1, 1.04], {
+        extrapolateLeft: "clamp",
+        extrapolateRight: "clamp",
+    });
+
+    // The form card uses the Quick Launch screenshot as a base, with text overlays
+    // positioned over the input fields. We need proper positioning relative to the
+    // quicklaunch screenshot dimensions.
 
     return (
-        <div style={{ padding: "4px 28px 22px" }}>
-            {/* Flash overlay */}
+        <AbsoluteFill
+            style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                opacity: enterOpacity * fadeOut,
+            }}
+        >
             <div
                 style={{
-                    position: "absolute",
-                    inset: 0,
-                    background: `radial-gradient(circle at 50% 80%, rgba(126, 86, 218, ${flashOpacity}), transparent 60%)`,
-                    pointerEvents: "none",
-                }}
-            />
-            <div
-                style={{
-                    background: buttonBg,
-                    borderRadius: 12,
-                    padding: "14px 0",
-                    textAlign: "center",
-                    fontFamily,
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: "white",
-                    letterSpacing: "0.04em",
-                    cursor: "pointer",
-                    transform: `scale(${pressScale})`,
-                    boxShadow: showSuccess
-                        ? `0 4px 20px rgba(74, 222, 128, 0.3)`
-                        : `0 4px 20px rgba(126, 86, 218, 0.25)`,
+                    position: "relative",
+                    width: 820,
+                    borderRadius: 16,
+                    overflow: "visible",
+                    boxShadow: `
+                        0 12px 60px rgba(126, 86, 218, 0.25),
+                        0 0 0 1px rgba(126, 86, 218, 0.15)
+                    `,
+                    border: `1px solid rgba(126, 86, 218, 0.2)`,
+                    background: "#1A1527",
+                    transform: `scale(${enterScale * cardZoom})`,
                 }}
             >
-                {buttonText}
+                {/* Browser chrome */}
+                <div
+                    style={{
+                        height: 32,
+                        display: "flex",
+                        alignItems: "center",
+                        padding: "0 12px",
+                        gap: 6,
+                        background: "rgba(22, 18, 36, 0.9)",
+                        borderBottom: "1px solid rgba(126, 86, 218, 0.12)",
+                    }}
+                >
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FF5F57" }} />
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#FEBC2E" }} />
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#28C840" }} />
+                    <div
+                        style={{
+                            flex: 1,
+                            marginLeft: 12,
+                            background: "rgba(255,255,255,0.05)",
+                            borderRadius: 6,
+                            height: 18,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontFamily,
+                            fontSize: 9,
+                            fontWeight: 500,
+                            color: C.textGhost,
+                            letterSpacing: "0.02em",
+                        }}
+                    >
+                        heysigil.fund
+                    </div>
+                </div>
+
+                {/* Screenshot */}
+                <div
+                    style={{
+                        overflow: "hidden",
+                        position: "relative",
+                    }}
+                >
+                    <Img
+                        src={staticFile("real-ui-quicklaunch.png")}
+                        style={{
+                            width: "100%",
+                            display: "block",
+                        }}
+                    />
+
+                    {/* ─── Text overlays on form fields ─── */}
+
+                    {/* Token Name overlay – positioned over the input field */}
+                    {tokenChars > 0 && (
+                        <div
+                            style={{
+                                position: "absolute",
+                                // Token Name input field position in the quicklaunch screenshot
+                                // The input is about 26% from left, 67% from top
+                                left: "26.5%",
+                                top: "67.5%",
+                                fontFamily,
+                                fontSize: 11,
+                                fontWeight: 500,
+                                color: "#1a1a2e",
+                                letterSpacing: "0.01em",
+                                whiteSpace: "nowrap",
+                                pointerEvents: "none",
+                            }}
+                        >
+                            {tokenText}
+                            {showTokenCaret && (
+                                <span style={{ color: C.purple, fontWeight: 300 }}>|</span>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Owner/Source overlay */}
+                    {ownerChars > 0 && (
+                        <div
+                            style={{
+                                position: "absolute",
+                                // Owner/Source field: about 49% from left, 67.5% from top
+                                left: "49.5%",
+                                top: "67.5%",
+                                fontFamily,
+                                fontSize: 11,
+                                fontWeight: 500,
+                                color: "#1a1a2e",
+                                letterSpacing: "0.01em",
+                                whiteSpace: "nowrap",
+                                pointerEvents: "none",
+                            }}
+                        >
+                            {ownerText}
+                            {showOwnerCaret && (
+                                <span style={{ color: C.purple, fontWeight: 300 }}>|</span>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Launch button glow overlay */}
+                    {launchGlow > 0 && (
+                        <div
+                            style={{
+                                position: "absolute",
+                                // Launch Unclaimed Token button: ~56% left, ~78% top
+                                left: "55%",
+                                top: "77%",
+                                width: "18%",
+                                height: "6%",
+                                background: `rgba(126, 86, 218, ${launchGlow * 0.4})`,
+                                borderRadius: 8,
+                                boxShadow: `0 0 30px rgba(126, 86, 218, ${launchGlow * 0.6})`,
+                                pointerEvents: "none",
+                            }}
+                        />
+                    )}
+                </div>
+
+                {/* Cursor */}
+                <Cursor
+                    x={cursorX}
+                    y={cursorY}
+                    clicking={isClicking}
+                    opacity={cursorAppear}
+                />
             </div>
-        </div>
+        </AbsoluteFill>
     );
 };
 
 
-/** Spinning 3D logo using the static PNG with CSS 3D transform */
-const SpinningLogo: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) => {
-    const oFrame = Math.max(0, frame - SCENE.outroStart);
+/** Spinning 3D logo outro with tagline */
+const SpinningLogo: React.FC<{ frame: number; fps: number }> = ({
+    frame,
+    fps,
+}) => {
+    const oFrame = Math.max(0, frame - S.outroStart);
 
     const entrance = spring({
         frame: oFrame,
@@ -592,14 +699,11 @@ const SpinningLogo: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) 
         durationInFrames: 30,
     });
 
-    const rotation = interpolate(oFrame, [0, 80], [0, 360], {
+    const rotation = interpolate(oFrame, [0, 70], [0, 360], {
         extrapolateRight: "extend",
     });
 
-    // Slight Y-float
     const yFloat = Math.sin((oFrame / fps) * Math.PI * 1.2) * 6;
-
-    // Glow pulse
     const glowPulse = Math.sin((oFrame / fps) * Math.PI * 2) * 0.3 + 0.7;
 
     return (
@@ -624,7 +728,7 @@ const SpinningLogo: React.FC<{ frame: number; fps: number }> = ({ frame, fps }) 
                     `,
                 }}
             >
-                {/* Glow behind */}
+                {/* Glow behind logo */}
                 <div
                     style={{
                         position: "absolute",
@@ -704,22 +808,27 @@ export const QuickLaunchSpot: React.FC = () => {
                 background: C.bg,
             }}
         >
-            {/* Scale 2x for 4K rendering */}
+            {/* Scale 2x for 4K output from 1080p comp */}
             <AbsoluteFill style={{ transform: "scale(2)", transformOrigin: "center center" }}>
                 <DarkBackground frame={frame} fps={fps} />
 
-                {/* Scene 1: Hero slam text (frames 0–90) */}
-                <Sequence from={SCENE.heroStart} durationInFrames={SCENE.heroEnd - SCENE.heroStart}>
+                {/* Scene 1: Hero slam text (0–60) */}
+                <Sequence from={S.heroStart} durationInFrames={S.heroEnd - S.heroStart}>
                     <HeroText frame={frame} fps={fps} />
                 </Sequence>
 
-                {/* Scene 2–4: Card with form, plugins, launch (frames 45–260) */}
-                <Sequence from={SCENE.cardStart} durationInFrames={SCENE.outroStart + 20 - SCENE.cardStart}>
-                    <LaunchCard frame={frame} fps={fps} />
+                {/* Scene 2: Zoom into page, cursor clicks Quick Launch (45–130) */}
+                <Sequence from={S.zoomStart} durationInFrames={S.zoomEnd - S.zoomStart}>
+                    <ZoomToQuickLaunch frame={frame} fps={fps} />
                 </Sequence>
 
-                {/* Scene 5: Spinning logo + tagline (frames 220–300) */}
-                <Sequence from={SCENE.outroStart} durationInFrames={SCENE.outroEnd - SCENE.outroStart}>
+                {/* Scene 3: Form interaction – type fields, click Launch (120–240) */}
+                <Sequence from={S.formStart} durationInFrames={S.formEnd - S.formStart}>
+                    <FormInteraction frame={frame} fps={fps} />
+                </Sequence>
+
+                {/* Scene 4: Spinning logo + tagline (230–300) */}
+                <Sequence from={S.outroStart} durationInFrames={S.outroEnd - S.outroStart}>
                     <SpinningLogo frame={frame} fps={fps} />
                 </Sequence>
             </AbsoluteFill>
