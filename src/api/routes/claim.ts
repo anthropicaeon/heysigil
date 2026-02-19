@@ -20,11 +20,27 @@ import {
     ClaimAlreadyIssuedResponseSchema,
     ClaimProjectIdParamSchema,
     ClaimStatusResponseSchema,
+    ClaimLaunchTokenRequestSchema,
+    ClaimLaunchTokenResponseSchema,
+    UpdateClaimedProjectRequestSchema,
+    UpdateClaimedProjectResponseSchema,
 } from "../schemas/claim.js";
 import { handler } from "../helpers/route.js";
 import { getErrorMessage } from "../../utils/errors.js";
+import { getClientIp } from "../../middleware/rate-limit.js";
+import {
+    getPrivyWalletAddress,
+    getUserId,
+    privyAuth,
+} from "../../middleware/auth.js";
+import { getUserAddress } from "../../services/wallet.js";
+import { consumeLaunchClaimToken, LaunchClaimTokenError } from "../../services/quick-launch.js";
+import { autoStarSigilRepoForClaimant } from "../../services/github-growth.js";
+import { parseLink } from "../../utils/link-parser.js";
+import { loggers } from "../../utils/logger.js";
 
 const claim = new OpenAPIHono();
+const log = loggers.server;
 
 /**
  * POST /api/claim
@@ -216,6 +232,255 @@ claim.openapi(
         } catch (err) {
             return c.json({ error: getErrorMessage(err, "Failed to create attestation") }, 500);
         }
+    }),
+);
+
+const claimLaunchTokenRoute = createRoute({
+    method: "post",
+    path: "/launch-token",
+    tags: ["Claim"],
+    summary: "Claim an unclaimed quick-launch with one-time token",
+    request: {
+        body: {
+            content: {
+                "application/json": {
+                    schema: ClaimLaunchTokenRequestSchema,
+                },
+            },
+            required: true,
+        },
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: ClaimLaunchTokenResponseSchema,
+                },
+            },
+            description: "Quick-launch token redeemed and project claimed",
+        },
+        400: {
+            content: {
+                "application/json": {
+                    schema: ErrorResponseSchema,
+                },
+            },
+            description: "Invalid/expired token or wallet unavailable",
+        },
+        409: {
+            content: {
+                "application/json": {
+                    schema: ErrorResponseSchema,
+                },
+            },
+            description: "Token already consumed",
+        },
+    },
+});
+
+claim.openapi(
+    claimLaunchTokenRoute,
+    handler(async (c) => {
+        const authResult = await privyAuth()(c, async () => {});
+        if (authResult) return authResult;
+
+        const privyUserId = getUserId(c);
+        if (!privyUserId) {
+            return c.json({ error: "Authentication required" }, 401);
+        }
+
+        const body = getBody(c, ClaimLaunchTokenRequestSchema);
+        const ip = getClientIp(c) || "unknown";
+
+        try {
+            const db = getDb();
+
+            const [user] = await db
+                .select()
+                .from(schema.users)
+                .where(eq(schema.users.privyUserId, privyUserId))
+                .limit(1);
+
+            const walletFromService = await getUserAddress(privyUserId).catch(() => undefined);
+            const walletFromPrivy = await getPrivyWalletAddress(privyUserId);
+            const ownerWallet = walletFromPrivy || walletFromService || user?.walletAddress || null;
+
+            if (!ownerWallet) {
+                return c.json(
+                    {
+                        error: "No wallet address found for this account. Create or link a wallet before claiming.",
+                    },
+                    400,
+                );
+            }
+
+            const consumed = await consumeLaunchClaimToken({
+                token: body.claimToken,
+                claimedByUserId: privyUserId,
+                ip,
+            });
+
+            await db
+                .update(schema.projects)
+                .set({
+                    ownerWallet,
+                    userId: user?.id ?? null,
+                    verifiedAt: new Date(),
+                })
+                .where(eq(schema.projects.id, consumed.projectRefId));
+
+            const [project] = await db
+                .select()
+                .from(schema.projects)
+                .where(eq(schema.projects.id, consumed.projectRefId))
+                .limit(1);
+
+            if (ownerWallet && project?.poolId) {
+                tryAssignDev(project.poolId, ownerWallet, project.projectId).catch((err) => {
+                    log.warn({ err, projectId: project.projectId }, "assignDev after launch-token claim failed");
+                });
+            }
+
+            autoStarSigilRepoForClaimant(privyUserId).catch((err) => {
+                log.warn({ err, privyUserId }, "best-effort post-claim star failed");
+            });
+
+            return c.json({
+                success: true as const,
+                projectId: consumed.projectId,
+                ownerWallet,
+                message: "Quick-launch claim token redeemed",
+            });
+        } catch (err) {
+            if (err instanceof LaunchClaimTokenError) {
+                const status =
+                    err.code === "consumed" ? 409 : err.code === "expired" ? 400 : 400;
+                log.info(
+                    { code: err.code, ip, privyUserId },
+                    "Launch-token claim rejected",
+                );
+                return c.json({ error: err.message }, status);
+            }
+            return c.json({ error: getErrorMessage(err, "Failed to redeem launch token") }, 500);
+        }
+    }),
+);
+
+const updateClaimedProjectRoute = createRoute({
+    method: "patch",
+    path: "/projects/{projectId}",
+    tags: ["Claim"],
+    summary: "Update claimed quick-launch metadata",
+    request: {
+        params: ClaimProjectIdParamSchema,
+        body: {
+            content: {
+                "application/json": {
+                    schema: UpdateClaimedProjectRequestSchema,
+                },
+            },
+            required: true,
+        },
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: UpdateClaimedProjectResponseSchema,
+                },
+            },
+            description: "Claimed project metadata updated",
+        },
+        404: {
+            content: {
+                "application/json": {
+                    schema: NotFoundResponseSchema,
+                },
+            },
+            description: "Project not found",
+        },
+    },
+});
+
+claim.openapi(
+    updateClaimedProjectRoute,
+    handler(async (c) => {
+        const authResult = await privyAuth()(c, async () => {});
+        if (authResult) return authResult;
+
+        const privyUserId = getUserId(c);
+        if (!privyUserId) {
+            return c.json({ error: "Authentication required" }, 401);
+        }
+
+        const { projectId } = getParams(c, ClaimProjectIdParamSchema);
+        const body = getBody(c, UpdateClaimedProjectRequestSchema);
+        const db = getDb();
+
+        const [project] = await db
+            .select()
+            .from(schema.projects)
+            .where(eq(schema.projects.projectId, projectId))
+            .limit(1);
+
+        if (!project) {
+            return c.json({ error: "Project not found" }, 404);
+        }
+
+        const [user] = await db
+            .select()
+            .from(schema.users)
+            .where(eq(schema.users.privyUserId, privyUserId))
+            .limit(1);
+
+        const walletAddresses: string[] = [];
+        if (user?.walletAddress) walletAddresses.push(user.walletAddress);
+        const walletFromService = await getUserAddress(privyUserId).catch(() => undefined);
+        if (walletFromService) walletAddresses.push(walletFromService);
+        const walletFromPrivy = await getPrivyWalletAddress(privyUserId);
+        if (walletFromPrivy) walletAddresses.push(walletFromPrivy);
+
+        if (!project.ownerWallet || !walletAddresses.includes(project.ownerWallet)) {
+            return c.json({ error: "Forbidden: project is not owned by this account" }, 403);
+        }
+
+        let nextDevLinks = project.devLinks;
+        if (body.repoUrl) {
+            const parsedRepo = parseLink(body.repoUrl);
+            if (!parsedRepo) {
+                return c.json({ error: "repoUrl could not be parsed" }, 400);
+            }
+            nextDevLinks = [
+                {
+                    platform: parsedRepo.platform,
+                    url: parsedRepo.displayUrl,
+                    projectId: parsedRepo.projectId,
+                },
+            ];
+        }
+
+        const [updated] = await db
+            .update(schema.projects)
+            .set({
+                name: body.name ?? project.name,
+                description: body.description ?? project.description,
+                devLinks: nextDevLinks,
+            })
+            .where(eq(schema.projects.id, project.id))
+            .returning({
+                projectId: schema.projects.projectId,
+                name: schema.projects.name,
+                description: schema.projects.description,
+                devLinks: schema.projects.devLinks,
+            });
+
+        return c.json({
+            success: true as const,
+            projectId: updated.projectId,
+            name: updated.name,
+            description: updated.description,
+            devLinks: updated.devLinks,
+        });
     }),
 );
 

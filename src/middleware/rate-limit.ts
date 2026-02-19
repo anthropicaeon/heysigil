@@ -40,7 +40,7 @@ interface RateLimitConfig {
  * Extract client IP from request headers (handles proxies).
  * Respects TRUST_PROXY env configuration to prevent header spoofing.
  */
-function getClientIp(c: Context): string {
+export function getClientIp(c: Context): string {
     const env = getEnv();
     const trustProxy = env.TRUST_PROXY;
 

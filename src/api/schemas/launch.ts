@@ -7,6 +7,7 @@
 import { z } from "@hono/zod-openapi";
 import {
     SessionIdSchema,
+    UUIDSchema,
     WalletAddressSchema,
     TxHashSchema,
     PoolIdSchema,
@@ -55,6 +56,13 @@ export const LaunchRequestSchema = z
         }),
     })
     .openapi("LaunchRequest");
+
+/**
+ * POST /api/launch/quick request body
+ */
+export const QuickLaunchRequestSchema = z
+    .object({})
+    .openapi("QuickLaunchRequest");
 
 /**
  * Path parameter for project ID (greedy, supports slashes)
@@ -127,7 +135,7 @@ export const LaunchDeployedResponseSchema = z
         success: z.literal(true),
         deployed: z.literal(true),
         project: z.object({
-            id: z.number().int().openapi({ example: 1 }),
+            id: UUIDSchema,
             projectId: z.string().openapi({ example: "github:org/repo" }),
             name: z.string().openapi({ example: "My Token" }),
             symbol: z.string().openapi({ example: "MTK" }),
@@ -150,7 +158,7 @@ export const LaunchRegisteredResponseSchema = z
             example: "Project registered but on-chain deployment not configured...",
         }),
         project: z.object({
-            id: z.number().int().openapi({ example: 1 }),
+            id: UUIDSchema,
             projectId: z.string().openapi({ example: "github:org/repo" }),
             name: z.string().openapi({ example: "My Token" }),
         }),
@@ -228,7 +236,7 @@ export const DeployerNotConfiguredResponseSchema = z
  */
 export const ProjectDetailsResponseSchema = z
     .object({
-        id: z.number().int().openapi({ example: 1 }),
+        id: UUIDSchema,
         projectId: z.string().openapi({ example: "github:org/repo" }),
         name: z.string().nullable().openapi({ example: "My Token" }),
         description: z.string().nullable().openapi({ example: "A token for my project" }),
@@ -343,3 +351,32 @@ export const LaunchAlreadyLaunchedResponseSchema = z
         }),
     })
     .openapi("LaunchAlreadyLaunchedResponse");
+
+/**
+ * POST /api/launch/quick success response
+ */
+export const QuickLaunchResponseSchema = z
+    .object({
+        success: z.literal(true),
+        deployed: z.boolean().openapi({
+            description: "Whether on-chain deployment succeeded (false when deployer is not configured)",
+        }),
+        project: z.object({
+            id: UUIDSchema,
+            projectId: z.string().openapi({ example: "quick:550e8400-e29b-41d4-a716-446655440000" }),
+            name: z.string(),
+            symbol: z.string().optional(),
+        }),
+        token: TokenDeploymentSchema.optional(),
+        claimToken: z.string().openapi({
+            example: "sigil_claim_ab12cd34_very_secret_value",
+            description: "One-time quick-launch claim token (shown once)",
+        }),
+        claimTokenExpiresAt: TimestampSchema,
+        launchDefaults: z.object({
+            repo: z.string().openapi({ example: "github:heysigil/heysigil" }),
+            repoUrl: z.string().url().openapi({ example: "https://github.com/heysigil/heysigil" }),
+            claimLaterSupported: z.literal(true),
+        }),
+    })
+    .openapi("QuickLaunchResponse");

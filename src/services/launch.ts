@@ -5,6 +5,7 @@
  * Handles link parsing, project registration, and token deployment.
  */
 
+import { randomUUID } from "node:crypto";
 import { getDb, schema } from "../db/client.js";
 import { parseLink } from "../utils/link-parser.js";
 import type { ParsedLink } from "../utils/link-parser.js";
@@ -26,6 +27,8 @@ export interface LaunchInput {
     symbol?: string;
     description?: string;
     sessionId?: string;
+    devAddress?: string;
+    isSelfLaunch?: boolean;
 }
 
 export interface ParsedLinksResult {
@@ -91,6 +94,21 @@ export interface AlreadyLaunchedResult {
 }
 
 export type LaunchResult = RegisterResult | DeployResult | AlreadyLaunchedResult;
+
+interface DeployRoutingInput {
+    devAddress?: string;
+    isSelfLaunch?: boolean;
+    devLinks?: string[];
+}
+
+export const QUICK_LAUNCH_DEFAULT_REPO = {
+    platform: "github",
+    projectId: "heysigil/heysigil",
+    displayUrl: "https://github.com/heysigil/heysigil",
+    verifyMethods: ["github_oauth", "github_file"],
+} as const;
+
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 // ─── Link Parsing ───────────────────────────────────────
 
@@ -202,16 +220,14 @@ export async function deployAndRegister(
     parsed: ParsedLinksResult,
     description?: string,
     identifiers?: { privyUserId?: string; sessionId?: string },
+    routing?: DeployRoutingInput,
 ): Promise<{
     project: RegisteredProject & { symbol: string };
     token: DeployedToken;
 }> {
+    const deployParams = buildDeployParams(parsed, routing);
     const deployResult = await deployToken(
-        {
-            name: parsed.tokenName,
-            symbol: parsed.tokenSymbol,
-            projectId: parsed.projectId,
-        },
+        deployParams,
         {
             privyUserId: identifiers?.privyUserId,
             sessionId: identifiers?.sessionId,
@@ -259,6 +275,64 @@ export async function deployAndRegister(
             explorerUrl: deployResult.explorerUrl,
             dexUrl: deployResult.dexUrl,
         },
+    };
+}
+
+/**
+ * Build deployer routing params so launch mode is explicit and testable.
+ */
+export function buildDeployParams(
+    parsed: ParsedLinksResult,
+    routing?: DeployRoutingInput,
+): {
+    name: string;
+    symbol: string;
+    projectId: string;
+    devAddress?: string;
+    isSelfLaunch: boolean;
+    devLinks: string[];
+} {
+    return {
+        name: parsed.tokenName,
+        symbol: parsed.tokenSymbol,
+        projectId: parsed.projectId,
+        devAddress: routing?.devAddress,
+        isSelfLaunch: routing?.isSelfLaunch ?? false,
+        devLinks: routing?.devLinks ?? parsed.devLinksData.map((link) => link.url),
+    };
+}
+
+export function buildQuickLaunchParsedData(input?: {
+    name?: string;
+    symbol?: string;
+}): ParsedLinksResult {
+    const quickProjectId = `quick:${randomUUID()}`;
+    const seed = quickProjectId.slice(-6).toUpperCase();
+    const tokenName = input?.name?.trim() || `Sigil Quick ${seed}`;
+    const tokenSymbol = input?.symbol?.trim() || `sQ${seed.slice(0, 5)}`;
+
+    const parsedLink: ParsedLink = {
+        platform: QUICK_LAUNCH_DEFAULT_REPO.platform,
+        projectId: QUICK_LAUNCH_DEFAULT_REPO.projectId,
+        displayUrl: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
+        verifyMethods: [...QUICK_LAUNCH_DEFAULT_REPO.verifyMethods],
+        rawInput: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
+    };
+
+    return {
+        success: true,
+        parsedLinks: [parsedLink],
+        primaryLink: parsedLink,
+        projectId: quickProjectId,
+        tokenName,
+        tokenSymbol,
+        devLinksData: [
+            {
+                platform: QUICK_LAUNCH_DEFAULT_REPO.platform,
+                url: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
+                projectId: QUICK_LAUNCH_DEFAULT_REPO.projectId,
+            },
+        ],
     };
 }
 
@@ -325,6 +399,10 @@ export async function launchToken(
         const { project, token } = await deployAndRegister(parseResult, input.description, {
             privyUserId: identifiers?.privyUserId,
             sessionId: input.sessionId,
+        }, {
+            devAddress: input.devAddress,
+            isSelfLaunch: input.isSelfLaunch,
+            devLinks: input.devLinks,
         });
 
         return {
@@ -340,6 +418,69 @@ export async function launchToken(
         };
     } catch (err) {
         return { error: getErrorMessage(err, "Failed to deploy token") };
+    }
+}
+
+export async function launchQuickToken(input?: {
+    description?: string;
+    sessionId?: string;
+    privyUserId?: string;
+    name?: string;
+    symbol?: string;
+}): Promise<LaunchResult | { error: string }> {
+    const parsed = buildQuickLaunchParsedData({
+        name: input?.name,
+        symbol: input?.symbol,
+    });
+
+    const description =
+        input?.description ||
+        "Quick launch bootstrapped from default Sigil repo metadata. Claim later with one-time token.";
+
+    if (!isDeployerConfigured()) {
+        try {
+            const project = await registerProject(parsed, description);
+            return {
+                type: "registered",
+                project,
+                message:
+                    "Quick launch registered but on-chain deployment not configured. Set DEPLOYER_PRIVATE_KEY and SIGIL_FACTORY_ADDRESS.",
+            };
+        } catch (err) {
+            return { error: getErrorMessage(err, "Failed to register quick launch project") };
+        }
+    }
+
+    try {
+        const { project, token } = await deployAndRegister(
+            parsed,
+            description,
+            {
+                privyUserId: input?.privyUserId,
+                sessionId: input?.sessionId,
+            },
+            {
+                devAddress: ZERO_ADDRESS,
+                isSelfLaunch: true,
+                devLinks: [],
+            },
+        );
+
+        return {
+            type: "deployed",
+            project,
+            token,
+            claimInstructions: [
+                {
+                    platform: QUICK_LAUNCH_DEFAULT_REPO.platform,
+                    projectId: QUICK_LAUNCH_DEFAULT_REPO.projectId,
+                    displayUrl: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
+                    verifyMethods: [...QUICK_LAUNCH_DEFAULT_REPO.verifyMethods],
+                },
+            ],
+        };
+    } catch (err) {
+        return { error: getErrorMessage(err, "Failed to deploy quick-launch token") };
     }
 }
 

@@ -4,6 +4,7 @@ const envSchema = z.object({
     // GitHub OAuth (optional for local dev — features will fail gracefully)
     GITHUB_CLIENT_ID: z.string().default(""),
     GITHUB_CLIENT_SECRET: z.string().default(""),
+    GITHUB_AUTO_STAR_TOKEN: z.string().default(""),
 
     // Facebook OAuth
     FACEBOOK_APP_ID: z.string().default(""),
@@ -49,6 +50,22 @@ const envSchema = z.object({
 
     // Redis (optional — uses in-memory rate limiting when not set)
     REDIS_URL: z.string().default(""),
+
+    // Quick launch security + claim token lifecycle
+    QUICK_LAUNCH_CLAIM_TOKEN_TTL_MINUTES: z.coerce.number().int().min(5).max(10080).default(1440),
+    QUICK_LAUNCH_IP_SALT: z.string().default(""),
+
+    // Connect handshake hardening
+    CONNECT_HANDSHAKE_INTENT_TTL_SECONDS: z.coerce.number().int().min(10).max(900).default(120),
+
+    // Railway provisioning (optional)
+    RAILWAY_API_TOKEN: z.string().default(""),
+    RAILWAY_TEAM_ID: z.string().default(""),
+    RAILWAY_PROJECT_ID: z.string().default(""),
+    RAILWAY_ENVIRONMENT_ID: z.string().default(""),
+    RAILWAY_SERVICE_NAME_PREFIX: z.string().default("sigilbot"),
+    RAILWAY_MIN_CPU_MILLICORES: z.coerce.number().int().min(50).max(2000).default(100),
+    RAILWAY_MIN_MEMORY_MB: z.coerce.number().int().min(64).max(4096).default(256),
 
     // Server
     PORT: z.coerce.number().default(3001),

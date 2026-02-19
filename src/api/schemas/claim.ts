@@ -31,6 +31,34 @@ export const ClaimRequestSchema = z
     .openapi("ClaimRequest");
 
 /**
+ * POST /api/claim/launch-token request body
+ */
+export const ClaimLaunchTokenRequestSchema = z
+    .object({
+        claimToken: z.string().min(16).max(256).openapi({
+            example: "sigil_claim_ab12cd34_very_secret_value",
+            description: "One-time claim token returned from quick-launch",
+        }),
+    })
+    .openapi("ClaimLaunchTokenRequest");
+
+/**
+ * PATCH /api/claim/projects/:projectId request body
+ */
+export const UpdateClaimedProjectRequestSchema = z
+    .object({
+        repoUrl: z.string().url().optional().openapi({
+            example: "https://github.com/user/new-repo",
+            description: "Replacement repository URL",
+        }),
+        name: z.string().min(1).max(256).optional().openapi({ example: "My Token" }),
+        description: z.string().max(500).optional().openapi({
+            example: "Updated post-claim details",
+        }),
+    })
+    .openapi("UpdateClaimedProjectRequest");
+
+/**
  * Path parameter for project ID (greedy, supports slashes)
  */
 export const ClaimProjectIdParamSchema = z.object({
@@ -64,6 +92,41 @@ export const ClaimSuccessResponseSchema = z
         }),
     })
     .openapi("ClaimSuccessResponse");
+
+/**
+ * POST /api/claim/launch-token success response
+ */
+export const ClaimLaunchTokenResponseSchema = z
+    .object({
+        success: z.literal(true),
+        projectId: z.string().openapi({ example: "quick:550e8400-e29b-41d4-a716-446655440000" }),
+        ownerWallet: WalletAddressSchema.nullable(),
+        message: z.string().openapi({
+            example: "Quick-launch claim token redeemed",
+        }),
+    })
+    .openapi("ClaimLaunchTokenResponse");
+
+/**
+ * PATCH /api/claim/projects/:projectId success response
+ */
+export const UpdateClaimedProjectResponseSchema = z
+    .object({
+        success: z.literal(true),
+        projectId: z.string(),
+        name: z.string().nullable(),
+        description: z.string().nullable(),
+        devLinks: z
+            .array(
+                z.object({
+                    platform: z.string(),
+                    url: z.string(),
+                    projectId: z.string(),
+                }),
+            )
+            .nullable(),
+    })
+    .openapi("UpdateClaimedProjectResponse");
 
 /**
  * POST /api/claim already claimed response

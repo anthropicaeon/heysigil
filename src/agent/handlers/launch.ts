@@ -161,6 +161,29 @@ export const launchTokenHandler: ActionHandler = async (params) => {
             };
         }
 
+        if (result.type === "already_launched") {
+            return {
+                success: true,
+                message: [
+                    `Already launched: ${result.project.name}`,
+                    `Contract: ${result.token.address}`,
+                    `Pool ID: ${result.token.poolId}`,
+                    `Explorer: ${result.token.explorerUrl}`,
+                    `DEX: ${result.token.dexUrl}`,
+                ].join("\n"),
+                data: {
+                    name: result.project.name,
+                    projectId: result.project.projectId,
+                    tokenAddress: result.token.address,
+                    poolId: result.token.poolId,
+                    txHash: result.token.txHash ?? undefined,
+                    explorerUrl: result.token.explorerUrl,
+                    dexUrl: result.token.dexUrl,
+                    status: "already_launched",
+                },
+            };
+        }
+
         // Handle "deployed" — token launched + project saved to DB
         const linkSummary = parsedLinks.map(
             (l) => `• **${l.platform}** — [${l.projectId}](${l.displayUrl})`,

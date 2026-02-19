@@ -11,7 +11,7 @@ import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { eq, sql, isNull, and, inArray, desc, asc, type SQL } from "drizzle-orm";
 import { getBody, getParams, getQuery } from "../helpers/request.js";
 import { getDb, schema } from "../../db/client.js";
-import { rateLimit } from "../../middleware/rate-limit.js";
+import { getClientIp, rateLimit } from "../../middleware/rate-limit.js";
 import {
     getUserId,
     privyAuth,
@@ -21,9 +21,22 @@ import {
 import { loggers } from "../../utils/logger.js";
 import { handler } from "../helpers/route.js";
 import { getErrorMessage } from "../../utils/errors.js";
-import { parseDevLinks, launchToken, isDeployerConfigured } from "../../services/launch.js";
+import {
+    QUICK_LAUNCH_DEFAULT_REPO,
+    isDeployerConfigured,
+    launchQuickToken,
+    launchToken,
+    parseDevLinks,
+} from "../../services/launch.js";
 import { getDeployerBalance } from "../../services/deployer.js";
 import { getUserAddress } from "../../services/wallet.js";
+import {
+    QuickLaunchIpLimitError,
+    annotateQuickLaunchIpProject,
+    createLaunchClaimToken,
+    enforceQuickLaunchIpGuardrail,
+    releaseQuickLaunchIpGuardrail,
+} from "../../services/quick-launch.js";
 import {
     ErrorResponseSchema,
     NotFoundResponseSchema,
@@ -41,6 +54,8 @@ import {
     LaunchAlreadyLaunchedResponseSchema,
     LaunchListQuerySchema,
     LaunchListResponseSchema,
+    QuickLaunchResponseSchema,
+    QuickLaunchRequestSchema,
 } from "../schemas/launch.js";
 
 const launch = new OpenAPIHono();
@@ -53,6 +68,16 @@ launch.use(
         limit: 10,
         windowMs: 60 * 60 * 1000, // 1 hour
         message: "Too many launch attempts from this IP. Please try again later.",
+    }),
+);
+
+// Strict one-click limit for quick-launch route (secondary to DB guardrail)
+launch.use(
+    "/quick",
+    rateLimit("launch-quick-ip", {
+        limit: 1,
+        windowMs: 24 * 60 * 60 * 1000,
+        message: "Quick launch already used for this IP. Claim your launch with your one-time token.",
     }),
 );
 
@@ -183,6 +208,117 @@ launch.openapi(
             project: result.project,
             token: result.token,
             claimInstructions: result.claimInstructions,
+        });
+    }),
+);
+
+const quickLaunchRoute = createRoute({
+    method: "post",
+    path: "/quick",
+    tags: ["Launch"],
+    summary: "One-click quick launch",
+    description:
+        "Launch a default unclaimed token with no inputs. Returns a one-time claim token shown once.",
+    request: {
+        body: {
+            content: {
+                "application/json": {
+                    schema: QuickLaunchRequestSchema,
+                },
+            },
+            required: false,
+        },
+    },
+    responses: {
+        200: {
+            content: {
+                "application/json": {
+                    schema: QuickLaunchResponseSchema,
+                },
+            },
+            description: "Quick launch created",
+        },
+        429: {
+            content: {
+                "application/json": {
+                    schema: RateLimitResponseSchema,
+                },
+            },
+            description: "Quick-launch per-IP limit reached",
+        },
+        500: {
+            content: {
+                "application/json": {
+                    schema: ErrorResponseSchema,
+                },
+            },
+            description: "Quick launch failed",
+        },
+    },
+});
+
+launch.openapi(
+    quickLaunchRoute,
+    handler(async (c) => {
+        const ip = getClientIp(c);
+        if (!ip || ip === "unknown") {
+            return c.json(
+                {
+                    error: "Could not determine client IP for quick-launch guardrail",
+                },
+                400,
+            );
+        }
+
+        try {
+            await enforceQuickLaunchIpGuardrail(ip);
+        } catch (err) {
+            if (err instanceof QuickLaunchIpLimitError) {
+                return c.json(
+                    {
+                        error: "Quick launch limit reached for this IP",
+                        retryAfter: 24 * 60 * 60,
+                    },
+                    429,
+                );
+            }
+            return c.json({ error: getErrorMessage(err, "Failed quick-launch guardrail check") }, 500);
+        }
+
+        const privyUserId = getUserId(c);
+        const quickResult = await launchQuickToken({ privyUserId });
+
+        if ("error" in quickResult) {
+            await releaseQuickLaunchIpGuardrail(ip).catch(() => undefined);
+            return c.json({ error: quickResult.error }, 500);
+        }
+
+        await annotateQuickLaunchIpProject(ip, quickResult.project.projectId).catch(() => undefined);
+        const claimToken = await createLaunchClaimToken({
+            projectId: quickResult.project.projectId,
+            projectRefId: quickResult.project.id,
+            ip,
+        });
+
+        return c.json({
+            success: true as const,
+            deployed: quickResult.type === "deployed",
+            project:
+                quickResult.type === "deployed"
+                    ? quickResult.project
+                    : {
+                          id: quickResult.project.id,
+                          projectId: quickResult.project.projectId,
+                          name: quickResult.project.name,
+                      },
+            token: quickResult.type === "deployed" ? quickResult.token : undefined,
+            claimToken: claimToken.token,
+            claimTokenExpiresAt: claimToken.expiresAt.toISOString(),
+            launchDefaults: {
+                repo: `${QUICK_LAUNCH_DEFAULT_REPO.platform}:${QUICK_LAUNCH_DEFAULT_REPO.projectId}`,
+                repoUrl: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
+                claimLaterSupported: true as const,
+            },
         });
     }),
 );

@@ -258,9 +258,108 @@ export const connectedBots = pgTable("connected_bots", {
     scopes: jsonb("scopes").$type<string[]>(),
     /** Last health-check or interaction */
     lastSeenAt: timestamp("last_seen_at"),
+    /** Provisioner used for this runtime (e.g. railway) */
+    provisioner: varchar("provisioner", { length: 32 }),
+    /** Provisioning status (pending, ready, failed) */
+    provisionStatus: varchar("provision_status", { length: 32 }),
+    /** Provisioned project identifier (provider-specific) */
+    provisionProjectId: varchar("provision_project_id", { length: 128 }),
+    /** Provisioned service identifier (provider-specific) */
+    provisionServiceId: varchar("provision_service_id", { length: 128 }),
+    /** Provisioned deployment identifier (provider-specific) */
+    provisionDeploymentId: varchar("provision_deployment_id", { length: 128 }),
     connectedAt: timestamp("connected_at").notNull().defaultNow(),
     disconnectedAt: timestamp("disconnected_at"),
 });
+
+/**
+ * One-time claim tokens returned by quick-launch.
+ * Tokens are stored hashed and atomically consumed on redemption.
+ */
+export const launchClaimTokens = pgTable(
+    "launch_claim_tokens",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        projectId: varchar("project_id", { length: 512 }).notNull(),
+        projectRefId: uuid("project_ref_id")
+            .notNull()
+            .references(() => projects.id, { onDelete: "cascade" }),
+        tokenPrefix: varchar("token_prefix", { length: 64 }).notNull(),
+        tokenHash: varchar("token_hash", { length: 128 }).notNull(),
+        createdIpHash: varchar("created_ip_hash", { length: 128 }).notNull(),
+        consumedIpHash: varchar("consumed_ip_hash", { length: 128 }),
+        expiresAt: timestamp("expires_at").notNull(),
+        consumedAt: timestamp("consumed_at"),
+        consumedByUserId: varchar("consumed_by_user_id", { length: 256 }),
+        createdAt: timestamp("created_at").notNull().defaultNow(),
+    },
+    (table) => [
+        uniqueIndex("launch_claim_tokens_prefix_uq").on(table.tokenPrefix),
+        uniqueIndex("launch_claim_tokens_hash_uq").on(table.tokenHash),
+        index("launch_claim_tokens_project_idx").on(table.projectRefId),
+    ],
+);
+
+/**
+ * Strict quick-launch IP guardrail store (1 launch per IP hash).
+ */
+export const quickLaunchIpGuardrails = pgTable(
+    "quick_launch_ip_guardrails",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        ipHash: varchar("ip_hash", { length: 128 }).notNull(),
+        firstLaunchAt: timestamp("first_launch_at").notNull().defaultNow(),
+        lastProjectId: varchar("last_project_id", { length: 512 }),
+        launchCount: integer("launch_count").notNull().default(1),
+    },
+    (table) => [uniqueIndex("quick_launch_ip_guardrails_hash_uq").on(table.ipHash)],
+);
+
+/**
+ * One-time handshake intents used to harden /connect/handshake against replay.
+ */
+export const connectHandshakeIntents = pgTable(
+    "connect_handshake_intents",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        userId: varchar("user_id", { length: 256 }).notNull(),
+        endpoint: varchar("endpoint", { length: 512 }).notNull(),
+        stack: varchar("stack", { length: 32 }).notNull(),
+        tokenPrefix: varchar("token_prefix", { length: 64 }).notNull(),
+        tokenHash: varchar("token_hash", { length: 128 }).notNull(),
+        expiresAt: timestamp("expires_at").notNull(),
+        consumedAt: timestamp("consumed_at"),
+        consumedByIpHash: varchar("consumed_by_ip_hash", { length: 128 }),
+        createdAt: timestamp("created_at").notNull().defaultNow(),
+    },
+    (table) => [
+        uniqueIndex("connect_handshake_intents_prefix_uq").on(table.tokenPrefix),
+        uniqueIndex("connect_handshake_intents_hash_uq").on(table.tokenHash),
+        index("connect_handshake_intents_user_idx").on(table.userId),
+    ],
+);
+
+/**
+ * Tracks asynchronous one-click /connect provisioning operations.
+ */
+export const connectQuickLaunches = pgTable(
+    "connect_quick_launches",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        userId: varchar("user_id", { length: 256 }).notNull(),
+        stack: varchar("stack", { length: 32 }).notNull(),
+        status: varchar("status", { length: 32 }).notNull().default("pending"),
+        endpoint: varchar("endpoint", { length: 512 }),
+        error: text("error"),
+        mcpTokenId: uuid("mcp_token_id").references(() => mcpTokens.id, { onDelete: "set null" }),
+        railwayProjectId: varchar("railway_project_id", { length: 128 }),
+        railwayServiceId: varchar("railway_service_id", { length: 128 }),
+        railwayDeploymentId: varchar("railway_deployment_id", { length: 128 }),
+        createdAt: timestamp("created_at").notNull().defaultNow(),
+        updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    },
+    (table) => [index("connect_quick_launches_user_idx").on(table.userId, table.createdAt)],
+);
 
 // ─── Chat Persistence ───────────────────────────────────────────────
 
