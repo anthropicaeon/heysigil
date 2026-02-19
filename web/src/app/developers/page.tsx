@@ -17,6 +17,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PixelCard } from "@/components/ui/pixel-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 const problems = [
@@ -93,6 +94,70 @@ const steps = [
         title: "Start earning",
         desc: "USDC fees route to your wallet automatically.",
         icon: Coins,
+    },
+];
+
+const packageGuides = [
+    {
+        value: "sdk",
+        label: "@heysigil/sigil-sdk",
+        status: "public",
+        summary:
+            "Typed Sigil client for verify, launches, wallet, fees, claims, chat, dashboard, developers info, governance placeholder, and MCP token lifecycle.",
+        highlights: [
+            "Single createSigilClient() entrypoint with modular namespaces.",
+            "Typed request/response surfaces for app integrations and tooling.",
+            "MCP token create/list/revoke/rotate plus token introspection.",
+        ],
+        install: "npm install @heysigil/sigil-sdk",
+        quickstart: `import { createSigilClient } from "@heysigil/sigil-sdk";
+
+const sigil = createSigilClient({
+  baseUrl: "https://heysigil.com",
+  token: process.env.SIGIL_TOKEN,
+});
+
+const launches = await sigil.launch.list({ limit: 10 });
+const dashboard = await sigil.dashboard.overview();`,
+    },
+    {
+        value: "mcp",
+        label: "@heysigil/sigil-mcp",
+        status: "workspace",
+        summary:
+            "MCP server package built on sigil-sdk with scope-aware tool execution and both stdio + streamable HTTP transports.",
+        highlights: [
+            "Supports tools/list and tools/call with JSON-RPC responses.",
+            "Enforces MCP token scopes before tool invocation.",
+            "Includes verify, dashboard, chat, launch, developers, governance placeholder tools.",
+        ],
+        install: `SIGIL_API_URL=http://localhost:3001
+SIGIL_MCP_TOKEN=your_token
+SIGIL_MCP_TRANSPORT=stdio
+sigil-mcp --transport=stdio`,
+        quickstart: `# HTTP transport
+SIGIL_MCP_TRANSPORT=http SIGIL_MCP_HOST=127.0.0.1 SIGIL_MCP_PORT=8788 sigil-mcp
+
+# health check
+curl http://127.0.0.1:8788/health`,
+    },
+    {
+        value: "core",
+        label: "@heysigil/sigil-core",
+        status: "workspace",
+        summary:
+            "Shared primitives package used by Sigil workspace packages: errors, scopes, schemas, and common request/token types.",
+        highlights: [
+            "Canonical SIGIL_SCOPES list and SigilScope type.",
+            "Shared Zod schema primitives for cross-package consistency.",
+            "Keeps SDK and MCP internals DRY and contract-aligned.",
+        ],
+        install: "npm run --workspace @heysigil/sigil-core build",
+        quickstart: `import { SIGIL_SCOPES } from "@heysigil/sigil-core";
+
+// Example scope checks
+const required = ["launch:read", "launch:write"] as const;
+const isKnown = required.every((scope) => SIGIL_SCOPES.includes(scope));`,
     },
 ];
 
@@ -268,6 +333,93 @@ export default function DevelopersPage() {
                             </div>
                         ))}
                     </div>
+                </div>
+
+                <div className="border-border border-b bg-background">
+                    <div className="px-6 py-5 lg:px-12 border-border border-b bg-cream/40">
+                        <div className="flex items-center gap-3">
+                            <div className="size-10 bg-cream/60 border border-border flex items-center justify-center">
+                                <Code className="size-5 text-muted-foreground" />
+                            </div>
+                            <div>
+                                <p className="text-primary text-sm font-medium uppercase tracking-wider">
+                                    package guide
+                                </p>
+                                <h2 className="text-lg font-semibold text-foreground lowercase">
+                                    sdk, mcp, and core integration map.
+                                </h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Tabs defaultValue="sdk" className="w-full">
+                        <div className="border-border border-b px-6 py-3 lg:px-12 bg-background/80">
+                            <TabsList className="h-auto w-full justify-start rounded-none border-0 bg-transparent p-0">
+                                {packageGuides.map((guide, index) => (
+                                    <TabsTrigger
+                                        key={guide.value}
+                                        value={guide.value}
+                                        className={cn(
+                                            "h-10 rounded-none border-border border px-4 py-2 text-xs font-mono uppercase tracking-wider data-[state=active]:border-primary data-[state=active]:bg-background",
+                                            index > 0 && "-ml-px",
+                                        )}
+                                    >
+                                        {guide.value}
+                                    </TabsTrigger>
+                                ))}
+                            </TabsList>
+                        </div>
+
+                        {packageGuides.map((guide) => (
+                            <TabsContent key={guide.value} value={guide.value} className="mt-0">
+                                <div className="grid lg:grid-cols-[1.15fr_1fr]">
+                                    <div className="border-border border-b lg:border-b-0 lg:border-r px-6 py-6 lg:px-8 lg:py-8">
+                                        <div className="flex flex-wrap items-center gap-2 mb-4">
+                                            <Badge variant="outline" className="font-mono text-[11px]">
+                                                {guide.label}
+                                            </Badge>
+                                            <Badge variant="secondary" className="text-[10px] uppercase">
+                                                {guide.status}
+                                            </Badge>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mb-5">
+                                            {guide.summary}
+                                        </p>
+                                        <div className="space-y-2">
+                                            {guide.highlights.map((item) => (
+                                                <div key={item} className="flex items-start gap-2">
+                                                    <div className="size-1.5 bg-primary mt-2 shrink-0" />
+                                                    <span className="text-sm text-muted-foreground">{item}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="px-6 py-6 lg:px-8 lg:py-8 bg-foreground/[0.02] space-y-4">
+                                        <div className="border border-border bg-background/80">
+                                            <div className="border-border border-b px-4 py-2.5">
+                                                <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+                                                    install / run
+                                                </p>
+                                            </div>
+                                            <pre className="px-4 py-3 text-xs text-muted-foreground font-mono whitespace-pre-wrap">
+                                                {guide.install}
+                                            </pre>
+                                        </div>
+                                        <div className="border border-border bg-background/80">
+                                            <div className="border-border border-b px-4 py-2.5">
+                                                <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+                                                    quick start
+                                                </p>
+                                            </div>
+                                            <pre className="px-4 py-3 text-xs text-muted-foreground font-mono whitespace-pre-wrap">
+                                                {guide.quickstart}
+                                            </pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </TabsContent>
+                        ))}
+                    </Tabs>
                 </div>
 
                 {/* CTA - Matching Homepage */}

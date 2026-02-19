@@ -22,6 +22,7 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PixelCard } from "@/components/ui/pixel-card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 /* ─── Skill file content (embedded from .agents/) ──────────────── */
@@ -177,6 +178,81 @@ const AGENT_RAILS = [
     },
 ];
 
+const AGENT_PACKAGE_GUIDES = [
+    {
+        value: "mcp",
+        label: "mcp server",
+        packageName: "@heysigil/sigil-mcp",
+        status: "workspace",
+        summary:
+            "Scope-aware MCP server wrapping Sigil capabilities for autonomous tool-calling agents.",
+        highlights: [
+            "Transports: stdio (default) and streamable HTTP at /mcp.",
+            "Tools cover verify, dashboard, chat, launches, developers info.",
+            "Governance tools currently return explicit not_implemented placeholders.",
+        ],
+        command: `SIGIL_API_URL=http://localhost:3001
+SIGIL_MCP_TOKEN=your_pat
+SIGIL_MCP_TRANSPORT=http
+SIGIL_MCP_HOST=127.0.0.1
+SIGIL_MCP_PORT=8788
+sigil-mcp`,
+        snippet: `{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "sigil_launch_list",
+    "arguments": { "limit": 5 }
+  }
+}`,
+    },
+    {
+        value: "sdk",
+        label: "sdk client",
+        packageName: "@heysigil/sigil-sdk",
+        status: "public",
+        summary:
+            "Typed JS/TS client used by apps and agent runtimes to call Sigil APIs directly.",
+        highlights: [
+            "Namespaces: verify, launch, wallet, fees, claim, chat, dashboard, mcp.",
+            "Typed interfaces for challenge flow, launch flow, and fee analytics.",
+            "Single token input supports both user auth and MCP PAT workflows.",
+        ],
+        command: "npm install @heysigil/sigil-sdk",
+        snippet: `import { createSigilClient } from "@heysigil/sigil-sdk";
+
+const sigil = createSigilClient({
+  baseUrl: "https://heysigil.com",
+  token: process.env.SIGIL_TOKEN,
+});
+
+const challenge = await sigil.verify.createChallenge({
+  method: "agent_keypair",
+  projectId: "my-agent",
+  walletAddress: "0x...",
+});`,
+    },
+    {
+        value: "core",
+        label: "core contracts",
+        packageName: "@heysigil/sigil-core",
+        status: "workspace",
+        summary:
+            "Shared package for canonical Sigil scopes, schemas, errors, and internal cross-package types.",
+        highlights: [
+            "Defines SIGIL_SCOPES used by SDK + MCP token authorization logic.",
+            "Keeps schema and type definitions consistent across packages.",
+            "Designed for DRY internals rather than external app consumption.",
+        ],
+        command: "npm run --workspace @heysigil/sigil-core build",
+        snippet: `import { SIGIL_SCOPES } from "@heysigil/sigil-core";
+
+const required = ["chat:write", "launch:write"];
+const allowed = required.every((scope) => SIGIL_SCOPES.includes(scope));`,
+    },
+] as const;
+
 function CopyButton({ text, label }: { text: string; label?: string }) {
     const [copied, setCopied] = useState(false);
 
@@ -285,6 +361,93 @@ export default function AgentsPage() {
                         </div>
                     </div>
                 </PixelCard>
+
+                <div className="border-border border-b bg-background">
+                    <div className="px-6 py-4 lg:px-12 border-border border-b bg-sage/20">
+                        <div className="flex items-center gap-3">
+                            <div className="size-10 border border-border bg-sage/40 flex items-center justify-center">
+                                <Terminal className="size-5 text-muted-foreground" />
+                            </div>
+                            <div>
+                                <p className="text-primary text-xs font-medium uppercase tracking-wider">
+                                    integration guides
+                                </p>
+                                <h2 className="text-lg font-semibold text-foreground lowercase">
+                                    package-level setup for agent runtimes
+                                </h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Tabs defaultValue="mcp" className="w-full">
+                        <div className="border-border border-b px-6 py-3 lg:px-12 bg-background/80">
+                            <TabsList className="h-auto w-full justify-start rounded-none border-0 bg-transparent p-0">
+                                {AGENT_PACKAGE_GUIDES.map((guide, index) => (
+                                    <TabsTrigger
+                                        key={guide.value}
+                                        value={guide.value}
+                                        className={cn(
+                                            "h-10 rounded-none border border-border px-4 py-2 text-xs font-mono uppercase tracking-wider data-[state=active]:bg-background data-[state=active]:border-primary",
+                                            index > 0 && "-ml-px",
+                                        )}
+                                    >
+                                        {guide.label}
+                                    </TabsTrigger>
+                                ))}
+                            </TabsList>
+                        </div>
+
+                        {AGENT_PACKAGE_GUIDES.map((guide) => (
+                            <TabsContent key={guide.value} value={guide.value} className="mt-0">
+                                <div className="grid lg:grid-cols-[1.1fr_1fr]">
+                                    <div className="border-border border-b lg:border-b-0 lg:border-r px-6 py-6 lg:px-8 lg:py-8">
+                                        <div className="flex flex-wrap items-center gap-2 mb-4">
+                                            <Badge variant="outline" className="text-[11px] font-mono">
+                                                {guide.packageName}
+                                            </Badge>
+                                            <Badge variant="secondary" className="text-[10px] uppercase">
+                                                {guide.status}
+                                            </Badge>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground mb-5">{guide.summary}</p>
+                                        <div className="space-y-2">
+                                            {guide.highlights.map((item) => (
+                                                <div key={item} className="flex items-start gap-2">
+                                                    <div className="size-1.5 bg-primary mt-2 shrink-0" />
+                                                    <span className="text-sm text-muted-foreground">{item}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="px-6 py-6 lg:px-8 lg:py-8 bg-foreground/[0.02] space-y-4">
+                                        <div className="border border-border bg-background/80">
+                                            <div className="border-border border-b px-4 py-2.5 flex items-center justify-between gap-2">
+                                                <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+                                                    command
+                                                </p>
+                                                <CopyButton text={guide.command} />
+                                            </div>
+                                            <pre className="px-4 py-3 text-xs text-muted-foreground font-mono whitespace-pre-wrap">
+                                                {guide.command}
+                                            </pre>
+                                        </div>
+                                        <div className="border border-border bg-background/80">
+                                            <div className="border-border border-b px-4 py-2.5 flex items-center justify-between gap-2">
+                                                <p className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground">
+                                                    example
+                                                </p>
+                                                <CopyButton text={guide.snippet} />
+                                            </div>
+                                            <pre className="px-4 py-3 text-xs text-muted-foreground font-mono whitespace-pre-wrap">
+                                                {guide.snippet}
+                                            </pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </TabsContent>
+                        ))}
+                    </Tabs>
+                </div>
 
                 <div className="border-border border-b bg-background/80">
                     <div className="flex flex-col sm:flex-row sm:items-center">
