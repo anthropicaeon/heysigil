@@ -21,7 +21,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:packages": "npm run --workspaces --if-present typecheck",
     "check": "bun run typecheck && bun run lint && bun run format:check",
-    "build:packages": "npm run --workspaces --if-present build",
+    "build:packages": "npm run -w packages/sigil-core build && npm run -w packages/sigil-sdk build && npm run -w packages/sigil-mcp build && npm run -w packages/sigilbot build",
     "prepare": "husky"
   },
   "dependencies": {
