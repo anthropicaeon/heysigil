@@ -165,7 +165,7 @@ export function createApp() {
                 // Reject unknown origins
                 return null;
             },
-            allowMethods: ["GET", "POST", "OPTIONS"],
+            allowMethods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
             allowHeaders: ["Content-Type", "Authorization", "X-Request-ID"],
             exposeHeaders: ["X-Request-ID"],
         }),
