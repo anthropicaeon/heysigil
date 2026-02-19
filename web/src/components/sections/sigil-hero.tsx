@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, CheckCircle, Sparkles } from "lucide-react";
+import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
@@ -9,8 +10,7 @@ import ModelViewer from "@/components/ModelViewer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PixelCard } from "@/components/ui/pixel-card";
-import { StarBorder } from "@/components/ui/star-border";
-import { HERO_MODEL_FRAME } from "@/lib/hero-model-frame";
+import { HERO_MODEL_FRAME, HERO_MODEL_VIEWER } from "@/lib/hero-model-frame";
 import { cn } from "@/lib/utils";
 
 const ROTATING_PROMPTS = [
@@ -65,6 +65,7 @@ export default function SigilHero() {
     const [quickLaunchStatus, setQuickLaunchStatus] = useState<QuickLaunchStatus>("idle");
     const [claimToken, setClaimToken] = useState<string | null>(null);
     const [copiedToken, setCopiedToken] = useState(false);
+    const [quickLaunchButtonTurns, setQuickLaunchButtonTurns] = useState(0);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -108,6 +109,10 @@ export default function SigilHero() {
         await navigator.clipboard.writeText(claimToken);
         setCopiedToken(true);
         window.setTimeout(() => setCopiedToken(false), 1200);
+    };
+
+    const triggerQuickLaunchButtonSpin = () => {
+        setQuickLaunchButtonTurns((prev) => prev + 1);
     };
 
     return (
@@ -227,18 +232,23 @@ export default function SigilHero() {
                                             Launch instantly as unclaimed. Claim ownership later using a one-time token.
                                         </p>
                                     </div>
-                                    <StarBorder
-                                        as="button"
-                                        type="button"
-                                        onClick={() => setIsQuickLaunchOpen((prev) => !prev)}
-                                        className="w-full sm:w-auto"
-                                        innerClassName="bg-lavender/85 hover:bg-lavender/92 border-primary/35"
-                                        color="hsl(var(--primary) / 0.55)"
-                                        speed="6s"
-                                        thickness={0.75}
-                                    >
-                                        {isQuickLaunchOpen ? "Hide Quick Launch" : "Open Quick Launch"}
-                                    </StarBorder>
+                                    <div className="w-full [perspective:900px] sm:w-auto">
+                                        <motion.div
+                                            animate={{ rotateX: quickLaunchButtonTurns * 360 }}
+                                            transition={{ type: "spring", stiffness: 190, damping: 15, mass: 0.58 }}
+                                        >
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => setIsQuickLaunchOpen((prev) => !prev)}
+                                                onMouseEnter={triggerQuickLaunchButtonSpin}
+                                                onFocus={triggerQuickLaunchButtonSpin}
+                                                className="w-full sm:w-auto border-primary/35 bg-lavender/85 hover:bg-lavender/92"
+                                            >
+                                                {isQuickLaunchOpen ? "Hide Quick Launch" : "Open Quick Launch"}
+                                            </Button>
+                                        </motion.div>
+                                    </div>
                                 </div>
 
                                 {isQuickLaunchOpen ? (
@@ -373,30 +383,15 @@ export default function SigilHero() {
                                         }}
                                     >
                                         <ModelViewer
-                                            url="/3D/logo_min.glb"
+                                            {...HERO_MODEL_VIEWER}
                                             width="100%"
                                             height="100%"
-                                            modelXOffset={-0.09}
-                                            modelYOffset={0.14}
-                                            defaultRotationX={10}
-                                            defaultRotationY={-6}
-                                            defaultZoom={1.1}
                                             enableMouseParallax={false}
                                             enableHoverRotation={false}
                                             enableManualRotation
                                             enableManualZoom={false}
-                                            ambientIntensity={0.2}
-                                            keyLightIntensity={1.25}
-                                            fillLightIntensity={0.45}
-                                            rimLightIntensity={1.05}
-                                            environmentPreset="studio"
-                                            autoFrame
-                                            autoFramePadding={1.1}
                                             fadeIn={false}
                                             autoRotate
-                                            autoRotateSpeed={0.16}
-                                            autoRotateSyncKey="sigil-hero-main"
-                                            showContactShadows={false}
                                             showLoader={false}
                                             showScreenshotButton={false}
                                         />

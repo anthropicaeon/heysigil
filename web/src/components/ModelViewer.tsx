@@ -182,6 +182,7 @@ interface ModelInnerProps {
   fadeIn: boolean;
   autoRotate: boolean;
   autoRotateSpeed: number;
+  autoRotateEpochMs?: number;
   onLoaded?: () => void;
 }
 
@@ -203,6 +204,7 @@ const ModelInner: FC<ModelInnerProps> = ({
   fadeIn,
   autoRotate,
   autoRotateSpeed,
+  autoRotateEpochMs,
   onLoaded,
 }) => {
   const outer = useRef<THREE.Group>(null!);
@@ -228,6 +230,7 @@ const ModelInner: FC<ModelInnerProps> = ({
   const modelReady = useRef(false);
   const pivotW = useRef(new THREE.Vector3());
   const onLoadedRef = useRef<ModelInnerProps["onLoaded"]>(onLoaded);
+  const lastSyncedAutoRotateAngle = useRef<number | null>(null);
 
   useEffect(() => {
     onLoadedRef.current = onLoaded;
@@ -267,6 +270,14 @@ const ModelInner: FC<ModelInnerProps> = ({
     pivotW.current.set(0, 0, 0);
 
     root.rotation.set(initPitch, initYaw, 0);
+    lastSyncedAutoRotateAngle.current = null;
+
+    if (autoRotate && typeof autoRotateEpochMs === "number") {
+      const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+      const syncedAngle = initYaw + autoRotateSpeed * ((now - autoRotateEpochMs) / 1000);
+      root.rotation.y = syncedAngle;
+      lastSyncedAutoRotateAngle.current = syncedAngle;
+    }
 
     if (autoFrame && (camera as THREE.PerspectiveCamera).isPerspectiveCamera) {
       const perspectiveCamera = camera as THREE.PerspectiveCamera;
@@ -325,7 +336,21 @@ const ModelInner: FC<ModelInnerProps> = ({
         clearInterval(fadeId);
       }
     };
-  }, [autoFrame, autoFramePadding, camera, content, fadeIn, initPitch, initYaw, pivot, xOff, yOff]);
+  }, [
+    autoFrame,
+    autoFramePadding,
+    autoRotate,
+    autoRotateEpochMs,
+    autoRotateSpeed,
+    camera,
+    content,
+    fadeIn,
+    initPitch,
+    initYaw,
+    pivot,
+    xOff,
+    yOff,
+  ]);
 
   useEffect(() => {
     if (!enableManualRotation || isTouch) return;
@@ -515,7 +540,15 @@ const ModelInner: FC<ModelInnerProps> = ({
     outer.current.rotation.y += cHov.current.y - previousHoverY;
 
     if (autoRotate) {
-      outer.current.rotation.y += autoRotateSpeed * deltaTime;
+      if (typeof autoRotateEpochMs === "number") {
+        const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+        const absoluteAngle = initYaw + autoRotateSpeed * ((now - autoRotateEpochMs) / 1000);
+        const previousAngle = lastSyncedAutoRotateAngle.current ?? absoluteAngle;
+        outer.current.rotation.y += absoluteAngle - previousAngle;
+        lastSyncedAutoRotateAngle.current = absoluteAngle;
+      } else {
+        outer.current.rotation.y += autoRotateSpeed * deltaTime;
+      }
       shouldInvalidate = true;
     }
 
@@ -600,16 +633,10 @@ const ModelViewer: FC<ViewerProps> = ({
 
   const initYaw = deg2rad(defaultRotationX);
   const initPitch = deg2rad(defaultRotationY);
-  const syncedInitYaw = useMemo(() => {
-    if (!autoRotate || !autoRotateSyncKey) {
-      return initYaw;
-    }
-
-    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
-    const epoch = getAutoRotateEpoch(autoRotateSyncKey);
-    const elapsedSeconds = (now - epoch) / 1000;
-    return initYaw + autoRotateSpeed * elapsedSeconds;
-  }, [autoRotate, autoRotateSpeed, autoRotateSyncKey, initYaw]);
+  const autoRotateEpochMs = useMemo(
+    () => (autoRotate && autoRotateSyncKey ? getAutoRotateEpoch(autoRotateSyncKey) : undefined),
+    [autoRotate, autoRotateSyncKey],
+  );
   const cameraZ = Math.min(Math.max(defaultZoom, minZoomDistance), maxZoomDistance);
   const requiresContinuousFrame = autoRotate || enableMouseParallax || enableHoverRotation;
 
@@ -704,7 +731,7 @@ const ModelViewer: FC<ViewerProps> = ({
             xOff={modelXOffset}
             yOff={modelYOffset}
             pivot={pivot}
-            initYaw={syncedInitYaw}
+            initYaw={initYaw}
             initPitch={initPitch}
             minZoom={minZoomDistance}
             maxZoom={maxZoomDistance}
@@ -717,6 +744,7 @@ const ModelViewer: FC<ViewerProps> = ({
             fadeIn={fadeIn}
             autoRotate={autoRotate}
             autoRotateSpeed={autoRotateSpeed}
+            autoRotateEpochMs={autoRotateEpochMs}
             onLoaded={onModelLoaded}
           />
         </Suspense>

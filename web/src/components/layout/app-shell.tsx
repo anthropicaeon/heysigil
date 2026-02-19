@@ -7,17 +7,17 @@ import { Toaster } from "sonner";
 
 import ModelViewer from "@/components/ModelViewer";
 import { PixelCard } from "@/components/ui/pixel-card";
-import { HERO_MODEL_FRAME, HERO_MODEL_STAGE_SELECTOR } from "@/lib/hero-model-frame";
+import {
+    HERO_MODEL_FRAME,
+    HERO_MODEL_LOADER_CENTER,
+    HERO_MODEL_LOADER_TIMING,
+    HERO_MODEL_STAGE_SELECTOR,
+    HERO_MODEL_VIEWER,
+} from "@/lib/hero-model-frame";
 import { cn } from "@/lib/utils";
 
 import { Footer } from "./footer";
 import Navbar from "./navbar";
-
-const MIN_LOADER_MS = 2000;
-const MAX_MODEL_WAIT_MS = 12000;
-const ATMOSPHERE_FADE_MS = 420;
-const HANDOFF_SLIDE_MS = 950;
-const LOADER_CENTER_X_COMP_FACTOR = 0.045;
 
 type ModelFrame = {
     top: number | string;
@@ -60,7 +60,10 @@ const getCenteredFrame = (targetRect: DOMRect | null = null): ModelFrame => {
 
     if (targetRect) {
         const targetAspect = targetRect.width / targetRect.height;
-        width = Math.max(320, Math.min(targetRect.width * 1.08, window.innerWidth * 0.62));
+        width = Math.max(
+            320,
+            Math.min(targetRect.width * HERO_MODEL_FRAME.widthScale, window.innerWidth * 0.62),
+        );
         height = width / targetAspect;
 
         const maxWidth = window.innerWidth * 0.72;
@@ -78,8 +81,8 @@ const getCenteredFrame = (targetRect: DOMRect | null = null): ModelFrame => {
     }
 
     return {
-        top: window.innerHeight / 2,
-        left: window.innerWidth / 2 + width * LOADER_CENTER_X_COMP_FACTOR,
+        top: window.innerHeight / 2 + height * HERO_MODEL_LOADER_CENTER.yCompFactor,
+        left: window.innerWidth / 2 + width * HERO_MODEL_LOADER_CENTER.xCompFactor,
         width: Math.round(width),
         height: Math.round(height),
         opacity: 1,
@@ -103,8 +106,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const dismissStartedRef = useRef(false);
 
     useEffect(() => {
-        const minTimer = window.setTimeout(() => setMinDelayDone(true), MIN_LOADER_MS);
-        const fallbackTimer = window.setTimeout(() => setFallbackDone(true), MAX_MODEL_WAIT_MS);
+        const minTimer = window.setTimeout(
+            () => setMinDelayDone(true),
+            HERO_MODEL_LOADER_TIMING.minLoaderMs,
+        );
+        const fallbackTimer = window.setTimeout(
+            () => setFallbackDone(true),
+            HERO_MODEL_LOADER_TIMING.maxModelWaitMs,
+        );
 
         return () => {
             window.clearTimeout(minTimer);
@@ -153,7 +162,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             window.setTimeout(() => {
                 setContentVisible(true);
                 setOverlayVisible(false);
-            }, ATMOSPHERE_FADE_MS + 120);
+            }, HERO_MODEL_LOADER_TIMING.atmosphereFadeMs + 120);
         };
 
         if (pathname !== "/") {
@@ -183,7 +192,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     opacity: 1,
                 };
             });
-        }, ATMOSPHERE_FADE_MS);
+        }, HERO_MODEL_LOADER_TIMING.atmosphereFadeMs);
 
         window.setTimeout(() => {
             const targetFrame = getHomeTargetFrameFromStage();
@@ -201,7 +210,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             }
 
             window.requestAnimationFrame(() => setOverlayVisible(false));
-        }, ATMOSPHERE_FADE_MS + HANDOFF_SLIDE_MS);
+        }, HERO_MODEL_LOADER_TIMING.atmosphereFadeMs + HERO_MODEL_LOADER_TIMING.handoffSlideMs);
     }, [fallbackDone, minDelayDone, modelLoaded, overlayVisible, pathname]);
 
     return (
@@ -250,7 +259,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     />
 
                     <div
-                        className="pointer-events-none fixed z-[121] transition-[top,left,width,height,opacity] duration-[950ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+                        className="pointer-events-none fixed z-[121] transition-[top,left,width,height,opacity] ease-[cubic-bezier(0.22,1,0.36,1)]"
                         style={{
                             top: modelFrame.top,
                             left: modelFrame.left,
@@ -258,34 +267,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                             height: modelFrame.height,
                             opacity: modelFrame.opacity,
                             transform: "translate(-50%, -50%)",
+                            transitionDuration: `${HERO_MODEL_LOADER_TIMING.handoffSlideMs}ms`,
                         }}
                     >
                         <div className="relative size-full">
                             <ModelViewer
-                                url="/3D/logo_min.glb"
+                                {...HERO_MODEL_VIEWER}
                                 width="100%"
                                 height="100%"
-                                modelXOffset={-0.09}
-                                modelYOffset={0.14}
-                                defaultRotationX={10}
-                                defaultRotationY={-6}
-                                defaultZoom={1.1}
                                 enableMouseParallax={false}
                                 enableHoverRotation={false}
                                 enableManualRotation={false}
                                 enableManualZoom={false}
-                                ambientIntensity={0.2}
-                                keyLightIntensity={1.25}
-                                fillLightIntensity={0.45}
-                                rimLightIntensity={1.05}
-                                environmentPreset="studio"
-                                autoFrame
-                                autoFramePadding={1.1}
                                 fadeIn={false}
                                 autoRotate
-                                autoRotateSpeed={0.16}
-                                autoRotateSyncKey="sigil-hero-main"
-                                showContactShadows={false}
                                 showLoader={false}
                                 showScreenshotButton={false}
                                 onModelLoaded={handleLoaderModelLoaded}
