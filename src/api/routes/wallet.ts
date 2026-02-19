@@ -8,6 +8,7 @@
  */
 
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
+import { z } from "zod";
 import { getParams } from "../helpers/request.js";
 import {
     createWallet,
@@ -17,6 +18,7 @@ import {
     getAddress,
     getUserAddress,
     getBalance,
+    getSignerWallet,
 } from "../../services/wallet.js";
 import { walletCreateRateLimit, sessionEnumerationRateLimit } from "../../middleware/rate-limit.js";
 import {
@@ -45,13 +47,21 @@ wallet.get("/me", privyAuth(), async (c) => {
     }
 
     const address = await getUserAddress(userId);
+    const balance = await getBalance(`user:${userId}`);
 
-    // Get balance using the user-keyed wallet
-    // We pass the userId and query balance by address
     return c.json({
         exists: true as const,
         address,
-        balance: null, // Balance fetched separately via refresh
+        balance: balance
+            ? {
+                  eth: balance.ethFormatted,
+                  tokens: balance.tokens.map((t) => ({
+                      symbol: t.symbol,
+                      balance: t.formatted,
+                      address: t.address,
+                  })),
+              }
+            : null,
     });
 });
 
@@ -70,6 +80,87 @@ wallet.post("/me", privyAuth(), async (c) => {
         address: walletInfo.address,
         createdAt: walletInfo.createdAt,
     });
+});
+
+/**
+ * POST /api/wallet/me/withdraw
+ * Withdraw ETH or ERC-20 tokens to an external address.
+ */
+wallet.post("/me/withdraw", privyAuth(), async (c) => {
+    const userId = getUserId(c);
+    if (!userId) return c.json({ error: "Not authenticated" }, 401);
+
+    const body = await c.req.json();
+    const parsed = z
+        .object({
+            to: z.string().regex(/^0x[0-9a-fA-F]{40}$/, "Invalid destination address"),
+            amount: z.string().min(1, "Amount is required"),
+            token: z.enum(["ETH", "USDC", "WETH", "DAI", "USDT"]).default("ETH"),
+        })
+        .safeParse(body);
+
+    if (!parsed.success) {
+        return c.json({ error: parsed.error.issues[0]?.message || "Invalid request" }, 400);
+    }
+
+    const { to, amount, token } = parsed.data;
+
+    const signer = await getSignerWallet(`user:${userId}`);
+    if (!signer) {
+        return c.json({ error: "Wallet not found" }, 404);
+    }
+
+    try {
+        const { ethers } = await import("ethers");
+
+        if (token === "ETH") {
+            // Native ETH transfer
+            const value = ethers.parseEther(amount);
+            const tx = await signer.sendTransaction({ to, value });
+            const receipt = await tx.wait(1);
+
+            return c.json({
+                success: true,
+                txHash: tx.hash,
+                blockNumber: receipt?.blockNumber,
+                token: "ETH",
+                amount,
+                to,
+            });
+        }
+
+        // ERC-20 transfer
+        const { resolveToken } = await import("../../config/tokens.js");
+        const tokenInfo = resolveToken(token);
+        if (!tokenInfo) {
+            return c.json({ error: `Unsupported token: ${token}` }, 400);
+        }
+
+        const erc20 = new ethers.Contract(
+            tokenInfo.address,
+            ["function transfer(address to, uint256 amount) returns (bool)"],
+            signer,
+        );
+
+        const value = ethers.parseUnits(amount, tokenInfo.decimals);
+        const tx = await erc20.transfer(to, value);
+        const receipt = await tx.wait(1);
+
+        return c.json({
+            success: true,
+            txHash: tx.hash,
+            blockNumber: receipt?.blockNumber,
+            token,
+            amount,
+            to,
+        });
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("insufficient funds")) {
+            return c.json({ error: "Insufficient balance for this transfer" }, 400);
+        }
+        return c.json({ error: `Transfer failed: ${msg.slice(0, 200)}` }, 500);
+    }
 });
 
 // ─── Session-based wallet routes ────────────────────────

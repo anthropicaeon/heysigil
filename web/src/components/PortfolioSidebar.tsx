@@ -4,18 +4,21 @@
  * PortfolioSidebar Component
  *
  * Border-centric wallet sidebar with full-height sections.
- * Displays wallet info, balances, and quick actions.
+ * Displays wallet info, balances, and quick actions including withdraw.
  */
 
 import {
     ArrowDown,
+    ArrowUpRight,
     Check,
     ChevronLeft,
     Copy,
     ExternalLink,
+    Loader2,
     RefreshCw,
     User,
     Wallet,
+    X,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -23,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { getTokenColor, TOKEN_COLORS } from "@/config/token-colors";
 import { getUserDisplay, useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import { useWalletPolling } from "@/hooks/useWalletPolling";
+import { apiClient } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 
 interface PortfolioSidebarProps {
@@ -37,6 +41,16 @@ export default function PortfolioSidebar({
     onToggle,
 }: PortfolioSidebarProps) {
     const [copied, setCopied] = useState(false);
+    const [showWithdraw, setShowWithdraw] = useState(false);
+    const [withdrawTo, setWithdrawTo] = useState("");
+    const [withdrawAmount, setWithdrawAmount] = useState("");
+    const [withdrawToken, setWithdrawToken] = useState("ETH");
+    const [withdrawing, setWithdrawing] = useState(false);
+    const [withdrawResult, setWithdrawResult] = useState<{
+        success?: boolean;
+        txHash?: string;
+        error?: string;
+    } | null>(null);
 
     const privy = useOptionalPrivy();
     const isAuthenticated = privy?.authenticated ?? false;
@@ -54,6 +68,55 @@ export default function PortfolioSidebar({
 
     const ethBalance = wallet?.balance ? parseFloat(wallet.balance.eth) : 0;
     const hasTokens = wallet?.balance?.tokens && wallet.balance.tokens.length > 0;
+
+    // Build the list of available tokens for withdraw dropdown
+    const availableTokens = ["ETH"];
+    if (wallet?.balance?.tokens) {
+        for (const t of wallet.balance.tokens) {
+            if (!availableTokens.includes(t.symbol)) {
+                availableTokens.push(t.symbol);
+            }
+        }
+    }
+
+    const handleWithdraw = async () => {
+        if (!withdrawTo || !withdrawAmount) return;
+
+        setWithdrawing(true);
+        setWithdrawResult(null);
+
+        try {
+            const token = await privy?.getAccessToken?.();
+            if (!token) {
+                setWithdrawResult({ error: "Not authenticated" });
+                return;
+            }
+
+            const result = await apiClient.wallet.withdraw(
+                token,
+                withdrawTo,
+                withdrawAmount,
+                withdrawToken,
+            );
+
+            setWithdrawResult({ success: true, txHash: result.txHash });
+            // Refresh balance after withdrawal
+            setTimeout(() => refreshBalance(), 2000);
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : "Withdrawal failed";
+            setWithdrawResult({ error: msg });
+        } finally {
+            setWithdrawing(false);
+        }
+    };
+
+    const resetWithdraw = () => {
+        setShowWithdraw(false);
+        setWithdrawTo("");
+        setWithdrawAmount("");
+        setWithdrawToken("ETH");
+        setWithdrawResult(null);
+    };
 
     // Collapsed state
     if (collapsed) {
@@ -145,17 +208,12 @@ export default function PortfolioSidebar({
                             </span>
                         </div>
                         <div className="flex-1 flex flex-col">
-                            {/* Top spacer */}
                             <div className="flex-1 border-b border-border bg-cream/20" />
-
-                            {/* Icon */}
                             <div className="px-4 py-6 border-b border-border flex justify-center bg-lavender/10">
                                 <div className="size-14 bg-background border border-border flex items-center justify-center">
                                     <User className="size-7 text-primary" />
                                 </div>
                             </div>
-
-                            {/* Title */}
                             <div className="px-4 py-3 border-b border-border text-center">
                                 <p className="text-sm font-semibold text-foreground lowercase">
                                     sign in to get started
@@ -164,8 +222,6 @@ export default function PortfolioSidebar({
                                     Log in with GitHub, Telegram, or email
                                 </p>
                             </div>
-
-                            {/* Action */}
                             <div className="px-4 py-4 border-b border-border">
                                 <Button
                                     onClick={() => privy.login?.()}
@@ -175,8 +231,6 @@ export default function PortfolioSidebar({
                                     Sign In
                                 </Button>
                             </div>
-
-                            {/* Bottom spacer */}
                             <div className="flex-1 bg-sage/10" />
                         </div>
                     </>
@@ -191,17 +245,12 @@ export default function PortfolioSidebar({
                             </span>
                         </div>
                         <div className="flex-1 flex flex-col">
-                            {/* Top spacer */}
                             <div className="flex-1 border-b border-border bg-cream/20" />
-
-                            {/* Icon */}
                             <div className="px-4 py-6 border-b border-border flex justify-center bg-lavender/10">
                                 <div className="size-14 bg-background border border-border flex items-center justify-center">
                                     <Wallet className="size-7 text-primary" />
                                 </div>
                             </div>
-
-                            {/* Title */}
                             <div className="px-4 py-3 border-b border-border text-center">
                                 <p className="text-sm font-semibold text-foreground lowercase">
                                     {loading ? "creating wallet..." : "no wallet yet"}
@@ -210,8 +259,6 @@ export default function PortfolioSidebar({
                                     {loading ? "Please wait" : "Create a wallet to start trading"}
                                 </p>
                             </div>
-
-                            {/* Action */}
                             <div className="px-4 py-4 border-b border-border">
                                 <Button
                                     onClick={createWallet}
@@ -222,8 +269,6 @@ export default function PortfolioSidebar({
                                     {loading ? "Creating..." : "Create Wallet"}
                                 </Button>
                             </div>
-
-                            {/* Bottom spacer */}
                             <div className="flex-1 bg-sage/10" />
                         </div>
                     </>
@@ -342,7 +387,7 @@ export default function PortfolioSidebar({
                             </span>
                         </div>
                         <div className="px-4 py-3 border-b border-border">
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                                 <Button
                                     variant="outline"
                                     size="sm"
@@ -351,6 +396,15 @@ export default function PortfolioSidebar({
                                 >
                                     <ArrowDown className="size-3.5" />
                                     Deposit
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setShowWithdraw(!showWithdraw)}
+                                    className="gap-1.5"
+                                >
+                                    <ArrowUpRight className="size-3.5" />
+                                    Send
                                 </Button>
                                 <Button
                                     variant="outline"
@@ -373,6 +427,115 @@ export default function PortfolioSidebar({
                                 </Button>
                             </div>
                         </div>
+
+                        {/* Withdraw form */}
+                        {showWithdraw && (
+                            <>
+                                <div className="px-4 py-2 border-b border-border bg-lavender/20">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                                            Send / Withdraw
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={resetWithdraw}
+                                            className="size-5 hover:bg-background flex items-center justify-center transition-colors"
+                                        >
+                                            <X className="size-3 text-muted-foreground" />
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="px-4 py-3 border-b border-border space-y-3">
+                                    {/* Token selector */}
+                                    <div>
+                                        <label className="text-xs text-muted-foreground block mb-1">
+                                            Token
+                                        </label>
+                                        <select
+                                            value={withdrawToken}
+                                            onChange={(e) => setWithdrawToken(e.target.value)}
+                                            className="w-full text-sm border border-border bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+                                        >
+                                            {availableTokens.map((t) => (
+                                                <option key={t} value={t}>
+                                                    {t}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {/* Destination address */}
+                                    <div>
+                                        <label className="text-xs text-muted-foreground block mb-1">
+                                            To Address
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={withdrawTo}
+                                            onChange={(e) => setWithdrawTo(e.target.value)}
+                                            placeholder="0x..."
+                                            className="w-full text-sm font-mono border border-border bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/50"
+                                        />
+                                    </div>
+
+                                    {/* Amount */}
+                                    <div>
+                                        <label className="text-xs text-muted-foreground block mb-1">
+                                            Amount
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={withdrawAmount}
+                                            onChange={(e) => setWithdrawAmount(e.target.value)}
+                                            placeholder="0.01"
+                                            className="w-full text-sm border border-border bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/50"
+                                        />
+                                    </div>
+
+                                    {/* Submit */}
+                                    <Button
+                                        size="sm"
+                                        className="w-full gap-1.5"
+                                        onClick={handleWithdraw}
+                                        disabled={withdrawing || !withdrawTo || !withdrawAmount}
+                                    >
+                                        {withdrawing ? (
+                                            <>
+                                                <Loader2 className="size-3.5 animate-spin" />
+                                                Sending...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ArrowUpRight className="size-3.5" />
+                                                Send {withdrawToken}
+                                            </>
+                                        )}
+                                    </Button>
+
+                                    {/* Result */}
+                                    {withdrawResult?.success && (
+                                        <div className="p-2 bg-green-50 border border-green-200 text-xs">
+                                            <p className="text-green-700 font-medium">✓ Sent successfully</p>
+                                            {withdrawResult.txHash && (
+                                                <a
+                                                    href={`https://basescan.org/tx/${withdrawResult.txHash}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-green-600 underline mt-1 block truncate"
+                                                >
+                                                    View on BaseScan →
+                                                </a>
+                                            )}
+                                        </div>
+                                    )}
+                                    {withdrawResult?.error && (
+                                        <div className="p-2 bg-red-50 border border-red-200 text-xs">
+                                            <p className="text-red-700">{withdrawResult.error}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
 
                         {/* Spacer */}
                         <div className="flex-1 bg-cream/10" />

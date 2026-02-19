@@ -115,6 +115,21 @@ export const apiClient = {
                 method: "POST",
                 headers: { Authorization: `Bearer ${accessToken}` },
             }),
+
+        /** Withdraw ETH or ERC-20 tokens to an external address */
+        withdraw: (accessToken: string, to: string, amount: string, token = "ETH") =>
+            request<{
+                success: boolean;
+                txHash: string;
+                blockNumber?: number;
+                token: string;
+                amount: string;
+                to: string;
+            }>("/api/wallet/me/withdraw", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${accessToken}` },
+                body: JSON.stringify({ to, amount, token }),
+            }),
     },
 
     fees: {
