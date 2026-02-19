@@ -122,3 +122,24 @@ Backend:
 
 ### Deleted Files
 - `web/src/providers/Web3Provider.tsx` (old RainbowKit/Wagmi provider)
+
+---
+
+## 3. Quick Launch + Connect Runtime
+
+For the full architecture map, see:
+
+- `docs/architecture/quick-launch-connect-sigilbot.md`
+
+Core backend routes:
+
+- `POST /api/launch/quick` (one-click unclaimed launch + one-time claim token)
+- `POST /api/claim/launch-token` (redeem launch token)
+- `PATCH /api/claim/projects/{projectId}` (post-claim metadata update)
+- `POST /api/connect/intent` + `POST /api/connect/handshake` (hardened handshake)
+- `POST /api/connect/quick-launch` (one-click SigilBot Railway provisioning)
+
+Core frontend surfaces:
+
+- `web/src/components/sections/sigil-hero.tsx`
+- `web/src/components/ConnectFlow/index.tsx`
