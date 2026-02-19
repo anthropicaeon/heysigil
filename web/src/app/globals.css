@@ -219,19 +219,6 @@
     animation: star-movement-top linear infinite alternate;
   }
 
-  @keyframes loader-drift {
-    0%,
-    100% {
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-    50% {
-      transform: translate3d(0, -10px, 0) scale(1.015);
-    }
-  }
-
-  .animate-loader-drift {
-    animation: loader-drift 3.2s ease-in-out infinite;
-  }
 }
 
 @layer components {
