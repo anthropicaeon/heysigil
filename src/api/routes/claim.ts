@@ -141,6 +141,8 @@ claim.openapi(
             );
 
             // Wrap DB updates in transaction for atomicity
+            let projectPoolId: string | null = null;
+
             await db.transaction(async (tx) => {
                 // Update verification with attestation UID
                 await tx
@@ -177,6 +179,7 @@ claim.openapi(
                             verifiedAt: verification.verifiedAt || new Date(),
                         })
                         .where(eq(schema.projects.id, existingProject.id));
+                    projectPoolId = existingProject.poolId;
                 } else {
                     // No deployed project yet — create a new record
                     await tx.insert(schema.projects).values({
@@ -188,6 +191,20 @@ claim.openapi(
                     });
                 }
             });
+
+            // After DB commit: call assignDev on FeeVault to unlock escrowed fees
+            if (projectPoolId) {
+                tryAssignDev(
+                    projectPoolId,
+                    verification.walletAddress,
+                    verification.projectId,
+                ).catch((err) => {
+                    // Non-blocking — fees can still be assigned via backfill service
+                    console.warn(
+                        `assignDev failed for ${verification.projectId}: ${getErrorMessage(err)}`,
+                    );
+                });
+            }
 
             return c.json({
                 success: true as const,
@@ -252,3 +269,50 @@ claim.openapi(
 );
 
 export { claim };
+
+// ─── assignDev Helper ───────────────────────────────────
+
+/**
+ * After a successful claim, try to call assignDev() on the FeeVault
+ * to move escrowed fees into the dev's claimable balance.
+ *
+ * This is non-blocking — if it fails, the startup backfill service
+ * will retry on next deploy.
+ */
+async function tryAssignDev(
+    poolId: string,
+    walletAddress: string,
+    projectId: string,
+): Promise<void> {
+    const { getEnv } = await import("../../config/env.js");
+    const env = getEnv();
+
+    if (!env.DEPLOYER_PRIVATE_KEY || !env.SIGIL_FEE_VAULT_ADDRESS) {
+        console.warn("Cannot assignDev — DEPLOYER_PRIVATE_KEY or SIGIL_FEE_VAULT_ADDRESS not set");
+        return;
+    }
+
+    const { ethers } = await import("ethers");
+    const provider = new ethers.JsonRpcProvider(env.BASE_RPC_URL || "https://mainnet.base.org");
+    const wallet = new ethers.Wallet(env.DEPLOYER_PRIVATE_KEY, provider);
+    const vault = new ethers.Contract(
+        env.SIGIL_FEE_VAULT_ADDRESS,
+        ["function assignDev(bytes32 poolId, address dev) external"],
+        wallet,
+    );
+
+    try {
+        const tx = await vault.assignDev(poolId, walletAddress);
+        await tx.wait(1);
+        console.log(
+            `assignDev succeeded for ${projectId}: pool ${poolId.slice(0, 18)}... → ${walletAddress}`,
+        );
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("PoolAlreadyAssigned") || msg.includes("NoUnclaimedFees")) {
+            // Expected — pool already assigned or no escrowed fees
+            return;
+        }
+        throw err;
+    }
+}

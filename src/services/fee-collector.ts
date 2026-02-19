@@ -212,21 +212,20 @@ export class FeeCollector {
                     );
                 } catch (err) {
                     const msg = err instanceof Error ? err.message : String(err);
-                    // PoolAlreadyAssigned or NoUnclaimedFees are expected reverts — skip silently
-                    if (
-                        msg.includes("PoolAlreadyAssigned") ||
-                        msg.includes("NoUnclaimedFees") ||
-                        msg.includes("execution reverted")
-                    ) {
+                    // Only PoolAlreadyAssigned or NoUnclaimedFees are truly expected
+                    if (msg.includes("PoolAlreadyAssigned") || msg.includes("NoUnclaimedFees")) {
                         log.info(
                             { project: project.name },
                             "assignDev: already assigned or no fees",
                         );
                         skipped++;
                     } else {
+                        // Log the full error including revert data for debugging
+                        const errData =
+                            (err as any)?.data || (err as any)?.error?.data || "no data";
                         log.warn(
-                            { project: project.name, err: msg.slice(0, 200) },
-                            "assignDev: failed",
+                            { project: project.name, err: msg.slice(0, 300), revertData: errData },
+                            "assignDev: FAILED — investigate this revert",
                         );
                     }
                 }
