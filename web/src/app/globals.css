@@ -6,112 +6,112 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Sigil brand colors */
-  --purple: 270 42% 33%;        /* #482863 */
-  --purple-light: 270 40% 43%;  /* #5e3680 */
-  --purple-dark: 270 44% 23%;   /* #351d4a */
-  --purple-subtle: 270 42% 33% / 0.08;
+  /* Sigil brand colors (oklch) */
+  --purple: 0.3915 0.1184 304.58;
+  --purple-light: 0.4715 0.1406 304.65;
+  --purple-dark: 0.3081 0.0920 304.64;
+  --purple-subtle: 0.3915 0.1184 304.58 / 0.08;
 
   /* Pastel accents */
-  --sage: 110 33% 93%;          /* #EAF4E8 */
-  --rose: 10 33% 93%;           /* #F4EAE8 */
-  --cream: 50 33% 93%;          /* #F4F3E8 */
-  --lavender: 280 33% 93%;      /* #F2E8F4 */
+  --sage: 0.9537 0.0187 140.72;
+  --rose: 0.9419 0.0110 30.73;
+  --cream: 0.9572 0.0131 97.53;
+  --lavender: 0.9383 0.0178 314.53;
 
   /* shadcn semantic variables - Light mode only */
-  --background: 0 0% 100%;
-  --foreground: 240 10% 12%;
-  --card: 0 0% 100%;
-  --card-foreground: 240 10% 12%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 12%;
-  --primary: 270 42% 33%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 110 33% 93%;     /* sage */
-  --secondary-foreground: 240 10% 12%;
-  --muted: 50 33% 93%;          /* cream */
-  --muted-foreground: 240 5% 45%;
-  --accent: 280 33% 93%;        /* lavender */
-  --accent-foreground: 240 10% 12%;
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-  --border: 240 6% 90%;
-  --input: 240 6% 90%;
-  --ring: 270 42% 33%;
+  --background: 1.0000 0 none;
+  --foreground: 0.2272 0.0118 285.39;
+  --card: 1.0000 0 none;
+  --card-foreground: 0.2272 0.0118 285.39;
+  --popover: 1.0000 0 none;
+  --popover-foreground: 0.2272 0.0118 285.39;
+  --primary: 0.3915 0.1184 304.58;
+  --primary-foreground: 1.0000 0 none;
+  --secondary: 0.9537 0.0187 140.72;     /* sage */
+  --secondary-foreground: 0.2272 0.0118 285.39;
+  --muted: 0.9572 0.0131 97.53;          /* cream */
+  --muted-foreground: 0.5388 0.0178 285.74;
+  --accent: 0.9383 0.0178 314.53;        /* lavender */
+  --accent-foreground: 0.2272 0.0118 285.39;
+  --destructive: 0.6356 0.2082 25.37;
+  --destructive-foreground: 1.0000 0 none;
+  --border: 0.9197 0.0042 285.89;
+  --input: 0.9197 0.0042 285.89;
+  --ring: 0.3915 0.1184 304.58;
 
   /* Chart colors (Sigil themed) */
-  --chart-1: 270 42% 33%;       /* Purple */
-  --chart-2: 110 33% 45%;       /* Sage darker */
-  --chart-3: 280 33% 45%;       /* Lavender darker */
-  --chart-4: 10 33% 65%;        /* Rose */
-  --chart-5: 50 45% 55%;        /* Cream/gold */
+  --chart-1: 0.3915 0.1184 304.58;       /* Purple */
+  --chart-2: 0.6206 0.1265 140.38;       /* Sage darker */
+  --chart-3: 0.5094 0.1272 313.43;       /* Lavender darker */
+  --chart-4: 0.7045 0.0615 31.43;        /* Rose */
+  --chart-5: 0.7498 0.1089 98.24;        /* Cream/gold */
 
   /* Structural colors (for borders/backgrounds) */
-  --obsidian: 0 0% 98%;
-  --dark-gray: 0 0% 88%;
-  --mid-gray: 0 0% 55%;
-  --overlay-gray: 0 0% 80% / 0.27;
-  --ebony: 280 14% 92%;
-  --charcoal: 0 0% 85%;
-  --jet: 240 10% 96%;
-  --star: 270 42% 33%;
+  --obsidian: 0.9848 0 none;
+  --dark-gray: 0.9079 0 none;
+  --mid-gray: 0.6409 0 none;
+  --overlay-gray: 0.8452 0 none / 0.27;
+  --ebony: 0.9348 0.0087 314.37;
+  --charcoal: 0.8845 0 none;
+  --jet: 0.9671 0.0028 285.68;
+  --star: 0.3915 0.1184 304.58;
 }
 
 @theme inline {
   --font-figtree: var(--font-figtree);
 
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
+  --color-background: oklch(var(--background));
+  --color-foreground: oklch(var(--foreground));
 
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card: oklch(var(--card));
+  --color-card-foreground: oklch(var(--card-foreground));
 
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover: oklch(var(--popover));
+  --color-popover-foreground: oklch(var(--popover-foreground));
 
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary: oklch(var(--primary));
+  --color-primary-foreground: oklch(var(--primary-foreground));
 
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary: oklch(var(--secondary));
+  --color-secondary-foreground: oklch(var(--secondary-foreground));
 
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted: oklch(var(--muted));
+  --color-muted-foreground: oklch(var(--muted-foreground));
 
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent: oklch(var(--accent));
+  --color-accent-foreground: oklch(var(--accent-foreground));
 
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-destructive: oklch(var(--destructive));
+  --color-destructive-foreground: oklch(var(--destructive-foreground));
 
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
+  --color-border: oklch(var(--border));
+  --color-input: oklch(var(--input));
+  --color-ring: oklch(var(--ring));
 
-  --color-chart-1: hsl(var(--chart-1));
-  --color-chart-2: hsl(var(--chart-2));
-  --color-chart-3: hsl(var(--chart-3));
-  --color-chart-4: hsl(var(--chart-4));
-  --color-chart-5: hsl(var(--chart-5));
+  --color-chart-1: oklch(var(--chart-1));
+  --color-chart-2: oklch(var(--chart-2));
+  --color-chart-3: oklch(var(--chart-3));
+  --color-chart-4: oklch(var(--chart-4));
+  --color-chart-5: oklch(var(--chart-5));
 
   /* Sigil pastel colors */
-  --color-purple: hsl(var(--purple));
-  --color-purple-light: hsl(var(--purple-light));
-  --color-purple-dark: hsl(var(--purple-dark));
-  --color-sage: hsl(var(--sage));
-  --color-rose: hsl(var(--rose));
-  --color-cream: hsl(var(--cream));
-  --color-lavender: hsl(var(--lavender));
+  --color-purple: oklch(var(--purple));
+  --color-purple-light: oklch(var(--purple-light));
+  --color-purple-dark: oklch(var(--purple-dark));
+  --color-sage: oklch(var(--sage));
+  --color-rose: oklch(var(--rose));
+  --color-cream: oklch(var(--cream));
+  --color-lavender: oklch(var(--lavender));
 
   /* Structural */
-  --color-obsidian: hsl(var(--obsidian));
-  --color-dark-gray: hsl(var(--dark-gray));
-  --color-mid-gray: hsl(var(--mid-gray));
-  --color-overlay-gray: hsl(var(--overlay-gray));
-  --color-ebony: hsl(var(--ebony));
-  --color-charcoal: hsl(var(--charcoal));
-  --color-jet: hsl(var(--jet));
-  --color-star: hsl(var(--star));
+  --color-obsidian: oklch(var(--obsidian));
+  --color-dark-gray: oklch(var(--dark-gray));
+  --color-mid-gray: oklch(var(--mid-gray));
+  --color-overlay-gray: oklch(var(--overlay-gray));
+  --color-ebony: oklch(var(--ebony));
+  --color-charcoal: oklch(var(--charcoal));
+  --color-jet: oklch(var(--jet));
+  --color-star: oklch(var(--star));
 
   --spacing-9xl: 100rem;
 

@@ -158,8 +158,8 @@ export default function SigilHero() {
                         >
                             {/* Sigil Visual - Full render stage */}
                             <div className="flex-1 border-border border-b relative z-10 overflow-hidden">
-                                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,hsl(var(--primary)/0.18),transparent_62%)]" />
-                                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,hsl(var(--sage)/0.14),transparent_40%,hsl(var(--cream)/0.12)_100%)]" />
+                                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,oklch(var(--primary)/0.18),transparent_62%)]" />
+                                <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,oklch(var(--sage)/0.14),transparent_40%,oklch(var(--cream)/0.12)_100%)]" />
                                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background/80 to-transparent" />
 
                                 <div className="relative h-full min-h-[420px]">
