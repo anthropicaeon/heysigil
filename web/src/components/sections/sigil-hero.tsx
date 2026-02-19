@@ -46,6 +46,8 @@ export default function SigilHero() {
     const [quickLaunchPluginId, setQuickLaunchPluginId] = useState<string | null>(null);
     const [quickLaunchStatus, setQuickLaunchStatus] = useState<QuickLaunchStatus>("idle");
     const [claimToken, setClaimToken] = useState<string | null>(null);
+    const [runtimeEndpoint, setRuntimeEndpoint] = useState<string | null>(null);
+    const [runtimeProvisionError, setRuntimeProvisionError] = useState<string | null>(null);
     const [copiedToken, setCopiedToken] = useState(false);
     const [quickLaunchError, setQuickLaunchError] = useState<string | null>(null);
     const selectedQuickLaunchPlugin = getSigilPluginById(quickLaunchPluginId);
@@ -60,6 +62,8 @@ export default function SigilHero() {
     const resetQuickLaunch = () => {
         setQuickLaunchStatus("idle");
         setClaimToken(null);
+        setRuntimeEndpoint(null);
+        setRuntimeProvisionError(null);
         setCopiedToken(false);
         setQuickLaunchError(null);
     };
@@ -68,12 +72,16 @@ export default function SigilHero() {
         if (quickLaunchStatus === "launching") return;
         setQuickLaunchStatus("launching");
         setClaimToken(null);
+        setRuntimeEndpoint(null);
+        setRuntimeProvisionError(null);
         setCopiedToken(false);
         setQuickLaunchError(null);
 
         try {
             const response = await apiClient.launch.quick();
             setClaimToken(response.claimToken);
+            setRuntimeEndpoint(response.runtime.endpoint ?? null);
+            setRuntimeProvisionError(response.runtime.provisioned ? null : response.runtime.error || null);
             setQuickLaunchStatus("success");
         } catch (error) {
             setQuickLaunchStatus("idle");
@@ -374,6 +382,25 @@ export default function SigilHero() {
                                                         <span className="text-xs text-muted-foreground">
                                                             Save this now. It is shown once and used later to claim ownership.
                                                         </span>
+                                                    </div>
+                                                    <div className="mt-3 text-xs">
+                                                        {runtimeEndpoint ? (
+                                                            <p className="text-muted-foreground">
+                                                                Agent deployed:{" "}
+                                                                <span className="font-mono text-foreground break-all">
+                                                                    {runtimeEndpoint}
+                                                                </span>
+                                                            </p>
+                                                        ) : runtimeProvisionError ? (
+                                                            <p className="text-amber-700">
+                                                                Token launch succeeded, but agent provisioning failed:{" "}
+                                                                {runtimeProvisionError}
+                                                            </p>
+                                                        ) : (
+                                                            <p className="text-muted-foreground">
+                                                                Agent provisioning is pending backend availability.
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
                                             ) : (

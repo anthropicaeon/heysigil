@@ -37,6 +37,12 @@ import {
     enforceQuickLaunchIpGuardrail,
     releaseQuickLaunchIpGuardrail,
 } from "../../services/quick-launch.js";
+import { createMcpToken, revokeMcpToken } from "../../services/mcp-token.js";
+import {
+    isRailwayProvisionerConfigured,
+    provisionSigilBotRuntime,
+    type RailwayProvisionResult,
+} from "../../services/infra/railway-provisioner.js";
 import {
     ErrorResponseSchema,
     NotFoundResponseSchema,
@@ -59,6 +65,16 @@ import {
 } from "../schemas/launch.js";
 
 const launch = new OpenAPIHono();
+const QUICK_LAUNCH_RUNTIME_SCOPES = [
+    "chat:write",
+    "launch:read",
+    "launch:write",
+    "dashboard:read",
+    "verify:write",
+    "developers:read",
+    "governance:read",
+    "claim:write",
+];
 
 // IP-based rate limit for token launches (defense in depth)
 // Application-level rate limiting is also applied in deployer.ts
@@ -300,6 +316,73 @@ launch.openapi(
             ip,
         });
 
+        let runtimeProvision: {
+            provider: "railway";
+            stack: "sigilbot";
+            provisioned: boolean;
+            endpoint?: string;
+            deployment?: {
+                projectId: string;
+                serviceId: string;
+                deploymentId: string;
+                minimumResources: RailwayProvisionResult["minimumResources"];
+            };
+            error?: string;
+        } = {
+            provider: "railway",
+            stack: "sigilbot",
+            provisioned: false,
+            error: "Railway provisioner is not configured on backend",
+        };
+
+        if (isRailwayProvisionerConfigured()) {
+            const runtimeOwnerUserId = `quicklaunch:${quickResult.project.id}`;
+            let runtimeToken: Awaited<ReturnType<typeof createMcpToken>> | null = null;
+            try {
+                runtimeToken = await createMcpToken({
+                    userId: runtimeOwnerUserId,
+                    name: `Hero quick launch runtime ${quickResult.project.projectId}`,
+                    scopes: QUICK_LAUNCH_RUNTIME_SCOPES,
+                    expiresInDays: 30,
+                });
+                const provisioned = await provisionSigilBotRuntime({
+                    userId: runtimeOwnerUserId,
+                    stack: "sigilbot",
+                    mcpToken: runtimeToken.token,
+                });
+                runtimeProvision = {
+                    provider: "railway",
+                    stack: "sigilbot",
+                    provisioned: true,
+                    endpoint: provisioned.endpoint,
+                    deployment: {
+                        projectId: provisioned.projectId,
+                        serviceId: provisioned.serviceId,
+                        deploymentId: provisioned.deploymentId,
+                        minimumResources: provisioned.minimumResources,
+                    },
+                };
+            } catch (err) {
+                if (runtimeToken) {
+                    await revokeMcpToken(runtimeOwnerUserId, runtimeToken.metadata.id).catch(() => undefined);
+                }
+                runtimeProvision = {
+                    provider: "railway",
+                    stack: "sigilbot",
+                    provisioned: false,
+                    error: getErrorMessage(err, "Sigilbot runtime provisioning failed"),
+                };
+                loggers.server.warn(
+                    {
+                        projectId: quickResult.project.projectId,
+                        projectRefId: quickResult.project.id,
+                        error: runtimeProvision.error,
+                    },
+                    "Quick-launch runtime provisioning failed",
+                );
+            }
+        }
+
         return c.json({
             success: true as const,
             deployed: quickResult.type === "deployed",
@@ -319,6 +402,7 @@ launch.openapi(
                 repoUrl: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
                 claimLaterSupported: true as const,
             },
+            runtime: runtimeProvision,
         });
     }),
 );

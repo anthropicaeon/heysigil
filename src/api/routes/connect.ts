@@ -435,6 +435,8 @@ connect.post("/quick-launch", async (c) => {
                 "launch:write",
                 "dashboard:read",
                 "verify:write",
+                "developers:read",
+                "governance:read",
                 "claim:write",
             ],
             expiresInDays: 30,

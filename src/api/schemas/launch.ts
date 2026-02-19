@@ -378,5 +378,28 @@ export const QuickLaunchResponseSchema = z
             repoUrl: z.string().url().openapi({ example: "https://github.com/heysigil/heysigil" }),
             claimLaterSupported: z.literal(true),
         }),
+        runtime: z.object({
+            provider: z.literal("railway"),
+            stack: z.literal("sigilbot"),
+            provisioned: z.boolean().openapi({
+                description: "Whether one-click agent runtime provisioning succeeded",
+            }),
+            endpoint: z.string().url().optional(),
+            deployment: z
+                .object({
+                    projectId: z.string(),
+                    serviceId: z.string(),
+                    deploymentId: z.string(),
+                    minimumResources: z.object({
+                        cpuMillicores: z.number(),
+                        memoryMb: z.number(),
+                    }),
+                })
+                .optional(),
+            error: z.string().optional().openapi({
+                description:
+                    "Provisioning error details when runtime could not be deployed in one-click flow",
+            }),
+        }),
     })
     .openapi("QuickLaunchResponse");

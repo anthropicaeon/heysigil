@@ -50,6 +50,22 @@ export interface QuickLaunchResponse {
         repoUrl: string;
         claimLaterSupported: true;
     };
+    runtime: {
+        provider: "railway";
+        stack: "sigilbot";
+        provisioned: boolean;
+        endpoint?: string;
+        deployment?: {
+            projectId: string;
+            serviceId: string;
+            deploymentId: string;
+            minimumResources: {
+                cpuMillicores: number;
+                memoryMb: number;
+            };
+        };
+        error?: string;
+    };
 }
 
 // ─── Error Class ───────────────────────────────────────
