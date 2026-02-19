@@ -21,6 +21,8 @@ const FACTORY_V3_LAUNCH_ABI = [
 ];
 
 const LOCKER_ABI = ["function updateDev(uint256 tokenId, address newDev) external"];
+const REASSIGN_DEV_SELECTOR = ethers.id("reassignDev(bytes32,address)").slice(2, 10).toLowerCase();
+const vaultReassignSupportCache = new Map<string, boolean>();
 
 function getErrorMessage(err: unknown): string {
     return err instanceof Error ? err.message : String(err);
@@ -42,6 +44,17 @@ function isHookRegisteredResult(
     value: unknown,
 ): value is { registered?: boolean } | [boolean, string, boolean] {
     return Array.isArray(value) || (!!value && typeof value === "object");
+}
+
+async function supportsReassignDev(provider: ethers.Provider, vaultAddress: string): Promise<boolean> {
+    const key = vaultAddress.toLowerCase();
+    const cached = vaultReassignSupportCache.get(key);
+    if (cached !== undefined) return cached;
+
+    const code = await provider.getCode(vaultAddress);
+    const supported = !!code && code !== "0x" && code.toLowerCase().includes(REASSIGN_DEV_SELECTOR);
+    vaultReassignSupportCache.set(key, supported);
+    return supported;
 }
 
 async function getAdminWallet(): Promise<ethers.Wallet | null> {
@@ -205,6 +218,8 @@ async function assignOrReassignEscrow(
     ) as string[];
 
     if (vaultAddresses.length === 0) return "noop";
+    const provider = wallet.provider;
+    if (!provider) return "noop";
 
     let lastUnexpected: unknown = null;
     for (const vaultAddress of vaultAddresses) {
@@ -232,6 +247,19 @@ async function assignOrReassignEscrow(
             }
 
             if (hasPoolAlreadyAssignedError(assignMsg)) {
+                const canReassign = await supportsReassignDev(provider, vaultAddress);
+                if (!canReassign) {
+                    log.warn(
+                        {
+                            projectId,
+                            poolId: `${poolId.slice(0, 18)}...`,
+                            vaultAddress,
+                        },
+                        "Legacy vault detected: reassignDev not supported; post-assignment escrow cannot be recovered on this vault",
+                    );
+                    continue;
+                }
+
                 try {
                     const tx = await vault.reassignDev(poolId, walletAddress);
                     await tx.wait(1);

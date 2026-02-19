@@ -6,8 +6,10 @@
  */
 
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { sql } from "drizzle-orm";
 import { ethers } from "ethers";
 import { getEnv } from "../../config/env.js";
+import { getDb, schema } from "../../db/client.js";
 import { getUserId, privyAuth } from "../../middleware/auth.js";
 import { getUserAddress, getSignerWallet } from "../../services/wallet.js";
 import { loggers } from "../../utils/logger.js";
@@ -56,6 +58,50 @@ const GAS_AMOUNT = ethers.parseEther("0.0002");
 // ─── Fee vault ABI (minimal — just claim functions) ─────
 
 const CLAIM_ABI = ["function claimDevFees(address token)", "function claimAllDevFees()"];
+const ESCROW_VIEW_ABI = [
+    "function getUnclaimedFeeBalances(bytes32 poolId) view returns (address[] tokens, uint256[] balances, uint256 depositedAt, bool expired, bool assigned)",
+];
+const REASSIGN_DEV_SELECTOR = ethers.id("reassignDev(bytes32,address)").slice(2, 10).toLowerCase();
+const reassignSupportCache = new Map<string, boolean>();
+
+async function supportsReassignDev(vaultAddress: string, provider: ethers.Provider): Promise<boolean> {
+    const key = vaultAddress.toLowerCase();
+    const cached = reassignSupportCache.get(key);
+    if (cached !== undefined) return cached;
+
+    const code = await provider.getCode(vaultAddress);
+    const supported = !!code && code !== "0x" && code.toLowerCase().includes(REASSIGN_DEV_SELECTOR);
+    reassignSupportCache.set(key, supported);
+    return supported;
+}
+
+async function hasEscrowForOwnedPools(input: {
+    vaultAddress: string;
+    walletAddress: string;
+    provider: ethers.Provider;
+}): Promise<boolean> {
+    const db = getDb();
+    const projects = await db
+        .select({ poolId: schema.projects.poolId })
+        .from(schema.projects)
+        .where(sql`LOWER(${schema.projects.ownerWallet}) = ${input.walletAddress.toLowerCase()}`);
+
+    if (projects.length === 0) return false;
+
+    const vault = new ethers.Contract(input.vaultAddress, ESCROW_VIEW_ABI, input.provider);
+    for (const project of projects) {
+        if (!project.poolId) continue;
+        try {
+            const [, balances] = await vault.getUnclaimedFeeBalances(project.poolId);
+            if ((balances as bigint[]).some((amount) => amount > 0n)) {
+                return true;
+            }
+        } catch {
+            // Ignore unreadable pools and continue.
+        }
+    }
+    return false;
+}
 
 // ─── POST /api/fees/claim-gas ───────────────────────────
 
@@ -211,7 +257,39 @@ claimGas.post(
             }
 
             if (txHashes.length === 0) {
-                return c.json({ error: "No claimable fees found in any vault" }, 400);
+                let hint: string | undefined;
+                if (feeVaultAddressV1) {
+                    const legacySupportsReassign = await supportsReassignDev(
+                        feeVaultAddressV1,
+                        provider,
+                    ).catch(() => true);
+                    if (!legacySupportsReassign) {
+                        const hasLegacyEscrow = await hasEscrowForOwnedPools({
+                            vaultAddress: feeVaultAddressV1,
+                            walletAddress: signer.address,
+                            provider,
+                        }).catch(() => false);
+                        if (hasLegacyEscrow) {
+                            hint =
+                                "Legacy fee vault detected: this vault does not support reassignDev. " +
+                                "Escrowed fees can remain stuck after initial assignment. " +
+                                "Please migrate/upgrade to V2 fee vault routing and retry.";
+                            log.warn(
+                                { wallet: signer.address, vault: feeVaultAddressV1 },
+                                "Legacy vault limitation detected during claim",
+                            );
+                        }
+                    }
+                }
+                return c.json(
+                    hint
+                        ? {
+                              error: "No claimable fees found in any vault",
+                              hint,
+                          }
+                        : { error: "No claimable fees found in any vault" },
+                    400,
+                );
             }
 
             return c.json({
