@@ -218,7 +218,9 @@ export async function encryptWalletKeystore(
  */
 export async function decryptWalletKeystore(keystore: string): Promise<ethers.Wallet> {
     const password = getKeystorePassword();
-    return ethers.Wallet.fromEncryptedJson(keystore, password);
+    const wallet = await ethers.Wallet.fromEncryptedJson(keystore, password);
+    // ethers may return HDNodeWallet from encrypted JSON; callers only need wallet-compatible API.
+    return wallet as ethers.Wallet;
 }
 
 /**

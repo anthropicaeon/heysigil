@@ -27,7 +27,7 @@
 import { ethers } from "ethers";
 import crypto from "node:crypto";
 import { getEnv } from "../config/env.js";
-import { encryptKey, decryptKey } from "../utils/crypto.js";
+import { decryptKey, decryptWalletKeystore, encryptKey } from "../utils/crypto.js";
 import * as identityRepo from "../db/repositories/identity.repository.js";
 import * as walletRepo from "../db/repositories/wallet.repository.js";
 import { loggers } from "../utils/logger.js";
@@ -134,7 +134,7 @@ export async function createPhantomUser(
     });
 
     // Store wallet
-    await walletRepo.createWallet({
+    await walletRepo.createWalletLegacy({
         address: wallet.address,
         encryptedKey: encrypted,
         iv,
@@ -207,9 +207,13 @@ export async function claimIdentity(
     }
 
     const storedWallet = await walletRepo.findWalletByKey("user", phantomUser.id);
-    const privateKey = storedWallet
-        ? decryptKey(storedWallet.encryptedKey, storedWallet.iv, storedWallet.authTag)
-        : undefined;
+    let privateKey: string | undefined;
+    if (storedWallet?.keystoreVersion && storedWallet.encryptedKeystore) {
+        const wallet = await decryptWalletKeystore(storedWallet.encryptedKeystore);
+        privateKey = wallet.privateKey;
+    } else if (storedWallet?.encryptedKey && storedWallet.iv && storedWallet.authTag) {
+        privateKey = decryptKey(storedWallet.encryptedKey, storedWallet.iv, storedWallet.authTag);
+    }
 
     loggers.identity.info(
         {
@@ -372,8 +376,17 @@ export async function getUserWallet(userId: string): Promise<ethers.Wallet | nul
     const env = getEnv();
     const rpcUrl = env.BASE_RPC_URL || "https://mainnet.base.org";
     const provider = new ethers.JsonRpcProvider(rpcUrl);
-    const privateKey = decryptKey(stored.encryptedKey, stored.iv, stored.authTag);
-    return new ethers.Wallet(privateKey, provider);
+    if (stored.keystoreVersion && stored.encryptedKeystore) {
+        const wallet = await decryptWalletKeystore(stored.encryptedKeystore);
+        return new ethers.Wallet(wallet.privateKey, provider);
+    }
+
+    if (stored.encryptedKey && stored.iv && stored.authTag) {
+        const privateKey = decryptKey(stored.encryptedKey, stored.iv, stored.authTag);
+        return new ethers.Wallet(privateKey, provider);
+    }
+
+    return null;
 }
 
 /**

@@ -387,21 +387,21 @@ export class FeeIndexer {
         }
     }
 
-    private parseLog(log: ethers.Log, blockTimestamp?: Date): FeeDistributionInsert | null {
+    private parseLog(eventLog: ethers.Log, blockTimestamp?: Date): FeeDistributionInsert | null {
         const timestamp = blockTimestamp || new Date();
 
         try {
             const parsed = FEE_VAULT_INTERFACE.parseLog({
-                topics: log.topics as string[],
-                data: log.data,
+                topics: eventLog.topics as string[],
+                data: eventLog.data,
             });
 
             if (!parsed) return null;
 
             const base = {
-                txHash: log.transactionHash,
-                blockNumber: log.blockNumber,
-                logIndex: log.index,
+                txHash: eventLog.transactionHash,
+                blockNumber: eventLog.blockNumber,
+                logIndex: eventLog.index,
                 blockTimestamp: timestamp,
             };
 
@@ -467,7 +467,7 @@ export class FeeIndexer {
                     return null;
             }
         } catch (err) {
-            log.error({ err, txHash: log.transactionHash }, "Failed to parse log");
+            log.error({ err, txHash: eventLog.transactionHash }, "Failed to parse log");
             return null;
         }
     }
