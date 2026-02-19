@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 export interface FeeClaimCardProps {
     claimableUsdc: string;
+    escrowedUsdc?: string;
     lifetimeUsdc: string;
     claiming: boolean;
     fundingGas: boolean;
@@ -26,6 +27,7 @@ export interface FeeClaimCardProps {
 
 export function FeeClaimCard({
     claimableUsdc,
+    escrowedUsdc,
     lifetimeUsdc,
     claiming,
     fundingGas,
@@ -37,6 +39,8 @@ export function FeeClaimCard({
 }: FeeClaimCardProps) {
     const isZero = claimableUsdc === "$0.00";
     const claimableAmount = parseFloat(claimableUsdc.replace(/[$,]/g, "")) || 0;
+    const escrowedAmount = escrowedUsdc ? parseFloat(escrowedUsdc.replace(/[$,]/g, "")) || 0 : 0;
+    const hasEscrowed = escrowedAmount > 0;
 
     // Loss aversion: urgency levels based on amount
     const isHighValue = claimableAmount >= 100;
@@ -118,6 +122,17 @@ export function FeeClaimCard({
                         </p>
                         <p className="text-xl font-bold text-foreground">{lifetimeUsdc}</p>
                     </div>
+                    {hasEscrowed && (
+                        <div className="flex-1 px-6 py-4 lg:px-6 bg-lavender/10">
+                            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                                Pending Verification
+                            </p>
+                            <p className="text-xl font-bold text-foreground">{escrowedUsdc}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Assigned after project verification
+                            </p>
+                        </div>
+                    )}
                     {!isZero && (
                         <div className="flex-1 px-6 py-4 lg:px-6">
                             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
@@ -135,7 +150,7 @@ export function FeeClaimCard({
             <div className="border-border border-t px-6 py-4 lg:px-8 bg-secondary/10">
                 <Button
                     onClick={onClaim}
-                    disabled={loading || claiming || fundingGas}
+                    disabled={isZero || loading || claiming || fundingGas}
                     className="w-full gap-2"
                     size="lg"
                 >

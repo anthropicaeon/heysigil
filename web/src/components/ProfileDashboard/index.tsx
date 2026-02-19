@@ -80,6 +80,7 @@ export default function ProfileDashboard() {
     // Fee vault hook — reads on-chain data
     const {
         claimableUsdc,
+        claimableRaw,
         lifetimeUsdc,
         lifetimeRaw,
         loading,
@@ -126,10 +127,11 @@ export default function ProfileDashboard() {
             ? `$${(totalFees / 1e6).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             : "$0.00";
 
-    // Derived claimable = total fees accrued (DB) minus lifetime earned (on-chain)
-    // This captures fees in escrow that haven't been assigned yet.
-    const derivedClaimableRaw = BigInt(Math.max(0, totalFees - Number(lifetimeRaw)));
-    const derivedClaimableUsdc = formatCurrency(derivedClaimableRaw);
+    // Escrowed = total fees in DB minus what's on-chain (lifetime earned + currently claimable)
+    // These are fees still held under poolIds, not yet assignDev'd
+    const onChainTotal = Number(lifetimeRaw) + Number(claimableRaw);
+    const escrowedRaw = BigInt(Math.max(0, totalFees - onChainTotal));
+    const escrowedUsdc = formatCurrency(escrowedRaw);
 
     const stats = [
         {
@@ -149,7 +151,7 @@ export default function ProfileDashboard() {
         },
         {
             label: "Claimable Now",
-            value: derivedClaimableUsdc,
+            value: claimableUsdc,
             icon: DollarSign,
             highlight: true,
         },
@@ -280,7 +282,8 @@ export default function ProfileDashboard() {
                         </div>
                         <div className="px-6 py-6 lg:px-8 bg-rose/10">
                             <FeeClaimCard
-                                claimableUsdc={derivedClaimableUsdc}
+                                claimableUsdc={claimableUsdc}
+                                escrowedUsdc={escrowedUsdc}
                                 lifetimeUsdc={lifetimeUsdc}
                                 claiming={claiming}
                                 fundingGas={fundingGas}
