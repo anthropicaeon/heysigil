@@ -259,14 +259,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     />
 
                     <div
-                        className="pointer-events-none fixed z-[121] transition-[top,left,width,height,opacity] ease-[cubic-bezier(0.22,1,0.36,1)]"
+                        className="loader-model-shell pointer-events-none fixed z-[121] transition-[top,left,width,height,opacity] ease-[cubic-bezier(0.22,1,0.36,1)]"
                         style={{
                             top: modelFrame.top,
                             left: modelFrame.left,
                             width: modelFrame.width,
                             height: modelFrame.height,
                             opacity: modelFrame.opacity,
-                            transform: "translate(-50%, -50%)",
                             transitionDuration: `${HERO_MODEL_LOADER_TIMING.handoffSlideMs}ms`,
                         }}
                     >
