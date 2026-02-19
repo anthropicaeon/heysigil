@@ -12,6 +12,7 @@ import { eq } from "drizzle-orm";
 import { getEnv } from "../config/env.js";
 import { loggers } from "../utils/logger.js";
 import { getDb, schema, DatabaseUnavailableError } from "../db/client.js";
+import { ensureDevFeeRoutingAndEscrowRelease } from "./fee-routing.js";
 
 const log = loggers.server;
 
@@ -27,22 +28,15 @@ const LP_LOCKER_ABI = [
     "function positions(uint256 tokenId) view returns (bytes32 poolId, address dev, address token0, address token1, bool locked)",
 ];
 
-const FEE_VAULT_ABI = [
-    "function assignDev(bytes32 poolId, address dev) external",
-    "function poolAssigned(bytes32 poolId) view returns (bool)",
-];
-
 // ─── Fee Collector Class ────────────────────────────────
 
 export class FeeCollector {
     private provider: ethers.JsonRpcProvider;
     private wallet: ethers.Wallet;
     private locker: ethers.Contract;
-    private vault: ethers.Contract;
     private lockerAddress: string;
     // V1 legacy contracts (old positions)
     private lockerV1: ethers.Contract | null = null;
-    private vaultV1: ethers.Contract | null = null;
 
     private isRunning = false;
     private pollTimer: ReturnType<typeof setTimeout> | null = null;
@@ -65,21 +59,11 @@ export class FeeCollector {
         this.wallet = new ethers.Wallet(env.DEPLOYER_PRIVATE_KEY, this.provider);
         this.locker = new ethers.Contract(this.lockerAddress, LP_LOCKER_ABI, this.wallet);
 
-        const feeVaultAddress = env.SIGIL_FEE_VAULT_ADDRESS;
-        this.vault = new ethers.Contract(feeVaultAddress, FEE_VAULT_ABI, this.wallet);
-
         // Wire up V1 legacy contracts if configured
         if (env.SIGIL_LP_LOCKER_ADDRESS_V1) {
             this.lockerV1 = new ethers.Contract(
                 env.SIGIL_LP_LOCKER_ADDRESS_V1,
                 LP_LOCKER_ABI,
-                this.wallet,
-            );
-        }
-        if (env.SIGIL_FEE_VAULT_ADDRESS_V1) {
-            this.vaultV1 = new ethers.Contract(
-                env.SIGIL_FEE_VAULT_ADDRESS_V1,
-                FEE_VAULT_ABI,
                 this.wallet,
             );
         }
@@ -149,7 +133,9 @@ export class FeeCollector {
                 .select({
                     projectId: schema.projects.projectId,
                     poolId: schema.projects.poolId,
+                    poolTokenAddress: schema.projects.poolTokenAddress,
                     name: schema.projects.name,
+                    ownerWallet: schema.projects.ownerWallet,
                 })
                 .from(schema.projects);
 
@@ -159,94 +145,86 @@ export class FeeCollector {
             for (const project of projects) {
                 if (!project.poolId) continue;
 
-                // Find the verification wallet for this project
-                // projectId in projects is "github:owner/repo", in verifications it's "owner/repo"
+                let walletAddress = project.ownerWallet;
                 const normalizedId = project.projectId.replace("github:", "");
 
-                log.info(
-                    { project: project.name, projectId: project.projectId, normalizedId },
-                    "assignDev: looking up verification",
-                );
+                if (!walletAddress) {
+                    log.info(
+                        { project: project.name, projectId: project.projectId, normalizedId },
+                        "assignDev: looking up verification fallback",
+                    );
 
-                // Try normalized first, then original
-                let verification = await db
-                    .select({ walletAddress: schema.verifications.walletAddress })
-                    .from(schema.verifications)
-                    .where(eq(schema.verifications.projectId, normalizedId))
-                    .then((rows) => rows[0] || null);
-
-                if (!verification) {
-                    // Try original projectId format
-                    verification = await db
+                    // Try normalized first, then original.
+                    const verification = await db
                         .select({ walletAddress: schema.verifications.walletAddress })
                         .from(schema.verifications)
-                        .where(eq(schema.verifications.projectId, project.projectId))
+                        .where(eq(schema.verifications.projectId, normalizedId))
                         .then((rows) => rows[0] || null);
+
+                    if (verification?.walletAddress) {
+                        walletAddress = verification.walletAddress;
+                    } else {
+                        const verificationOriginal = await db
+                            .select({ walletAddress: schema.verifications.walletAddress })
+                            .from(schema.verifications)
+                            .where(eq(schema.verifications.projectId, project.projectId))
+                            .then((rows) => rows[0] || null);
+                        walletAddress = verificationOriginal?.walletAddress ?? null;
+                    }
                 }
 
-                if (!verification) {
+                if (!walletAddress) {
                     log.info(
                         { project: project.name, normalizedId },
-                        "assignDev: no verification found",
+                        "assignDev: no owner wallet found",
                     );
                     skipped++;
                     continue;
                 }
 
                 log.info(
-                    { project: project.name, dev: verification.walletAddress },
-                    "assignDev: verification found",
+                    { project: project.name, dev: walletAddress },
+                    "assignDev: owner wallet resolved",
                 );
 
                 try {
                     // Wait before RPC calls to avoid rate limiting
                     await new Promise((r) => setTimeout(r, 2000));
+                    const result = await ensureDevFeeRoutingAndEscrowRelease({
+                        poolId: project.poolId,
+                        walletAddress,
+                        projectId: project.projectId,
+                        poolTokenAddress: project.poolTokenAddress,
+                    });
 
-                    // Call assignDev directly — contract reverts are handled below
-                    const nonce = await this.provider.getTransactionCount(
-                        this.wallet.address,
-                        "latest",
-                    );
-
-                    await new Promise((r) => setTimeout(r, 1000));
-
-                    const tx = await this.vault.assignDev(
-                        project.poolId,
-                        verification.walletAddress,
-                        { nonce },
-                    );
-                    await tx.wait(1);
-                    assigned++;
-
-                    // Wait for nonce to propagate before next tx
-                    await new Promise((r) => setTimeout(r, 3000));
+                    if (
+                        result.escrowAction === "assigned" ||
+                        result.escrowAction === "reassigned"
+                    ) {
+                        assigned++;
+                    } else {
+                        skipped++;
+                    }
 
                     log.info(
                         {
                             project: project.name,
                             poolId: project.poolId.slice(0, 18) + "...",
-                            dev: verification.walletAddress,
+                            dev: walletAddress,
+                            hookRoutingUpdated: result.hookRoutingUpdated,
+                            hookRoutingBlockedByPoolAssigned:
+                                result.hookRoutingBlockedByPoolAssigned,
+                            lockerRoutingUpdated: result.lockerRoutingUpdated,
+                            escrowAction: result.escrowAction,
                         },
-                        "Dev assigned on fee vault",
+                        "assignDev backfill completed for project",
                     );
                 } catch (err) {
                     const msg = err instanceof Error ? err.message : String(err);
-                    // Only PoolAlreadyAssigned or NoUnclaimedFees are truly expected
-                    if (msg.includes("PoolAlreadyAssigned") || msg.includes("NoUnclaimedFees")) {
-                        log.info(
-                            { project: project.name },
-                            "assignDev: already assigned or no fees",
-                        );
-                        skipped++;
-                    } else {
-                        // Log the full error including revert data for debugging
-                        const errData =
-                            (err as any)?.data || (err as any)?.error?.data || "no data";
-                        log.warn(
-                            { project: project.name, err: msg.slice(0, 300), revertData: errData },
-                            "assignDev: FAILED — investigate this revert",
-                        );
-                    }
+                    log.warn(
+                        { project: project.name, err: msg.slice(0, 300) },
+                        "assignDev: FAILED — investigate this revert",
+                    );
                 }
             }
 

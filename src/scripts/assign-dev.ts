@@ -27,6 +27,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const FEE_VAULT_ABI = [
     "function assignDev(bytes32 poolId, address dev) external",
+    "function reassignDev(bytes32 poolId, address dev) external",
     "function poolAssigned(bytes32 poolId) view returns (bool)",
     "function getUnclaimedFeeBalances(bytes32 poolId) view returns (address[] tokens, uint256[] balances, uint256 depositedAt, bool expired, bool assigned)",
 ];
@@ -79,12 +80,9 @@ async function main() {
         await sleep(500);
 
         // Check if already assigned
+        let assigned = false;
         try {
-            const assigned = await vault.poolAssigned(project.poolId);
-            if (assigned) {
-                console.log(`   ✅ Already assigned\n`);
-                continue;
-            }
+            assigned = await vault.poolAssigned(project.poolId);
         } catch (err: any) {
             console.log(`   ⚠️ Could not check: ${err.shortMessage || err.message}`);
             continue;
@@ -118,10 +116,14 @@ async function main() {
         try {
             const nonce = await provider.getTransactionCount(wallet.address, "latest");
             await sleep(500);
-            const tx = await vault.assignDev(project.poolId, devWallet, { nonce });
+            const tx = assigned
+                ? await vault.reassignDev(project.poolId, devWallet, { nonce })
+                : await vault.assignDev(project.poolId, devWallet, { nonce });
             console.log(`   TX: ${tx.hash}`);
             const receipt = await tx.wait(1);
-            console.log(`   ✅ Dev assigned! Gas: ${receipt.gasUsed}\n`);
+            console.log(
+                `   ✅ Dev ${assigned ? "reassigned" : "assigned"}! Gas: ${receipt.gasUsed}\n`,
+            );
         } catch (err: any) {
             const msg = err.shortMessage || err.reason || err.message || String(err);
             console.log(`   ❌ assignDev failed: ${msg.slice(0, 120)}\n`);

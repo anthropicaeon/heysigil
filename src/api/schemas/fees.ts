@@ -145,6 +145,8 @@ export const PoolDistributionsResponseSchema = z
  */
 export const DevEarningsSummarySchema = z
     .object({
+        directEarnedWei: WeiAmountSchema,
+        assignedFromEscrowWei: WeiAmountSchema,
         totalEarnedWei: WeiAmountSchema,
         totalClaimedWei: WeiAmountSchema,
         unclaimedWei: WeiAmountSchema,

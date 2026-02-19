@@ -13,9 +13,9 @@ export class QuickLaunchIpLimitError extends Error {
 }
 
 export class LaunchClaimTokenError extends Error {
-    readonly code: "invalid" | "expired" | "consumed";
+    readonly code: "invalid" | "expired" | "consumed" | "claimed";
 
-    constructor(code: "invalid" | "expired" | "consumed", message: string) {
+    constructor(code: "invalid" | "expired" | "consumed" | "claimed", message: string) {
         super(message);
         this.name = "LaunchClaimTokenError";
         this.code = code;
@@ -91,7 +91,9 @@ export async function annotateQuickLaunchIpProject(ip: string, projectId: string
 export async function releaseQuickLaunchIpGuardrail(ip: string): Promise<void> {
     const db = getDb();
     const ipHash = hashIp(ip);
-    await db.delete(schema.quickLaunchIpGuardrails).where(eq(schema.quickLaunchIpGuardrails.ipHash, ipHash));
+    await db
+        .delete(schema.quickLaunchIpGuardrails)
+        .where(eq(schema.quickLaunchIpGuardrails.ipHash, ipHash));
 }
 
 export async function createLaunchClaimToken(input: {
@@ -127,9 +129,13 @@ export async function consumeLaunchClaimToken(input: {
     token: string;
     claimedByUserId: string;
     ip: string;
+    ownerWallet: string;
+    userId?: string | null;
 }): Promise<{
     projectId: string;
     projectRefId: string;
+    poolId: string | null;
+    poolTokenAddress: string | null;
 }> {
     const db = getDb();
     const tokenPrefix = parseClaimTokenPrefix(input.token);
@@ -137,50 +143,81 @@ export async function consumeLaunchClaimToken(input: {
         throw new LaunchClaimTokenError("invalid", "Invalid claim token format");
     }
 
-    const [stored] = await db
-        .select()
-        .from(schema.launchClaimTokens)
-        .where(eq(schema.launchClaimTokens.tokenPrefix, tokenPrefix))
-        .limit(1);
+    return db.transaction(async (tx) => {
+        const [stored] = await tx
+            .select()
+            .from(schema.launchClaimTokens)
+            .where(eq(schema.launchClaimTokens.tokenPrefix, tokenPrefix))
+            .limit(1);
 
-    if (!stored) {
-        throw new LaunchClaimTokenError("invalid", "Claim token not found");
-    }
-    if (stored.consumedAt) {
-        throw new LaunchClaimTokenError("consumed", "Claim token already used");
-    }
-    if (stored.expiresAt.getTime() <= Date.now()) {
-        throw new LaunchClaimTokenError("expired", "Claim token expired");
-    }
+        if (!stored) {
+            throw new LaunchClaimTokenError("invalid", "Claim token not found");
+        }
+        if (stored.consumedAt) {
+            throw new LaunchClaimTokenError("consumed", "Claim token already used");
+        }
+        if (stored.expiresAt.getTime() <= Date.now()) {
+            throw new LaunchClaimTokenError("expired", "Claim token expired");
+        }
 
-    const presentedHash = hashValue(input.token);
-    if (!constantTimeHashEquals(presentedHash, stored.tokenHash)) {
-        throw new LaunchClaimTokenError("invalid", "Claim token is invalid");
-    }
+        const presentedHash = hashValue(input.token);
+        if (!constantTimeHashEquals(presentedHash, stored.tokenHash)) {
+            throw new LaunchClaimTokenError("invalid", "Claim token is invalid");
+        }
 
-    const consumedIpHash = hashIp(input.ip);
-    const [consumed] = await db
-        .update(schema.launchClaimTokens)
-        .set({
-            consumedAt: new Date(),
-            consumedByUserId: input.claimedByUserId,
-            consumedIpHash,
-        })
-        .where(
-            and(
-                eq(schema.launchClaimTokens.id, stored.id),
-                isNull(schema.launchClaimTokens.consumedAt),
-                sql`${schema.launchClaimTokens.expiresAt} > now()`,
-            ),
-        )
-        .returning({
-            projectId: schema.launchClaimTokens.projectId,
-            projectRefId: schema.launchClaimTokens.projectRefId,
-        });
+        const consumedIpHash = hashIp(input.ip);
+        const [consumed] = await tx
+            .update(schema.launchClaimTokens)
+            .set({
+                consumedAt: new Date(),
+                consumedByUserId: input.claimedByUserId,
+                consumedIpHash,
+            })
+            .where(
+                and(
+                    eq(schema.launchClaimTokens.id, stored.id),
+                    isNull(schema.launchClaimTokens.consumedAt),
+                    sql`${schema.launchClaimTokens.expiresAt} > now()`,
+                ),
+            )
+            .returning({
+                projectId: schema.launchClaimTokens.projectId,
+                projectRefId: schema.launchClaimTokens.projectRefId,
+            });
 
-    if (!consumed) {
-        throw new LaunchClaimTokenError("consumed", "Claim token already consumed");
-    }
+        if (!consumed) {
+            throw new LaunchClaimTokenError("consumed", "Claim token already consumed");
+        }
 
-    return consumed;
+        const [project] = await tx
+            .update(schema.projects)
+            .set({
+                ownerWallet: input.ownerWallet,
+                userId: input.userId ?? null,
+                verifiedAt: new Date(),
+            })
+            .where(
+                and(
+                    eq(schema.projects.id, consumed.projectRefId),
+                    isNull(schema.projects.ownerWallet),
+                ),
+            )
+            .returning({
+                projectId: schema.projects.projectId,
+                id: schema.projects.id,
+                poolId: schema.projects.poolId,
+                poolTokenAddress: schema.projects.poolTokenAddress,
+            });
+
+        if (!project) {
+            throw new LaunchClaimTokenError("claimed", "Project is already claimed");
+        }
+
+        return {
+            projectId: project.projectId,
+            projectRefId: project.id,
+            poolId: project.poolId,
+            poolTokenAddress: project.poolTokenAddress,
+        };
+    });
 }

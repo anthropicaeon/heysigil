@@ -11,6 +11,7 @@ import {
     findDistributions,
     findByPoolId,
     findByDevAddress,
+    getDevEarningsSummary,
     findByTxHash,
     getAggregateStats,
     type FeeEventType,
@@ -318,26 +319,16 @@ fees.openapi(
             limit: query.limit,
             offset: query.offset,
         });
-
-        // Calculate earnings summary
-        let totalEarned = 0n;
-        let totalClaimed = 0n;
-
-        for (const d of result.data) {
-            if (d.eventType === "deposit" && d.devAmount) {
-                totalEarned += BigInt(d.devAmount);
-            }
-            if (d.eventType === "dev_claimed" && d.amount) {
-                totalClaimed += BigInt(d.amount);
-            }
-        }
+        const summary = await getDevEarningsSummary(address);
 
         return c.json({
             address,
             summary: {
-                totalEarnedWei: totalEarned.toString(),
-                totalClaimedWei: totalClaimed.toString(),
-                unclaimedWei: (totalEarned - totalClaimed).toString(),
+                directEarnedWei: summary.directEarnedWei,
+                assignedFromEscrowWei: summary.assignedFromEscrowWei,
+                totalEarnedWei: summary.totalEarnedWei,
+                totalClaimedWei: summary.totalClaimedWei,
+                unclaimedWei: summary.unclaimedWei,
             },
             distributions: result.data.map(formatDistribution),
             pagination: result.pagination,

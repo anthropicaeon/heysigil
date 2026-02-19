@@ -85,6 +85,14 @@ export interface AggregateStats {
     lastIndexedAt: Date | null;
 }
 
+export interface DevEarningsSummary {
+    directEarnedWei: string;
+    assignedFromEscrowWei: string;
+    totalEarnedWei: string;
+    totalClaimedWei: string;
+    unclaimedWei: string;
+}
+
 // ─── In-Memory Fallback ─────────────────────────────────
 
 const memoryDistributions = new Map<string, DbFeeDistribution>();
@@ -523,6 +531,70 @@ export async function findByTxHash(txHash: string): Promise<DbFeeDistribution[]>
             return Array.from(memoryDistributions.values())
                 .filter((d) => d.txHash === txHash)
                 .sort((a, b) => a.logIndex - b.logIndex);
+        }
+        throw err;
+    }
+}
+
+/**
+ * Get aggregate earnings summary for a specific dev address.
+ * Uses full history (not paginated rows) so totals remain accurate.
+ */
+export async function getDevEarningsSummary(devAddress: string): Promise<DevEarningsSummary> {
+    const normalizedAddress = devAddress.toLowerCase();
+
+    try {
+        const db = getDb();
+        const [stats] = await db
+            .select({
+                directEarnedWei: sql<string>`COALESCE(SUM(CASE WHEN ${schema.feeDistributions.eventType} = 'deposit' THEN CAST(${schema.feeDistributions.devAmount} AS NUMERIC) ELSE 0 END), 0)`,
+                assignedFromEscrowWei: sql<string>`COALESCE(SUM(CASE WHEN ${schema.feeDistributions.eventType} = 'dev_assigned' THEN CAST(${schema.feeDistributions.amount} AS NUMERIC) ELSE 0 END), 0)`,
+                totalClaimedWei: sql<string>`COALESCE(SUM(CASE WHEN ${schema.feeDistributions.eventType} = 'dev_claimed' THEN CAST(${schema.feeDistributions.amount} AS NUMERIC) ELSE 0 END), 0)`,
+            })
+            .from(schema.feeDistributions)
+            .where(sql`LOWER(${schema.feeDistributions.devAddress}) = ${normalizedAddress}`);
+
+        const directEarned = BigInt(stats?.directEarnedWei ?? "0");
+        const assignedFromEscrow = BigInt(stats?.assignedFromEscrowWei ?? "0");
+        const totalClaimed = BigInt(stats?.totalClaimedWei ?? "0");
+        const totalEarned = directEarned + assignedFromEscrow;
+        const unclaimed = totalEarned > totalClaimed ? totalEarned - totalClaimed : 0n;
+
+        return {
+            directEarnedWei: directEarned.toString(),
+            assignedFromEscrowWei: assignedFromEscrow.toString(),
+            totalEarnedWei: totalEarned.toString(),
+            totalClaimedWei: totalClaimed.toString(),
+            unclaimedWei: unclaimed.toString(),
+        };
+    } catch (err) {
+        if (err instanceof DatabaseUnavailableError) {
+            let directEarned = 0n;
+            let assignedFromEscrow = 0n;
+            let totalClaimed = 0n;
+
+            for (const d of memoryDistributions.values()) {
+                if (d.devAddress?.toLowerCase() !== normalizedAddress) continue;
+
+                if (d.eventType === "deposit" && d.devAmount) {
+                    directEarned += BigInt(d.devAmount);
+                } else if (d.eventType === "dev_assigned" && d.amount) {
+                    assignedFromEscrow += BigInt(d.amount);
+                } else if (d.eventType === "dev_claimed" && d.amount) {
+                    totalClaimed += BigInt(d.amount);
+                }
+            }
+
+            const totalEarned = directEarned + assignedFromEscrow;
+            const unclaimed = totalEarned > totalClaimed ? totalEarned - totalClaimed : 0n;
+
+            return {
+                directEarnedWei: directEarned.toString(),
+                assignedFromEscrowWei: assignedFromEscrow.toString(),
+                totalEarnedWei: totalEarned.toString(),
+                totalClaimedWei: totalClaimed.toString(),
+                unclaimedWei: unclaimed.toString(),
+            };
         }
         throw err;
     }

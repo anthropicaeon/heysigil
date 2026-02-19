@@ -94,7 +94,8 @@ launch.use(
     rateLimit("launch-quick-ip", {
         limit: 1,
         windowMs: 24 * 60 * 60 * 1000,
-        message: "Quick launch already used for this IP. Claim your launch with your one-time token.",
+        message:
+            "Quick launch already used for this IP. Claim your launch with your one-time token.",
     }),
 );
 
@@ -291,7 +292,9 @@ launch.openapi(
             return c.json({ error: "Invalid quick-launch request" }, 400);
         }
 
-        const customRepo = parsedRequest.data.repoUrl ? parseLink(parsedRequest.data.repoUrl) : null;
+        const customRepo = parsedRequest.data.repoUrl
+            ? parseLink(parsedRequest.data.repoUrl)
+            : null;
         if (parsedRequest.data.repoUrl && (!customRepo || customRepo.platform !== "github")) {
             return c.json(
                 {
@@ -333,7 +336,10 @@ launch.openapi(
                     429,
                 );
             }
-            return c.json({ error: getErrorMessage(err, "Failed quick-launch guardrail check") }, 500);
+            return c.json(
+                { error: getErrorMessage(err, "Failed quick-launch guardrail check") },
+                500,
+            );
         }
 
         const privyUserId = getUserId(c);
@@ -353,11 +359,31 @@ launch.openapi(
             return c.json({ error: quickResult.error }, 500);
         }
 
-        await annotateQuickLaunchIpProject(ip, quickResult.project.projectId).catch(() => undefined);
-        const claimToken = await createLaunchClaimToken({
-            projectId: quickResult.project.projectId,
-            projectRefId: quickResult.project.id,
-            ip,
+        let claimToken: Awaited<ReturnType<typeof createLaunchClaimToken>>;
+        try {
+            claimToken = await createLaunchClaimToken({
+                projectId: quickResult.project.projectId,
+                projectRefId: quickResult.project.id,
+                ip,
+            });
+        } catch (err) {
+            await releaseQuickLaunchIpGuardrail(ip).catch(() => undefined);
+            loggers.server.error(
+                {
+                    projectId: quickResult.project.projectId,
+                    projectRefId: quickResult.project.id,
+                    error: getErrorMessage(err),
+                },
+                "Failed to issue quick-launch claim token",
+            );
+            return c.json({ error: "Quick-launch created but claim token issuance failed" }, 500);
+        }
+
+        await annotateQuickLaunchIpProject(ip, quickResult.project.projectId).catch((err) => {
+            loggers.server.warn(
+                { projectId: quickResult.project.projectId, error: getErrorMessage(err) },
+                "Failed to annotate quick-launch IP guardrail with projectId",
+            );
         });
 
         let runtimeProvision: {
@@ -408,7 +434,9 @@ launch.openapi(
                 };
             } catch (err) {
                 if (runtimeToken) {
-                    await revokeMcpToken(runtimeOwnerUserId, runtimeToken.metadata.id).catch(() => undefined);
+                    await revokeMcpToken(runtimeOwnerUserId, runtimeToken.metadata.id).catch(
+                        () => undefined,
+                    );
                 }
                 runtimeProvision = {
                     provider: "railway",

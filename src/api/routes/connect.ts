@@ -16,10 +16,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "../../db/client.js";
 import { getUserId, privyAuth } from "../../middleware/auth.js";
-import {
-    checkServiceRateLimit,
-    getClientIp,
-} from "../../middleware/rate-limit.js";
+import { checkServiceRateLimit, getClientIp, rateLimit } from "../../middleware/rate-limit.js";
 import { loggers } from "../../utils/logger.js";
 import { listConnectedBotsPresence } from "../../services/connected-bots.js";
 import {
@@ -40,6 +37,14 @@ export const connect = new OpenAPIHono();
 
 // All connect routes require Privy auth
 connect.use("*", privyAuth());
+connect.use(
+    "/quick-launch",
+    rateLimit("connect-quick-launch-route", {
+        limit: 5,
+        windowMs: 60 * 60 * 1000,
+        message: "Too many quick-launch requests from this IP. Try again later.",
+    }),
+);
 
 // ————————————————————————————————————————————————
 // Schemas
@@ -277,10 +282,14 @@ connect.post("/handshake", async (c) => {
         return c.json({ error: getErrorMessage(err, "Invalid endpoint") }, 400);
     }
 
-    const limit = await checkServiceRateLimit("connect-handshake", `${userId}:${normalizedEndpoint}`, {
-        limit: 10,
-        windowMs: 60 * 60 * 1000,
-    });
+    const limit = await checkServiceRateLimit(
+        "connect-handshake",
+        `${userId}:${normalizedEndpoint}`,
+        {
+            limit: 10,
+            windowMs: 60 * 60 * 1000,
+        },
+    );
     if (!limit.allowed) {
         return c.json(
             {
@@ -347,7 +356,10 @@ connect.post("/quick-launch", async (c) => {
     if (!userId) return c.json({ error: "Authentication required" }, 401);
     const ip = getClientIp(c) || "unknown";
 
-    const body = await c.req.json();
+    const body = await c.req.json().catch(() => null);
+    if (!body || typeof body !== "object") {
+        return c.json({ error: "Invalid JSON body" }, 400);
+    }
     const parsed = QuickLaunchRequestSchema.safeParse(body);
     if (!parsed.success) {
         return c.json({ error: "Invalid request", details: parsed.error.flatten() }, 400);
@@ -364,6 +376,24 @@ connect.post("/quick-launch", async (c) => {
 
     const { stack, connectSecret } = parsed.data;
     const db = getDb();
+
+    const inFlightLimit = await checkServiceRateLimit(
+        "connect-quick-launch-inflight",
+        `${userId}:${stack}`,
+        {
+            limit: 1,
+            windowMs: 5 * 60 * 1000,
+        },
+    );
+    if (!inFlightLimit.allowed) {
+        return c.json(
+            {
+                error: "A quick-launch request is already being processed. Please wait before retrying.",
+                retryAfter: Math.ceil(inFlightLimit.resetInMs / 1000),
+            },
+            429,
+        );
+    }
 
     const userLimit = await checkServiceRateLimit("connect-quick-launch-user", userId, {
         limit: 2,

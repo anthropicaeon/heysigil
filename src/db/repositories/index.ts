@@ -31,6 +31,7 @@ export {
     findByTxHashAndLogIndex,
     findByPoolId,
     findByDevAddress,
+    getDevEarningsSummary,
     findDistributions,
     findByTxHash,
     getAggregateStats,
@@ -46,4 +47,5 @@ export {
     type PaginationParams,
     type PaginatedResult,
     type AggregateStats,
+    type DevEarningsSummary,
 } from "./fee-distribution.repository.js";

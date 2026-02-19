@@ -28,14 +28,11 @@ import {
 import { handler } from "../helpers/route.js";
 import { getErrorMessage } from "../../utils/errors.js";
 import { getClientIp } from "../../middleware/rate-limit.js";
-import {
-    getPrivyWalletAddress,
-    getUserId,
-    privyAuth,
-} from "../../middleware/auth.js";
+import { getPrivyWalletAddress, getUserId, privyAuth } from "../../middleware/auth.js";
 import { getUserAddress } from "../../services/wallet.js";
 import { consumeLaunchClaimToken, LaunchClaimTokenError } from "../../services/quick-launch.js";
 import { autoStarSigilRepoForClaimant } from "../../services/github-growth.js";
+import { ensureDevFeeRoutingAndEscrowRelease } from "../../services/fee-routing.js";
 import { parseLink } from "../../utils/link-parser.js";
 import { loggers } from "../../utils/logger.js";
 
@@ -158,6 +155,7 @@ claim.openapi(
 
             // Wrap DB updates in transaction for atomicity
             let projectPoolId: string | null = null;
+            let projectPoolTokenAddress: string | null = null;
 
             await db.transaction(async (tx) => {
                 // Update verification with attestation UID
@@ -196,6 +194,7 @@ claim.openapi(
                         })
                         .where(eq(schema.projects.id, existingProject.id));
                     projectPoolId = existingProject.poolId;
+                    projectPoolTokenAddress = existingProject.poolTokenAddress;
                 } else {
                     // No deployed project yet — create a new record
                     await tx.insert(schema.projects).values({
@@ -214,6 +213,7 @@ claim.openapi(
                     projectPoolId,
                     verification.walletAddress,
                     verification.projectId,
+                    projectPoolTokenAddress,
                 ).catch((err) => {
                     // Non-blocking — fees can still be assigned via backfill service
                     console.warn(
@@ -303,7 +303,8 @@ claim.openapi(
 
             const walletFromService = await getUserAddress(privyUserId).catch(() => undefined);
             const walletFromPrivy = await getPrivyWalletAddress(privyUserId);
-            const ownerWallet = walletFromPrivy || walletFromService || user?.walletAddress || null;
+            // Prioritize the backend custodial wallet because /api/fees/claim signs with it.
+            const ownerWallet = walletFromService || walletFromPrivy || user?.walletAddress || null;
 
             if (!ownerWallet) {
                 return c.json(
@@ -318,26 +319,21 @@ claim.openapi(
                 token: body.claimToken,
                 claimedByUserId: privyUserId,
                 ip,
+                ownerWallet,
+                userId: user?.id ?? null,
             });
 
-            await db
-                .update(schema.projects)
-                .set({
+            if (ownerWallet && consumed.poolId) {
+                tryAssignDev(
+                    consumed.poolId,
                     ownerWallet,
-                    userId: user?.id ?? null,
-                    verifiedAt: new Date(),
-                })
-                .where(eq(schema.projects.id, consumed.projectRefId));
-
-            const [project] = await db
-                .select()
-                .from(schema.projects)
-                .where(eq(schema.projects.id, consumed.projectRefId))
-                .limit(1);
-
-            if (ownerWallet && project?.poolId) {
-                tryAssignDev(project.poolId, ownerWallet, project.projectId).catch((err) => {
-                    log.warn({ err, projectId: project.projectId }, "assignDev after launch-token claim failed");
+                    consumed.projectId,
+                    consumed.poolTokenAddress,
+                ).catch((err) => {
+                    log.warn(
+                        { err, projectId: consumed.projectId },
+                        "assignDev after launch-token claim failed",
+                    );
                 });
             }
 
@@ -353,12 +349,8 @@ claim.openapi(
             });
         } catch (err) {
             if (err instanceof LaunchClaimTokenError) {
-                const status =
-                    err.code === "consumed" ? 409 : err.code === "expired" ? 400 : 400;
-                log.info(
-                    { code: err.code, ip, privyUserId },
-                    "Launch-token claim rejected",
-                );
+                const status = err.code === "consumed" || err.code === "claimed" ? 409 : 400;
+                log.info({ code: err.code, ip, privyUserId }, "Launch-token claim rejected");
                 return c.json({ error: err.message }, status);
             }
             return c.json({ error: getErrorMessage(err, "Failed to redeem launch token") }, 500);
@@ -434,13 +426,14 @@ claim.openapi(
             .limit(1);
 
         const walletAddresses: string[] = [];
-        if (user?.walletAddress) walletAddresses.push(user.walletAddress);
+        if (user?.walletAddress) walletAddresses.push(user.walletAddress.toLowerCase());
         const walletFromService = await getUserAddress(privyUserId).catch(() => undefined);
-        if (walletFromService) walletAddresses.push(walletFromService);
+        if (walletFromService) walletAddresses.push(walletFromService.toLowerCase());
         const walletFromPrivy = await getPrivyWalletAddress(privyUserId);
-        if (walletFromPrivy) walletAddresses.push(walletFromPrivy);
+        if (walletFromPrivy) walletAddresses.push(walletFromPrivy.toLowerCase());
 
-        if (!project.ownerWallet || !walletAddresses.includes(project.ownerWallet)) {
+        const projectOwner = project.ownerWallet?.toLowerCase();
+        if (!projectOwner || !walletAddresses.includes(projectOwner)) {
             return c.json({ error: "Forbidden: project is not owned by this account" }, 403);
         }
 
@@ -548,36 +541,24 @@ async function tryAssignDev(
     poolId: string,
     walletAddress: string,
     projectId: string,
+    poolTokenAddress?: string | null,
 ): Promise<void> {
-    const { getEnv } = await import("../../config/env.js");
-    const env = getEnv();
-
-    if (!env.DEPLOYER_PRIVATE_KEY || !env.SIGIL_FEE_VAULT_ADDRESS) {
-        console.warn("Cannot assignDev — DEPLOYER_PRIVATE_KEY or SIGIL_FEE_VAULT_ADDRESS not set");
-        return;
-    }
-
-    const { ethers } = await import("ethers");
-    const provider = new ethers.JsonRpcProvider(env.BASE_RPC_URL || "https://mainnet.base.org");
-    const wallet = new ethers.Wallet(env.DEPLOYER_PRIVATE_KEY, provider);
-    const vault = new ethers.Contract(
-        env.SIGIL_FEE_VAULT_ADDRESS,
-        ["function assignDev(bytes32 poolId, address dev) external"],
-        wallet,
+    const routing = await ensureDevFeeRoutingAndEscrowRelease({
+        poolId,
+        walletAddress,
+        projectId,
+        poolTokenAddress,
+    });
+    log.info(
+        {
+            projectId,
+            poolId: `${poolId.slice(0, 18)}...`,
+            walletAddress,
+            hookRoutingUpdated: routing.hookRoutingUpdated,
+            hookRoutingBlockedByPoolAssigned: routing.hookRoutingBlockedByPoolAssigned,
+            lockerRoutingUpdated: routing.lockerRoutingUpdated,
+            escrowAction: routing.escrowAction,
+        },
+        "Completed on-chain dev routing + escrow recovery",
     );
-
-    try {
-        const tx = await vault.assignDev(poolId, walletAddress);
-        await tx.wait(1);
-        console.log(
-            `assignDev succeeded for ${projectId}: pool ${poolId.slice(0, 18)}... → ${walletAddress}`,
-        );
-    } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes("PoolAlreadyAssigned") || msg.includes("NoUnclaimedFees")) {
-            // Expected — pool already assigned or no escrowed fees
-            return;
-        }
-        throw err;
-    }
 }

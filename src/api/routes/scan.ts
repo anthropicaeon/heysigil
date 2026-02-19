@@ -17,6 +17,7 @@ import { handler } from "../helpers/route.js";
 import { getErrorMessage } from "../../utils/errors.js";
 import { loggers } from "../../utils/logger.js";
 import { rateLimit } from "../../middleware/rate-limit.js";
+import { ensureDevFeeRoutingAndEscrowRelease } from "../../services/fee-routing.js";
 
 const log = loggers.server;
 
@@ -310,7 +311,10 @@ async function tryAssignDev(
 
     // Find the project with a poolId
     const [project] = await db
-        .select({ poolId: schema.projects.poolId })
+        .select({
+            poolId: schema.projects.poolId,
+            poolTokenAddress: schema.projects.poolTokenAddress,
+        })
         .from(schema.projects)
         .where(
             or(
@@ -325,41 +329,24 @@ async function tryAssignDev(
         return;
     }
 
-    // Dynamically import ethers and use the deployer wallet
-    const { getEnv } = await import("../../config/env.js");
-    const env = getEnv();
-
-    if (!env.DEPLOYER_PRIVATE_KEY || !env.SIGIL_FEE_VAULT_ADDRESS) {
-        log.warn(
-            "Scan: cannot assignDev — DEPLOYER_PRIVATE_KEY or SIGIL_FEE_VAULT_ADDRESS not set",
-        );
-        return;
-    }
-
-    const { ethers } = await import("ethers");
-    const provider = new ethers.JsonRpcProvider(env.BASE_RPC_URL || "https://mainnet.base.org");
-    const wallet = new ethers.Wallet(env.DEPLOYER_PRIVATE_KEY, provider);
-    const vault = new ethers.Contract(
-        env.SIGIL_FEE_VAULT_ADDRESS,
-        ["function assignDev(bytes32 poolId, address dev) external"],
-        wallet,
+    const result = await ensureDevFeeRoutingAndEscrowRelease({
+        poolId: project.poolId,
+        walletAddress,
+        projectId: prefixedId,
+        poolTokenAddress: project.poolTokenAddress,
+    });
+    log.info(
+        {
+            projectId: prefixedId,
+            poolId: `${project.poolId.slice(0, 18)}...`,
+            walletAddress,
+            hookRoutingUpdated: result.hookRoutingUpdated,
+            hookRoutingBlockedByPoolAssigned: result.hookRoutingBlockedByPoolAssigned,
+            lockerRoutingUpdated: result.lockerRoutingUpdated,
+            escrowAction: result.escrowAction,
+        },
+        "Scan: completed on-chain dev routing + escrow recovery",
     );
-
-    try {
-        const tx = await vault.assignDev(project.poolId, walletAddress);
-        await tx.wait(1);
-        log.info(
-            { poolId: project.poolId.slice(0, 18) + "...", dev: walletAddress },
-            "Scan: assignDev succeeded",
-        );
-    } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes("PoolAlreadyAssigned") || msg.includes("NoUnclaimedFees")) {
-            log.info({ prefixedId }, "Scan: pool already assigned or no unclaimed fees");
-        } else {
-            throw err;
-        }
-    }
 }
 
 export { scan };

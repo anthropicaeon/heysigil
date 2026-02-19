@@ -100,7 +100,7 @@ export const ClaimLaunchTokenResponseSchema = z
     .object({
         success: z.literal(true),
         projectId: z.string().openapi({ example: "quick:550e8400-e29b-41d4-a716-446655440000" }),
-        ownerWallet: WalletAddressSchema.nullable(),
+        ownerWallet: WalletAddressSchema,
         message: z.string().openapi({
             example: "Quick-launch claim token redeemed",
         }),
