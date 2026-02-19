@@ -1,0 +1,206 @@
+{
+  "version": 1,
+  "generatedAt": "2026-02-19T19:10:00Z",
+  "entries": [
+    {
+      "id": "2026-02-19-f815eda",
+      "commit": "f815eda8a1a5b801d0236f56bf402465b5c2e882",
+      "date": "2026-02-19T15:54:02+02:00",
+      "title": "Configuring MCP Server service + PAT",
+      "type": "feature",
+      "area": ["mcp", "api", "auth"],
+      "features": [
+        "Added secure MCP transport endpoint and runtime bootstrap",
+        "Enabled PAT-backed MCP access with scope-aware execution",
+        "Connected package + deployment wiring for MCP startup"
+      ],
+      "reason": "Provide production-safe, token-scoped MCP access for agent runtimes.",
+      "details": [
+        "Introduced PAT token workflows aligned with MCP server execution",
+        "Connected service startup so MCP is available at deploy runtime",
+        "Laid groundwork for consistent SDK and MCP tool parity"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-19-e97289a",
+      "commit": "e97289a103e76f8f74622b861b8f38d45be812bf",
+      "date": "2026-02-19T15:05:47+02:00",
+      "title": "Persisted chat ops, agent feed separation, and presence tabs",
+      "type": "feature",
+      "area": ["chat", "agents", "database"],
+      "features": [
+        "Persistent chat storage with delete, upvote, and downvote operations",
+        "Dedicated agent feed separation from user chat surface",
+        "Presence tracking and deployment-safe migration flow"
+      ],
+      "reason": "Stabilize multi-actor chat behavior and prepare agent-aware UX safely.",
+      "details": [
+        "Added session/message persistence with mutation pathways",
+        "Separated agent-origin message handling from standard user chat stream",
+        "Prepared migration-safe deployment behavior for these changes"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-19-5774b50",
+      "commit": "5774b504943b46f557c90aa06af92e3d10c54881",
+      "date": "2026-02-19T15:24:43+02:00",
+      "title": "Web patches and UI refinements",
+      "type": "ui",
+      "area": ["web", "design-system"],
+      "features": [
+        "Applied border-centric UI alignment patches across key surfaces",
+        "Refined spacing, framing, and visual consistency details",
+        "Improved cohesion with homepage/dashboard visual language"
+      ],
+      "reason": "Keep product surfaces aligned to the border-centric design system.",
+      "details": [
+        "Reduced styling drift between sections and pages",
+        "Adjusted layout edges and border behavior for consistency",
+        "Improved overall visual rhythm in the web app"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-19-4474191",
+      "commit": "4474191992d91ef1a341a4a0a8b2b052eb51f843",
+      "date": "2026-02-19T04:15:58-08:00",
+      "title": "Dual-vault frontend support (V2 + V1)",
+      "type": "feature",
+      "area": ["frontend", "fees", "vault"],
+      "features": [
+        "Extended frontend fee reads to include both FeeVault V2 and V1",
+        "Improved continuity for users during vault transition",
+        "Kept fee visibility consistent across legacy and new contracts"
+      ],
+      "reason": "Support migration period without breaking user fee visibility.",
+      "details": [
+        "Updated fee hooks to aggregate across vault versions",
+        "Preserved expected dashboard totals during contract transition",
+        "Reduced user confusion around missing fee balances"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-19-df5faf6",
+      "commit": "df5faf6756cce69f3352caeb567599c51381821c",
+      "date": "2026-02-19T04:12:24-08:00",
+      "title": "V2 contract integration for claims and fee collection",
+      "type": "feature",
+      "area": ["contracts", "claims", "fees"],
+      "features": [
+        "Integrated V2 contract paths for claims and fee collection",
+        "Added dual-vault behavior to support ongoing migration",
+        "Aligned frontend and backend flows with V2 rollout"
+      ],
+      "reason": "Migrate core protocol operations to newer vault architecture.",
+      "details": [
+        "Updated claim and fee routing logic for V2 compatibility",
+        "Kept fallback/parallel behavior for V1 where needed",
+        "Improved long-term contract upgrade readiness"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-19-ecbc74f",
+      "commit": "ecbc74fe2ec5c6e0bbf23926a0b9c58f1fd08065",
+      "date": "2026-02-19T03:20:21-08:00",
+      "title": "Removed hardcoded deployer private key",
+      "type": "security",
+      "area": ["security", "scripts"],
+      "features": [
+        "Eliminated hardcoded secret material from scripts",
+        "Moved sensitive configuration to environment-based flow",
+        "Reduced accidental secret exposure risk"
+      ],
+      "reason": "Enforce safer operational security and secret handling.",
+      "details": [
+        "Deleted explicit private key values from repository scripts",
+        "Kept script behavior driven by environment variables",
+        "Improved security posture for local and CI execution"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-19-62ff6cf",
+      "commit": "62ff6cf20d192d4663f0bf4130caba829e0b55e9",
+      "date": "2026-02-19T00:44:52-08:00",
+      "title": "Portfolio balance fixes and withdraw/send support",
+      "type": "feature",
+      "area": ["wallet", "portfolio", "payments"],
+      "features": [
+        "Corrected portfolio balance behavior",
+        "Added withdraw/send wallet actions",
+        "Improved fund-management usability for builders"
+      ],
+      "reason": "Resolve financial UX friction and unblock wallet operations.",
+      "details": [
+        "Fixed balance display mismatch in portfolio flow",
+        "Added transaction paths for outbound transfers",
+        "Improved practical wallet utility in day-to-day usage"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-18-38fdbfc",
+      "commit": "38fdbfcc78eb1a2b5318902788cd4d1c680d0c3f",
+      "date": "2026-02-18T23:37:37-08:00",
+      "title": "Added .sigil attestation scan endpoint and CLI package",
+      "type": "feature",
+      "area": ["attestation", "scan", "cli"],
+      "features": [
+        "Added .sigil file attestation support",
+        "Introduced scan endpoint for verification workflows",
+        "Published CLI package for developer automation"
+      ],
+      "reason": "Enable portable attestations and cleaner developer tooling paths.",
+      "details": [
+        "Expanded verification surface with .sigil artifact support",
+        "Connected server scan flow to attestation pipeline",
+        "Improved command-line integration for builder workflows"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-18-4db8f37",
+      "commit": "4db8f3787cea0b56d0b3b84e6ba1f18798623104",
+      "date": "2026-02-18T21:29:20-08:00",
+      "title": "Connected /connect handshake to real API flow",
+      "type": "feature",
+      "area": ["connect", "api", "agents"],
+      "features": [
+        "Replaced placeholder handshake interactions with real API calls",
+        "Connected runtime handshake lifecycle to backend persistence",
+        "Enabled practical connect flow for deployed bot runtimes"
+      ],
+      "reason": "Move connect experience from mock to operational behavior.",
+      "details": [
+        "Wired handshake request/response flow through backend route",
+        "Stored connected runtime records after successful handshake",
+        "Unlocked real control-plane behavior for connected bots"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-18-7757e68",
+      "commit": "7757e683ab2e2426976ce05ca4aecec7a8adfc65",
+      "date": "2026-02-18T22:16:24-08:00",
+      "title": "Fixed claimable USDC derivation",
+      "type": "fix",
+      "area": ["fees", "claiming", "accounting"],
+      "features": [
+        "Corrected claimable USDC calculation logic",
+        "Aligned displayed claimable value with on-chain realities",
+        "Reduced false-positive claimable balances"
+      ],
+      "reason": "Prevent incorrect claim states and claim transaction failures.",
+      "details": [
+        "Derived claimable from accrued DB fees minus lifetime earned on-chain",
+        "Improved consistency between displayed and actual claim outcomes",
+        "Reduced user-facing revert scenarios in claim flow"
+      ],
+      "author": "xodivc xode"
+    }
+  ]
+}
