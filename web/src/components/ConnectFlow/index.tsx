@@ -524,7 +524,7 @@ export default function ConnectFlow({ initialClaimToken }: ConnectFlowProps = {}
 
     return (
         <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r min-h-screen px-0 bg-cream">
+            <div className="border-border relative container border-l border-r min-h-screen px-0 bg-background flex flex-col">
                 {isDev && (
                     <div className="absolute top-2 right-2 z-50 bg-primary/90 px-2 py-1 text-xs font-mono text-primary-foreground">
                         Shift+D: cycle steps
@@ -602,8 +602,8 @@ export default function ConnectFlow({ initialClaimToken }: ConnectFlowProps = {}
                     })}
                 </div>
 
-                <div className="grid bg-background lg:grid-cols-[1.45fr_1fr] border-border border-b">
-                    <div className="border-border lg:border-r">
+                <div className="flex-1 min-h-0 grid bg-background lg:grid-cols-[1.45fr_1fr] border-border border-b">
+                    <div className="border-border lg:border-r min-h-0 flex flex-col">
                         <div className="px-6 py-5 lg:px-12 border-border border-b bg-secondary/30">
                             <p className="text-xs text-muted-foreground uppercase tracking-[0.14em]">
                                 current stage
@@ -613,7 +613,8 @@ export default function ConnectFlow({ initialClaimToken }: ConnectFlowProps = {}
                             </h2>
                         </div>
 
-                        {step === "stack" && (
+                        <div className="flex-1 min-h-0 overflow-y-auto">
+                            {step === "stack" && (
                             <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-5">
                                 <div className="grid gap-0 border border-border sm:grid-cols-2">
                                     {STACKS.map((stack, index) => {
@@ -667,7 +668,7 @@ export default function ConnectFlow({ initialClaimToken }: ConnectFlowProps = {}
                             </div>
                         )}
 
-                        {step === "handshake" && (
+                            {step === "handshake" && (
                             <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-5">
                                 <p className="text-sm text-muted-foreground">
                                     Run the initial handshake against your deployed {selectedStackData.label}
@@ -989,7 +990,7 @@ export default function ConnectFlow({ initialClaimToken }: ConnectFlowProps = {}
                             </div>
                         )}
 
-                        {step === "configure" && (
+                            {step === "configure" && (
                             <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-5">
                                 <div className="grid gap-0 border border-border sm:grid-cols-3">
                                     <div className="border-border border-b sm:border-b-0 sm:border-r px-4 py-4">
@@ -1036,7 +1037,7 @@ export default function ConnectFlow({ initialClaimToken }: ConnectFlowProps = {}
                             </div>
                         )}
 
-                        {step === "run" && (
+                            {step === "run" && (
                             <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-5">
                                 <p className="text-sm text-muted-foreground">
                                     Reuse the same chat orchestration already running on `/chat` so runtime
@@ -1077,7 +1078,7 @@ export default function ConnectFlow({ initialClaimToken }: ConnectFlowProps = {}
                             </div>
                         )}
 
-                        {step === "manage" && (
+                            {step === "manage" && (
                             <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-4">
                                 <div className="space-y-2">
                                     {connectedBots.length === 0 && (
@@ -1133,15 +1134,16 @@ export default function ConnectFlow({ initialClaimToken }: ConnectFlowProps = {}
                                     <Button onClick={() => setStep("handshake")}>connect another bot</Button>
                                 </div>
                             </div>
-                        )}
+                            )}
+                        </div>
                     </div>
 
-                    <aside className="bg-sage/20">
+                    <aside className="bg-sage/20 min-h-0 flex flex-col">
                         <div className="px-6 py-5 border-border border-b bg-secondary/40">
                             <h3 className="text-sm font-medium text-foreground lowercase">fleet snapshot</h3>
                         </div>
 
-                        <div className="divide-y divide-border">
+                        <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-border">
                             {connectedBots.length === 0 && (
                                 <div className="px-6 py-4">
                                     <p className="text-xs text-muted-foreground">No bots connected</p>

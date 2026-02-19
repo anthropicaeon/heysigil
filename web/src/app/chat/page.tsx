@@ -537,8 +537,8 @@ export default function ChatPage() {
     const activeMessages = sidebarTab === "agents" ? agentMessages : messages;
 
     return (
-        <section className="h-[calc(100vh-5rem)] bg-background relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r px-0 bg-background h-full flex flex-col">
+        <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
+            <div className="border-border relative container border-l border-r px-0 bg-background min-h-screen flex flex-col">
                 <PixelCard
                     variant="lavender"
                     active
