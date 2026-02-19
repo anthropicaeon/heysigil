@@ -8,6 +8,7 @@ import {
     Bot,
     ChevronRight,
     Code2,
+    FileText,
     HelpCircle,
     Landmark,
     Newspaper,
@@ -265,6 +266,12 @@ const Navbar = () => {
                     href: "/blog",
                     description: "Protocol updates and announcements",
                     icon: Newspaper,
+                },
+                {
+                    title: "Changelog",
+                    href: "/changelog",
+                    description: "Weekly release notes and contributor updates",
+                    icon: FileText,
                 },
                 {
                     title: "About",
