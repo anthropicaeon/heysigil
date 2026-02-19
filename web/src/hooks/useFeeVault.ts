@@ -27,8 +27,12 @@ interface FeeBalance {
 interface UseFeeVaultReturn {
     /** USDC claimable right now */
     claimableUsdc: string;
+    /** Raw claimable bigint (USDC 6 dec) */
+    claimableRaw: bigint;
     /** USDC lifetime earned */
     lifetimeUsdc: string;
+    /** Raw lifetime earned bigint (USDC 6 dec) */
+    lifetimeRaw: bigint;
     /** All token balances (if dev has fees in multiple tokens) */
     allBalances: FeeBalance[];
     /** Loading state for reads */
@@ -53,7 +57,9 @@ interface UseFeeVaultReturn {
 
 export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
     const [claimableUsdc, setClaimableUsdc] = useState("$0.00");
+    const [claimableRaw, setClaimableRaw] = useState(BigInt(0));
     const [lifetimeUsdc, setLifetimeUsdc] = useState("$0.00");
+    const [lifetimeRaw, setLifetimeRaw] = useState(BigInt(0));
     const [allBalances, setAllBalances] = useState<FeeBalance[]>([]);
     const [loading, setLoading] = useState(false);
     const [claiming, setClaiming] = useState(false);
@@ -106,7 +112,9 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
             if (!isMounted.current) return;
 
             setClaimableUsdc(formatCurrency(usdcBalance));
+            setClaimableRaw(usdcBalance as bigint);
             setLifetimeUsdc(formatCurrency(usdcLifetime));
+            setLifetimeRaw(usdcLifetime as bigint);
 
             const feeBalances: FeeBalance[] = [];
             for (let i = 0; i < tokens.length; i++) {
@@ -206,7 +214,9 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
 
     return {
         claimableUsdc,
+        claimableRaw,
         lifetimeUsdc,
+        lifetimeRaw,
         allBalances,
         loading,
         claiming,

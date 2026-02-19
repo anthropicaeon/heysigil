@@ -33,7 +33,7 @@ import { PixelCard } from "@/components/ui/pixel-card";
 import { useFeeVault } from "@/hooks/useFeeVault";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import { apiClient } from "@/lib/api-client";
-import { truncateAddress } from "@/lib/format";
+import { formatCurrency, truncateAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useIsPrivyConfigured } from "@/providers/PrivyAuthProvider";
 import type { ProjectInfo } from "@/types";
@@ -81,6 +81,7 @@ export default function ProfileDashboard() {
     const {
         claimableUsdc,
         lifetimeUsdc,
+        lifetimeRaw,
         loading,
         claiming,
         fundingGas,
@@ -125,6 +126,11 @@ export default function ProfileDashboard() {
             ? `$${(totalFees / 1e6).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             : "$0.00";
 
+    // Derived claimable = total fees accrued (DB) minus lifetime earned (on-chain)
+    // This captures fees in escrow that haven't been assigned yet.
+    const derivedClaimableRaw = BigInt(Math.max(0, totalFees - Number(lifetimeRaw)));
+    const derivedClaimableUsdc = formatCurrency(derivedClaimableRaw);
+
     const stats = [
         {
             label: "Your Projects",
@@ -143,7 +149,7 @@ export default function ProfileDashboard() {
         },
         {
             label: "Claimable Now",
-            value: claimableUsdc,
+            value: derivedClaimableUsdc,
             icon: DollarSign,
             highlight: true,
         },
@@ -274,7 +280,7 @@ export default function ProfileDashboard() {
                         </div>
                         <div className="px-6 py-6 lg:px-8 bg-rose/10">
                             <FeeClaimCard
-                                claimableUsdc={claimableUsdc}
+                                claimableUsdc={derivedClaimableUsdc}
                                 lifetimeUsdc={lifetimeUsdc}
                                 claiming={claiming}
                                 fundingGas={fundingGas}
