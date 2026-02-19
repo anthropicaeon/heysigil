@@ -31,6 +31,20 @@ export interface TokenExchangeConfig {
     httpMethod: "GET" | "POST";
 }
 
+function normalizeBaseUrl(baseUrl: string): string {
+    return baseUrl.replace(/[\r\n\t]/g, "").trim().replace(/\/+$/, "");
+}
+
+function normalizeCallbackPath(callbackPath: string): string {
+    const cleanPath = callbackPath.replace(/[\r\n\t]/g, "").trim();
+    if (!cleanPath) return "";
+    return cleanPath.startsWith("/") ? cleanPath : `/${cleanPath}`;
+}
+
+export function buildOAuthRedirectUri(baseUrl: string, callbackPath: string): string {
+    return `${normalizeBaseUrl(baseUrl)}${normalizeCallbackPath(callbackPath)}`;
+}
+
 /**
  * Abstract base class for OAuth verification providers.
  * Implements Template Method pattern for consistent OAuth flows.
@@ -52,11 +66,15 @@ export abstract class OAuthVerifier {
     getAuthUrl(state: string): string {
         const params = new URLSearchParams({
             client_id: this.getClientId(),
-            redirect_uri: `${this.env.BASE_URL}${this.config.callbackPath}`,
+            redirect_uri: this.getRedirectUri(),
             scope: this.config.scopes.join(" "),
             state,
         });
         return `${this.config.authEndpoint}?${params}`;
+    }
+
+    protected getRedirectUri(): string {
+        return buildOAuthRedirectUri(this.env.BASE_URL, this.config.callbackPath);
     }
 
     /**

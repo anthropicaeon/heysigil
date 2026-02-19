@@ -44,7 +44,7 @@ class InstagramOAuthVerifier extends OAuthVerifier {
         const params = new URLSearchParams({
             client_id: this.getClientId(),
             client_secret: this.getClientSecret(),
-            redirect_uri: `${this.env.BASE_URL}${this.config.callbackPath}`,
+            redirect_uri: this.getRedirectUri(),
             code,
         });
 

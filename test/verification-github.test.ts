@@ -70,6 +70,17 @@ describe("getGitHubAuthUrl", () => {
 
     expect(scope).toBe("repo read:org");
   });
+
+  test("normalizes redirect URI when BASE_URL contains trailing whitespace/newline", () => {
+    process.env.GITHUB_CLIENT_ID = mockEnv.GITHUB_CLIENT_ID;
+    process.env.BASE_URL = " https://test.example.com/ \n";
+
+    const url = getGitHubAuthUrl("state");
+    const urlObj = new URL(url);
+    const redirectUri = urlObj.searchParams.get("redirect_uri");
+
+    expect(redirectUri).toBe("https://test.example.com/api/verify/github/callback");
+  });
 });
 
 // ─── exchangeGitHubCode ─────────────────────────────────

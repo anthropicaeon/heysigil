@@ -73,8 +73,8 @@ const envSchema = z.object({
 
     // Server
     PORT: z.coerce.number().default(3001),
-    BASE_URL: z.string().url().default("http://localhost:3001"),
-    FRONTEND_URL: z.string().url().default("http://localhost:3000"),
+    BASE_URL: z.string().trim().url().default("http://localhost:3001"),
+    FRONTEND_URL: z.string().trim().url().default("http://localhost:3000"),
 
     // Environment
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),

@@ -56,7 +56,7 @@ class GitHubOAuthVerifier extends OAuthVerifier {
                 client_id: this.getClientId(),
                 client_secret: this.getClientSecret(),
                 code,
-                redirect_uri: `${this.env.BASE_URL}${this.config.callbackPath}`,
+                redirect_uri: this.getRedirectUri(),
             }),
         });
 

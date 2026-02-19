@@ -1,5 +1,5 @@
 import type { VerificationResult } from "./types.js";
-import { OAuthVerifier } from "./oauth-base.js";
+import { OAuthVerifier, buildOAuthRedirectUri } from "./oauth-base.js";
 import { getEnv } from "../config/env.js";
 
 // ─── Types ──────────────────────────────────────────────
@@ -51,7 +51,7 @@ class FacebookOAuthVerifier extends OAuthVerifier {
         const params = new URLSearchParams({
             client_id: this.getClientId(),
             client_secret: this.getClientSecret(),
-            redirect_uri: `${this.env.BASE_URL}${this.config.callbackPath}`,
+            redirect_uri: this.getRedirectUri(),
             code,
         });
 
@@ -137,7 +137,7 @@ export async function exchangeFacebookCode(code: string): Promise<string> {
     const params = new URLSearchParams({
         client_id: env.FACEBOOK_APP_ID,
         client_secret: env.FACEBOOK_APP_SECRET,
-        redirect_uri: `${env.BASE_URL}/api/verify/facebook/callback`,
+        redirect_uri: buildOAuthRedirectUri(env.BASE_URL, "/api/verify/facebook/callback"),
         code,
     });
     const response = await fetch(`https://graph.facebook.com/v21.0/oauth/access_token?${params}`);
