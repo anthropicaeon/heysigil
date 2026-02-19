@@ -44,7 +44,7 @@ export default function NewsSearchView({ invocation, className }: NewsSearchView
                 </div>
             );
 
-        case "output-available":
+        case "output-available": {
             if (invocation.output?.state === "loading") {
                 return (
                     <div className={cn("text-sm text-muted-foreground", className)}>
@@ -58,22 +58,22 @@ export default function NewsSearchView({ invocation, className }: NewsSearchView
             return (
                 <div className={cn("space-y-3", className)}>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <NewspaperIcon className="size-4" />
+                        <NewspaperIcon className="size-4 text-primary" />
                         Found {items.length} news item{items.length !== 1 ? "s" : ""} for:{" "}
                         <strong className="text-foreground">{topic}</strong>
                     </div>
-                    <div className="divide-y divide-border border border-border bg-green-50/30">
+                    <div className="divide-y divide-border border border-border bg-sage/14">
                         {items.map((item, index) => (
                             <div
                                 key={index}
-                                className="px-4 py-3 hover:bg-green-50/50 transition-colors"
+                                className="px-4 py-3 transition-colors hover:bg-sage/22"
                             >
                                 {item.url ? (
                                     <a
                                         href={item.url}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="flex items-center gap-2 text-sm font-medium text-green-700 hover:underline"
+                                        className="flex items-center gap-2 text-sm font-medium text-primary hover:underline"
                                     >
                                         {item.title}
                                         <ExternalLink className="size-3 shrink-0" />
@@ -93,6 +93,7 @@ export default function NewsSearchView({ invocation, className }: NewsSearchView
                     </div>
                 </div>
             );
+        }
 
         case "output-error":
             return (

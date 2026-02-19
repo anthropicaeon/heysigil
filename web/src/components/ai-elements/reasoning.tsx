@@ -23,11 +23,11 @@ export function Reasoning({ children, isStreaming, className }: ReasoningProps) 
     const [open, setOpen] = useState(false);
 
     return (
-        <div className={cn("border border-border bg-lavender/20", className)}>
+        <div className={cn("border border-border bg-lavender/18", className)}>
             <button
                 type="button"
                 onClick={() => setOpen(!open)}
-                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-lavender/40 transition-colors"
+                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-foreground hover:bg-lavender/32 transition-colors"
             >
                 <BrainIcon className="size-4 text-primary" />
                 <span className="font-medium">Thinking</span>

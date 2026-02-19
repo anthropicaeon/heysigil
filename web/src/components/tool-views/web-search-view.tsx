@@ -45,7 +45,7 @@ export default function WebSearchView({ invocation, className }: WebSearchViewPr
                 </div>
             );
 
-        case "output-available":
+        case "output-available": {
             if (invocation.output?.state === "loading") {
                 return (
                     <div className={cn("text-sm text-muted-foreground", className)}>
@@ -63,11 +63,11 @@ export default function WebSearchView({ invocation, className }: WebSearchViewPr
                         Found {results.length} result{results.length !== 1 ? "s" : ""} for:{" "}
                         <strong className="text-foreground">{query}</strong>
                     </div>
-                    <div className="divide-y divide-border border border-border">
+                    <div className="divide-y divide-border border border-border bg-background/75">
                         {results.map((result, index) => (
                             <div
                                 key={index}
-                                className="px-4 py-3 hover:bg-secondary/20 transition-colors"
+                                className="px-4 py-3 transition-colors hover:bg-lavender/15"
                             >
                                 <a
                                     href={result.url}
@@ -93,6 +93,7 @@ export default function WebSearchView({ invocation, className }: WebSearchViewPr
                     </div>
                 </div>
             );
+        }
 
         case "output-error":
             return (

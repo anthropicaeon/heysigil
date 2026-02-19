@@ -26,7 +26,10 @@ export function PromptInput({ children, onSubmit, className }: PromptInputProps)
     return (
         <form
             onSubmit={handleSubmit}
-            className={cn("border-border border-t bg-background", className)}
+            className={cn(
+                "border-border border-t bg-[linear-gradient(180deg,hsl(var(--background)/0.95),hsl(var(--lavender)/0.08))]",
+                className,
+            )}
         >
             {children}
         </form>
@@ -56,7 +59,7 @@ export function PromptInputTextarea({
             disabled={disabled}
             rows={1}
             className={cn(
-                "w-full min-h-[56px] max-h-40 resize-none bg-transparent px-6 py-4 lg:px-12 text-base placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+                "w-full min-h-[56px] max-h-40 resize-none bg-transparent px-6 py-4 lg:px-12 text-[15px] leading-relaxed placeholder:text-muted-foreground/80 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50",
                 className,
             )}
             onKeyDown={(e) => {
@@ -78,7 +81,7 @@ export function PromptInputToolbar({ children, className }: PromptInputToolbarPr
     return (
         <div
             className={cn(
-                "flex items-center px-6 py-3 lg:px-12 border-border border-t bg-secondary/20",
+                "flex items-center px-6 py-3 lg:px-12 border-border border-t bg-background/70",
                 className,
             )}
         >
@@ -129,7 +132,7 @@ export function PromptInputSubmit({ disabled, status, onStop, className }: Promp
             className={cn(
                 "size-10 flex items-center justify-center border border-border transition-all",
                 isLoading
-                    ? "bg-lavender/50 text-primary cursor-wait"
+                    ? "bg-lavender/55 text-primary cursor-wait"
                     : "bg-primary text-primary-foreground hover:bg-primary/90",
                 (disabled || isLoading) && "opacity-50 cursor-not-allowed",
                 className,

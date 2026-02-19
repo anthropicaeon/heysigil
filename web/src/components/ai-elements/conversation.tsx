@@ -36,7 +36,14 @@ export function ConversationContent({ children, className }: ConversationContent
     });
 
     return (
-        <div ref={ref} className={cn("flex-1 overflow-y-auto scrollbar-hide divide-y divide-border", className)}>
+        <div
+            ref={ref}
+            data-conversation-content
+            className={cn(
+                "flex-1 overflow-y-auto scrollbar-hide divide-y divide-border bg-[linear-gradient(180deg,hsl(var(--background)/0.75),hsl(var(--sage)/0.06))]",
+                className,
+            )}
+        >
             {children}
         </div>
     );

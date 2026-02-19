@@ -9,6 +9,7 @@
  */
 
 import {
+    Activity,
     Bot,
     BrainIcon,
     CheckCircleIcon,
@@ -18,6 +19,7 @@ import {
     RefreshCcwIcon,
     ScaleIcon,
     SearchIcon,
+    Sparkles,
 } from "lucide-react";
 import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -55,8 +57,10 @@ import {
     ProvideAnswerView,
     WebSearchView,
 } from "@/components/tool-views";
+import { PixelCard } from "@/components/ui/pixel-card";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import type { ChatStatus, MessagePart, MultiStepToolUIMessage } from "@/lib/chat-types";
+import { cn } from "@/lib/utils";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -100,6 +104,43 @@ interface AgentFeedItem {
     source: "agent";
     content: string;
     timestamp: string;
+}
+
+interface SidebarModeTabsProps {
+    value: SidebarTab;
+    onChange: (value: SidebarTab) => void;
+    className?: string;
+}
+
+function SidebarModeTabs({ value, onChange, className }: SidebarModeTabsProps) {
+    const tabs: Array<{ key: SidebarTab; label: string; hint: string }> = [
+        { key: "chat", label: "chat", hint: "you + sigil" },
+        { key: "agents", label: "agents", hint: "live feed" },
+    ];
+
+    return (
+        <div className={cn("grid grid-cols-2 border-b border-border bg-background/90", className)}>
+            {tabs.map((tab, index) => (
+                <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => onChange(tab.key)}
+                    className={cn(
+                        "group px-4 py-3 text-left transition-colors",
+                        index === 0 && "border-r border-border",
+                        value === tab.key
+                            ? "bg-lavender/35 text-foreground"
+                            : "bg-background text-muted-foreground hover:bg-sage/15",
+                    )}
+                >
+                    <p className="text-xs uppercase tracking-[0.14em]">{tab.label}</p>
+                    <p className="mt-1 text-[11px] lowercase text-muted-foreground group-hover:text-foreground/80">
+                        {tab.hint}
+                    </p>
+                </button>
+            ))}
+        </div>
+    );
 }
 
 function extractToolSteps(messages: MultiStepToolUIMessage[]): ToolStep[] {
@@ -497,33 +538,54 @@ export default function ChatPage() {
 
     return (
         <section className="h-[calc(100vh-5rem)] bg-background relative overflow-hidden px-2.5 lg:px-0">
-            <div className="border-border relative container border-l border-r px-0 bg-cream h-full flex flex-col">
-                {/* Header */}
-                <div className="border-border border-b bg-background shrink-0">
-                    <div className="flex flex-col lg:flex-row">
-                        <div className="flex-1 px-6 py-4 lg:px-12">
-                            <div className="flex items-center gap-3">
-                                <div>
-                                    <h1 className="text-xl font-semibold text-foreground lowercase">
-                                        talk to sigil
-                                    </h1>
-                                    <p className="text-sm text-muted-foreground">
-                                        multi-step ai agent
-                                    </p>
-                                </div>
-                            </div>
+            <div className="border-border relative container border-l border-r px-0 bg-background h-full flex flex-col">
+                <PixelCard
+                    variant="lavender"
+                    active
+                    centerFade
+                    noFocus
+                    className="shrink-0 border-b border-border bg-lavender/28"
+                >
+                    <div className="flex items-center justify-between border-b border-border px-6 py-2 lg:px-12">
+                        <div className="flex items-center gap-2 text-xs text-primary uppercase tracking-[0.16em]">
+                            <Sparkles className="size-3.5" />
+                            conversation surface
+                        </div>
+                        <div className="inline-flex items-center gap-2 border border-border bg-background/80 px-2.5 py-1 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                            <Activity className="size-3 text-primary" />
+                            {sidebarTab === "agents" ? "agents feed" : "user thread"}
                         </div>
                     </div>
-                </div>
+                    <div className="px-6 py-4 lg:px-12">
+                        <h1 className="text-xl font-semibold text-foreground lowercase">
+                            talk to sigil
+                        </h1>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            multi-step ai agent with persistent session state
+                        </p>
+                    </div>
+                </PixelCard>
 
-                {/* Main Content */}
-                <div className="flex-1 flex flex-col lg:flex-row bg-background overflow-hidden">
-                    {/* Chat Area */}
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                        <Conversation className="flex-1 overflow-hidden">
+                <div className="flex-1 min-h-0 flex flex-col lg:flex-row bg-[linear-gradient(180deg,hsl(var(--background)),hsl(var(--sage)/0.07))] overflow-hidden">
+                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden lg:border-r lg:border-border">
+                        <SidebarModeTabs
+                            value={sidebarTab}
+                            onChange={setSidebarTab}
+                            className="lg:hidden"
+                        />
+
+                        <div className="shrink-0 border-b border-border bg-background/75 px-6 py-2 lg:px-12">
+                            <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                                {sidebarTab === "agents"
+                                    ? "agent channel: read-only stream + presence sync"
+                                    : "chat channel: direct conversation with sigil"}
+                            </p>
+                        </div>
+
+                        <Conversation className="flex-1 min-h-0 overflow-hidden">
                             <ConversationContent>
                                 {sidebarTab === "agents" && activeMessages.length === 0 ? (
-                                    <div className="mx-6 mt-6 border border-border bg-secondary/20 px-4 py-3 text-sm text-muted-foreground lg:mx-12">
+                                    <div className="mx-6 mt-6 border border-border bg-lavender/20 px-4 py-3 text-sm text-muted-foreground lg:mx-12">
                                         Agent feed is waiting for agent-origin messages.
                                     </div>
                                 ) : null}
@@ -585,7 +647,15 @@ export default function ChatPage() {
                                         {message.parts.map((part, partIndex) => {
                                             if (part.type === "text") {
                                                 return (
-                                                    <Message key={partIndex} from={message.role}>
+                                                    <Message
+                                                        key={partIndex}
+                                                        from={message.role}
+                                                        source={
+                                                            sidebarTab === "agents"
+                                                                ? "agent"
+                                                                : message.source
+                                                        }
+                                                    >
                                                         <MessageContent>
                                                             <Response>{part.text}</Response>
                                                         </MessageContent>
@@ -710,7 +780,15 @@ export default function ChatPage() {
 
                                             if (part.type === "tool-provideAnswer") {
                                                 return (
-                                                    <Message key={partIndex} from={message.role}>
+                                                    <Message
+                                                        key={partIndex}
+                                                        from={message.role}
+                                                        source={
+                                                            sidebarTab === "agents"
+                                                                ? "agent"
+                                                                : message.source
+                                                        }
+                                                    >
                                                         <MessageContent>
                                                             <ProvideAnswerView invocation={part} />
                                                         </MessageContent>
@@ -756,11 +834,10 @@ export default function ChatPage() {
                             </ConversationContent>
                         </Conversation>
 
-                        {/* Suggestions */}
                         {sidebarTab === "chat" && messages.length === 1 && (
-                            <div className="border-border border-t shrink-0">
-                                <div className="px-6 py-2 lg:px-12 border-border border-b bg-secondary/30">
-                                    <p className="text-xs text-muted-foreground uppercase tracking-wider">
+                            <div className="border-border border-t shrink-0 bg-[linear-gradient(180deg,hsl(var(--lavender)/0.2),hsl(var(--background)/0.98))]">
+                                <div className="px-6 py-2 lg:px-12 border-border border-b bg-background/70">
+                                    <p className="text-xs text-muted-foreground uppercase tracking-[0.12em]">
                                         Try these
                                     </p>
                                 </div>
@@ -778,13 +855,12 @@ export default function ChatPage() {
                             </div>
                         )}
 
-                        {/* Input */}
                         <div
                             className={`shrink-0 border-border border-t transition-colors ${
-                                status !== "ready" ? "bg-lavender/10" : ""
+                                status !== "ready" ? "bg-lavender/20" : "bg-background/90"
                             }`}
                         >
-                            <PromptInput onSubmit={handleSubmit}>
+                            <PromptInput onSubmit={handleSubmit} className="border-t-0">
                                 <PromptInputTextarea
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
@@ -812,33 +888,8 @@ export default function ChatPage() {
                         </div>
                     </div>
 
-                    {/* Portfolio Sidebar */}
-                    <div className="hidden lg:flex w-[340px] shrink-0 border-border border-l bg-background flex-col">
-                        <div className="grid grid-cols-2 border-b border-border bg-secondary/20">
-                            <button
-                                type="button"
-                                onClick={() => setSidebarTab("chat")}
-                                className={`px-4 py-3 text-left text-xs uppercase tracking-[0.14em] border-border border-r transition-colors ${
-                                    sidebarTab === "chat"
-                                        ? "bg-lavender/35 text-foreground"
-                                        : "bg-background text-muted-foreground hover:bg-sage/15"
-                                }`}
-                            >
-                                chat
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSidebarTab("agents")}
-                                className={`px-4 py-3 text-left text-xs uppercase tracking-[0.14em] transition-colors ${
-                                    sidebarTab === "agents"
-                                        ? "bg-lavender/35 text-foreground"
-                                        : "bg-background text-muted-foreground hover:bg-sage/15"
-                                }`}
-                            >
-                                agents
-                            </button>
-                        </div>
-
+                    <div className="hidden lg:flex w-[360px] shrink-0 bg-background/85 flex-col">
+                        <SidebarModeTabs value={sidebarTab} onChange={setSidebarTab} />
                         <div className="min-h-0 flex-1">
                             {sidebarTab === "chat" ? (
                                 <PortfolioSidebar
@@ -849,19 +900,34 @@ export default function ChatPage() {
                                     className="h-full"
                                 />
                             ) : (
-                                <div className="h-full flex flex-col bg-background">
-                                    <div className="border-b border-border bg-sage/20 px-4 py-3">
+                                <div className="h-full flex flex-col bg-[linear-gradient(180deg,hsl(var(--sage)/0.1),hsl(var(--background)/0.95))]">
+                                    <div className="border-b border-border px-4 py-3">
                                         <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
                                             Agent Presence
                                         </p>
-                                        <p className="mt-1 text-sm text-foreground">
-                                            {onlineAgents} online / {offlineAgents} offline
-                                        </p>
+                                        <div className="mt-3 grid grid-cols-2 border border-border bg-background/65">
+                                            <div className="border-r border-border px-3 py-2">
+                                                <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                                                    online
+                                                </p>
+                                                <p className="mt-1 text-sm font-medium text-foreground">
+                                                    {onlineAgents}
+                                                </p>
+                                            </div>
+                                            <div className="px-3 py-2">
+                                                <p className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                                                    offline
+                                                </p>
+                                                <p className="mt-1 text-sm font-medium text-foreground">
+                                                    {offlineAgents}
+                                                </p>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     {!privy?.authenticated ? (
                                         <div className="flex-1 flex flex-col">
-                                            <div className="border-b border-border px-4 py-4">
+                                            <div className="border-b border-border px-4 py-4 bg-background/60">
                                                 <p className="text-sm text-foreground">
                                                     Sign in to view connected agents.
                                                 </p>
@@ -875,7 +941,7 @@ export default function ChatPage() {
                                                     Sign In
                                                 </button>
                                             </div>
-                                            <div className="flex-1 bg-cream/20" />
+                                            <div className="flex-1 bg-cream/25" />
                                         </div>
                                     ) : (
                                         <>
@@ -898,9 +964,12 @@ export default function ChatPage() {
                                                 </div>
                                             ) : null}
 
-                                            <div className="flex-1 overflow-y-auto divide-y divide-border">
+                                            <div className="flex-1 overflow-y-auto">
                                                 {agents.map((agent) => (
-                                                    <div key={agent.id} className="px-4 py-3">
+                                                    <div
+                                                        key={agent.id}
+                                                        className="border-b border-border px-4 py-3 hover:bg-sage/15 transition-colors"
+                                                    >
                                                         <div className="flex items-start justify-between gap-3">
                                                             <div className="min-w-0">
                                                                 <div className="flex items-center gap-2">
@@ -916,7 +985,7 @@ export default function ChatPage() {
                                                             <span
                                                                 className={`inline-flex items-center gap-1 px-2 py-1 border text-[10px] uppercase tracking-[0.12em] ${
                                                                     agent.presence === "online"
-                                                                        ? "border-sage/60 bg-sage/35 text-foreground"
+                                                                        ? "border-sage/70 bg-sage/35 text-foreground"
                                                                         : "border-border bg-background text-muted-foreground"
                                                                 }`}
                                                             >

@@ -46,7 +46,7 @@ export default function AnalyzeView({ invocation, className }: AnalyzeViewProps)
                 </div>
             );
 
-        case "output-available":
+        case "output-available": {
             if (invocation.output?.state === "loading") {
                 return (
                     <div className={cn("text-sm text-muted-foreground", className)}>
@@ -60,11 +60,11 @@ export default function AnalyzeView({ invocation, className }: AnalyzeViewProps)
             return (
                 <div className={cn("space-y-3", className)}>
                     <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <BrainIcon className="size-4 text-purple-600" />
+                        <BrainIcon className="size-4 text-primary" />
                         Analysis Results
                     </div>
 
-                    <div className="border border-border divide-y divide-border bg-purple-50/30">
+                    <div className="border border-border divide-y divide-border bg-lavender/18">
                         <div className="px-4 py-3">
                             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
                                 Problem
@@ -97,7 +97,7 @@ export default function AnalyzeView({ invocation, className }: AnalyzeViewProps)
                                             key={index}
                                             className="text-sm text-foreground flex items-start gap-2"
                                         >
-                                            <span className="text-primary">•</span>
+                                            <span className="text-primary">-</span>
                                             {component}
                                         </li>
                                     ))}
@@ -107,6 +107,7 @@ export default function AnalyzeView({ invocation, className }: AnalyzeViewProps)
                     </div>
                 </div>
             );
+        }
 
         case "output-error":
             return (

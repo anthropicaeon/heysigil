@@ -21,11 +21,11 @@ export function ChainOfThought({ children, defaultOpen = false, className }: Cha
     const [open, setOpen] = useState(defaultOpen);
 
     return (
-        <div className={cn("border border-border bg-secondary/20", className)}>
+        <div className={cn("border border-border bg-lavender/15", className)}>
             <button
                 type="button"
                 onClick={() => setOpen(!open)}
-                className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary/40 transition-colors"
+                className="w-full flex items-center gap-2 px-4 py-2 text-sm font-medium text-foreground hover:bg-lavender/35 transition-colors"
             >
                 <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
                 Agent Reasoning
@@ -87,10 +87,10 @@ export function ChainOfThoughtStep({
                 <div
                     className={cn(
                         "size-8 flex items-center justify-center border shrink-0",
-                        status === "complete" && "bg-sage/30 border-sage text-primary",
-                        status === "active" && "bg-primary/10 border-primary text-primary",
+                        status === "complete" && "bg-sage/30 border-sage/60 text-primary",
+                        status === "active" && "bg-lavender/35 border-primary/40 text-primary",
                         status === "pending" &&
-                        "bg-secondary/30 border-border text-muted-foreground",
+                            "bg-background/70 border-border text-muted-foreground",
                     )}
                 >
                     <Icon className="size-4" />

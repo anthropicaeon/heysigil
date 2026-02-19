@@ -23,27 +23,27 @@ const TOOL_CONFIG: Record<string, { icon: typeof SearchIcon; label: string; colo
     "tool-websearch": {
         icon: SearchIcon,
         label: "Web Search",
-        color: "bg-blue-50 border-blue-200 text-blue-800",
+        color: "bg-lavender/28 border-border text-foreground",
     },
     "tool-news": {
         icon: NewspaperIcon,
         label: "News Search",
-        color: "bg-green-50 border-green-200 text-green-800",
+        color: "bg-sage/24 border-border text-foreground",
     },
     "tool-analyze": {
         icon: BrainIcon,
         label: "Analysis",
-        color: "bg-purple-50 border-purple-200 text-purple-800",
+        color: "bg-lavender/34 border-border text-foreground",
     },
     "tool-decide": {
         icon: ScaleIcon,
         label: "Decision",
-        color: "bg-orange-50 border-orange-200 text-orange-800",
+        color: "bg-cream/55 border-border text-foreground",
     },
     "tool-provideAnswer": {
         icon: CheckCircleIcon,
         label: "Final Answer",
-        color: "bg-sage/30 border-sage text-primary",
+        color: "bg-sage/30 border-border text-foreground",
     },
 };
 
@@ -54,7 +54,7 @@ interface ToolProps {
 
 export function Tool({ children, className }: ToolProps) {
     return (
-        <div className={cn("border border-border bg-background overflow-hidden", className)}>
+        <div className={cn("overflow-hidden border border-border bg-background/90", className)}>
             {children}
         </div>
     );
@@ -103,7 +103,7 @@ export function ToolContent({ children, className }: ToolContentProps) {
             <button
                 type="button"
                 onClick={() => setExpanded(!expanded)}
-                className="w-full flex items-center gap-2 px-4 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors border-b border-border"
+                className="w-full flex items-center gap-2 border-b border-border bg-background/70 px-4 py-2 text-xs text-muted-foreground transition-colors hover:bg-lavender/15 hover:text-foreground"
             >
                 <ChevronDown
                     className={cn("size-3 transition-transform", expanded && "rotate-180")}
@@ -122,7 +122,7 @@ interface ToolInputProps {
 
 export function ToolInput({ input, className }: ToolInputProps) {
     return (
-        <div className={cn("px-4 py-2 bg-secondary/20 border-b border-border", className)}>
+        <div className={cn("border-b border-border bg-background/70 px-4 py-2", className)}>
             <p className="text-xs text-muted-foreground mb-1">Input:</p>
             <pre className="text-xs text-foreground overflow-x-auto">
                 {JSON.stringify(input, null, 2)}

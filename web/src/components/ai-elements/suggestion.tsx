@@ -16,7 +16,7 @@ interface SuggestionsProps {
 }
 
 export function Suggestions({ children, className }: SuggestionsProps) {
-    return <div className={cn("flex flex-wrap gap-2", className)}>{children}</div>;
+    return <div className={cn("flex flex-wrap gap-2.5", className)}>{children}</div>;
 }
 
 interface SuggestionProps {
@@ -31,8 +31,8 @@ export function Suggestion({ suggestion, onClick, className }: SuggestionProps) 
             type="button"
             onClick={onClick}
             className={cn(
-                "px-3 py-1.5 text-xs border border-border bg-secondary/30 text-foreground",
-                "hover:bg-secondary/60 hover:border-primary/30 transition-colors",
+                "border border-border bg-background/75 px-3 py-2 text-xs text-foreground uppercase tracking-[0.11em]",
+                "hover:bg-lavender/30 hover:border-primary/30 transition-colors",
                 className,
             )}
         >

@@ -52,7 +52,7 @@ export default function DecideView({ invocation, className }: DecideViewProps) {
                 </div>
             );
 
-        case "output-available":
+        case "output-available": {
             if (invocation.output?.state === "loading") {
                 return (
                     <div className={cn("text-sm text-muted-foreground", className)}>
@@ -66,11 +66,11 @@ export default function DecideView({ invocation, className }: DecideViewProps) {
             return (
                 <div className={cn("space-y-3", className)}>
                     <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                        <ScaleIcon className="size-4 text-orange-600" />
+                        <ScaleIcon className="size-4 text-primary" />
                         Decision Analysis
                     </div>
 
-                    <div className="border border-border divide-y divide-border bg-orange-50/30">
+                    <div className="border border-border divide-y divide-border bg-cream/35">
                         <div className="px-4 py-3">
                             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
                                 Context
@@ -78,7 +78,7 @@ export default function DecideView({ invocation, className }: DecideViewProps) {
                             <p className="text-sm text-foreground">{output?.context}</p>
                         </div>
 
-                        <div className="px-4 py-3 bg-sage/20">
+                        <div className="px-4 py-3 bg-sage/25">
                             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
                                 Decision
                             </p>
@@ -127,6 +127,7 @@ export default function DecideView({ invocation, className }: DecideViewProps) {
                     </div>
                 </div>
             );
+        }
 
         case "output-error":
             return (

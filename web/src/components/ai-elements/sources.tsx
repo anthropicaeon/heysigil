@@ -20,13 +20,13 @@ export function Sources({ children, className }: SourcesProps) {
     const [open, setOpen] = useState(false);
 
     return (
-        <div className={cn("", className)}>
+        <div className={cn("pt-3", className)}>
             <button
                 type="button"
                 onClick={() => setOpen(!open)}
-                className="text-xs text-primary hover:underline"
+                className="mx-6 inline-flex items-center gap-1 border border-border bg-background/80 px-2 py-1 text-[11px] uppercase tracking-[0.12em] text-primary transition-colors hover:bg-lavender/25 lg:mx-12"
             >
-                View sources
+                {open ? "hide sources" : "view sources"}
             </button>
             {open && children}
         </div>
@@ -42,7 +42,7 @@ export function SourcesTrigger({ count, className }: SourcesTriggerProps) {
     return (
         <div
             className={cn(
-                "flex items-center gap-1 px-6 py-2 lg:px-12 text-xs text-muted-foreground",
+                "flex items-center gap-1 border-y border-border bg-lavender/15 px-6 py-2 lg:px-12 text-xs text-muted-foreground",
                 className,
             )}
         >
@@ -59,7 +59,7 @@ interface SourcesContentProps {
 
 export function SourcesContent({ children, className }: SourcesContentProps) {
     return (
-        <div className={cn("px-6 py-2 lg:px-12 border-t border-border bg-secondary/20", className)}>
+        <div className={cn("px-6 py-2 lg:px-12 border-b border-border bg-background/75", className)}>
             {children}
         </div>
     );

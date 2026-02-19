@@ -37,28 +37,25 @@ export function ThinkingMessage({ status, className }: ThinkingMessageProps) {
     const statusMessage = messages[messageIndex];
 
     return (
-        <div className={cn("px-6 py-4 lg:px-12 bg-background", className)}>
-            <div className="max-w-2xl">
-                {/* Header - matches Message component */}
-                <div className="flex items-center gap-2 mb-2">
+        <div className={cn("bg-background px-6 py-4 lg:px-12", className)}>
+            <div className="max-w-3xl">
+                <div className="mb-2 flex items-center gap-2">
                     <Image src="/logo-sage.png" alt="Sigil" width={20} height={20} />
                     <span className="text-sm font-medium text-primary">Sigil</span>
+                    <span className="inline-flex items-center border border-border bg-background/70 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                        assistant
+                    </span>
                     <Loader2Icon className="size-3.5 text-muted-foreground animate-spin ml-1" />
                 </div>
-
-                {/* Content */}
-                <div className="text-sm leading-relaxed text-foreground">
-                    {/* Status message with dots */}
-                    <div className="flex items-center gap-1.5 text-muted-foreground mb-3">
+                <div className="border border-border bg-background/70 px-3 py-2.5 text-sm leading-relaxed text-foreground">
+                    <div className="mb-3 flex items-center gap-1.5 text-muted-foreground">
                         <span className="lowercase">{statusMessage}</span>
                         <ThinkingDots />
                     </div>
-
-                    {/* Skeleton lines */}
                     <div className="space-y-2">
-                        <div className="h-3.5 bg-border/40 animate-pulse w-full max-w-md" />
-                        <div className="h-3.5 bg-border/40 animate-pulse w-4/5 max-w-sm" />
-                        <div className="h-3.5 bg-border/40 animate-pulse w-3/5 max-w-xs" />
+                        <div className="h-3.5 w-full max-w-md animate-pulse bg-border/45" />
+                        <div className="h-3.5 w-4/5 max-w-sm animate-pulse bg-border/45" />
+                        <div className="h-3.5 w-3/5 max-w-xs animate-pulse bg-border/45" />
                     </div>
                 </div>
             </div>
