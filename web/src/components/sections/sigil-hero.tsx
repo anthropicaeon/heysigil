@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowRight, CheckCircle, Sparkles } from "lucide-react";
-import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
@@ -65,7 +64,6 @@ export default function SigilHero() {
     const [quickLaunchStatus, setQuickLaunchStatus] = useState<QuickLaunchStatus>("idle");
     const [claimToken, setClaimToken] = useState<string | null>(null);
     const [copiedToken, setCopiedToken] = useState(false);
-    const [quickLaunchButtonTurns, setQuickLaunchButtonTurns] = useState(0);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -109,10 +107,6 @@ export default function SigilHero() {
         await navigator.clipboard.writeText(claimToken);
         setCopiedToken(true);
         window.setTimeout(() => setCopiedToken(false), 1200);
-    };
-
-    const triggerQuickLaunchButtonSpin = () => {
-        setQuickLaunchButtonTurns((prev) => prev + 1);
     };
 
     return (
@@ -232,23 +226,14 @@ export default function SigilHero() {
                                             Launch instantly as unclaimed. Claim ownership later using a one-time token.
                                         </p>
                                     </div>
-                                    <div className="w-full [perspective:900px] sm:w-auto">
-                                        <motion.div
-                                            animate={{ rotateX: quickLaunchButtonTurns * 360 }}
-                                            transition={{ type: "spring", stiffness: 190, damping: 15, mass: 0.58 }}
-                                        >
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => setIsQuickLaunchOpen((prev) => !prev)}
-                                                onMouseEnter={triggerQuickLaunchButtonSpin}
-                                                onFocus={triggerQuickLaunchButtonSpin}
-                                                className="w-full sm:w-auto border-primary/35 bg-lavender/85 hover:bg-lavender/92"
-                                            >
-                                                {isQuickLaunchOpen ? "Hide Quick Launch" : "Open Quick Launch"}
-                                            </Button>
-                                        </motion.div>
-                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setIsQuickLaunchOpen((prev) => !prev)}
+                                        className="w-full sm:w-auto border-primary/35 bg-lavender/85 hover:bg-lavender/92"
+                                    >
+                                        {isQuickLaunchOpen ? "Hide Quick Launch" : "Open Quick Launch"}
+                                    </Button>
                                 </div>
 
                                 {isQuickLaunchOpen ? (
