@@ -2,10 +2,12 @@
 
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { Toaster } from "sonner";
 
 import ModelViewer from "@/components/ModelViewer";
 import { PixelCard } from "@/components/ui/pixel-card";
+import { HERO_MODEL_FRAME, HERO_MODEL_STAGE_SELECTOR } from "@/lib/hero-model-frame";
 import { cn } from "@/lib/utils";
 
 import { Footer } from "./footer";
@@ -15,7 +17,6 @@ const MIN_LOADER_MS = 2000;
 const MAX_MODEL_WAIT_MS = 12000;
 const ATMOSPHERE_FADE_MS = 420;
 const HANDOFF_SLIDE_MS = 950;
-const HOME_TARGET_SELECTOR = '[data-home-loader-target="sigil-hero-model"]';
 const LOADER_CENTER_X_COMP_FACTOR = 0.045;
 
 type ModelFrame = {
@@ -26,14 +27,27 @@ type ModelFrame = {
     opacity: number;
 };
 
-const getTargetRect = () => {
+const getHomeStageRect = () => {
     if (typeof window === "undefined") return null;
-    const targetElement = document.querySelector<HTMLElement>(HOME_TARGET_SELECTOR);
+    const targetElement = document.querySelector<HTMLElement>(HERO_MODEL_STAGE_SELECTOR);
     const targetRect = targetElement?.getBoundingClientRect();
     if (!targetRect || targetRect.width === 0 || targetRect.height === 0) {
         return null;
     }
     return targetRect;
+};
+
+const getHomeTargetFrameFromStage = (): ModelFrame | null => {
+    const stageRect = getHomeStageRect();
+    if (!stageRect) return null;
+
+    return {
+        top: stageRect.top + stageRect.height * HERO_MODEL_FRAME.centerY,
+        left: stageRect.left + stageRect.width * HERO_MODEL_FRAME.centerX,
+        width: stageRect.width * HERO_MODEL_FRAME.widthScale,
+        height: stageRect.height * HERO_MODEL_FRAME.heightScale,
+        opacity: 1,
+    };
 };
 
 const getCenteredFrame = (targetRect: DOMRect | null = null): ModelFrame => {
@@ -116,7 +130,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         const syncCenterFrame = () => {
             setModelFrame((previous) => {
-                const centered = getCenteredFrame(pathname === "/" ? getTargetRect() : null);
+                const centered = getCenteredFrame(pathname === "/" ? getHomeStageRect() : null);
                 return { ...centered, opacity: previous.opacity };
             });
         };
@@ -147,7 +161,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        if (!getTargetRect()) {
+        if (!getHomeTargetFrameFromStage()) {
             finishFadeOnly();
             return;
         }
@@ -156,33 +170,36 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         window.setTimeout(() => {
             setContentVisible(true);
-            const targetRect = getTargetRect();
-            if (!targetRect) return;
+            const targetFrame = getHomeTargetFrameFromStage();
+            if (!targetFrame) return;
 
             setModelFrame((previous) => {
                 return {
                     ...previous,
-                    top: targetRect.top + targetRect.height / 2,
-                    left: targetRect.left + targetRect.width / 2,
-                    width: targetRect.width,
-                    height: targetRect.height,
+                    top: targetFrame.top,
+                    left: targetFrame.left,
+                    width: targetFrame.width,
+                    height: targetFrame.height,
                     opacity: 1,
                 };
             });
         }, ATMOSPHERE_FADE_MS);
 
         window.setTimeout(() => {
-            const targetRect = getTargetRect();
-            if (targetRect) {
-                setModelFrame((previous) => ({
-                    ...previous,
-                    top: targetRect.top + targetRect.height / 2,
-                    left: targetRect.left + targetRect.width / 2,
-                    width: targetRect.width,
-                    height: targetRect.height,
-                    opacity: 1,
-                }));
+            const targetFrame = getHomeTargetFrameFromStage();
+            if (targetFrame) {
+                flushSync(() => {
+                    setModelFrame((previous) => ({
+                        ...previous,
+                        top: targetFrame.top,
+                        left: targetFrame.left,
+                        width: targetFrame.width,
+                        height: targetFrame.height,
+                        opacity: 1,
+                    }));
+                });
             }
+
             window.requestAnimationFrame(() => setOverlayVisible(false));
         }, ATMOSPHERE_FADE_MS + HANDOFF_SLIDE_MS);
     }, [fallbackDone, minDelayDone, modelLoaded, overlayVisible, pathname]);

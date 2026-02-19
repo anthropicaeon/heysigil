@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PixelCard } from "@/components/ui/pixel-card";
 import { StarBorder } from "@/components/ui/star-border";
+import { HERO_MODEL_FRAME } from "@/lib/hero-model-frame";
 import { cn } from "@/lib/utils";
 
 const ROTATING_PROMPTS = [
@@ -356,10 +357,20 @@ export default function SigilHero() {
                                 <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,hsl(var(--sage)/0.14),transparent_40%,hsl(var(--cream)/0.12)_100%)]" />
                                 <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background/80 to-transparent" />
 
-                                <div className="relative h-full min-h-[420px]">
+                                <div
+                                    className="relative h-full min-h-[420px]"
+                                    data-home-loader-stage="sigil-hero-stage"
+                                >
                                     <div
-                                        className="absolute inset-0 scale-[1.08] transform-gpu origin-center"
+                                        className="absolute transform-gpu origin-center"
                                         data-home-loader-target="sigil-hero-model"
+                                        style={{
+                                            top: `${HERO_MODEL_FRAME.centerY * 100}%`,
+                                            left: `${HERO_MODEL_FRAME.centerX * 100}%`,
+                                            width: `${HERO_MODEL_FRAME.widthScale * 100}%`,
+                                            height: `${HERO_MODEL_FRAME.heightScale * 100}%`,
+                                            transform: "translate(-50%, -50%)",
+                                        }}
                                     >
                                         <ModelViewer
                                             url="/3D/logo_min.glb"
