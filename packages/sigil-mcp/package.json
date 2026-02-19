@@ -14,7 +14,9 @@
     "sigil-mcp": "dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md"
   ],
   "publishConfig": {
     "access": "public"
