@@ -16,6 +16,7 @@ const MAX_MODEL_WAIT_MS = 12000;
 const ATMOSPHERE_FADE_MS = 420;
 const HANDOFF_SLIDE_MS = 950;
 const HOME_TARGET_SELECTOR = '[data-home-loader-target="sigil-hero-model"]';
+const LOADER_CENTER_X_COMP_FACTOR = 0.045;
 
 type ModelFrame = {
     top: number | string;
@@ -64,7 +65,7 @@ const getCenteredFrame = (targetRect: DOMRect | null = null): ModelFrame => {
 
     return {
         top: window.innerHeight / 2,
-        left: window.innerWidth / 2,
+        left: window.innerWidth / 2 + width * LOADER_CENTER_X_COMP_FACTOR,
         width: Math.round(width),
         height: Math.round(height),
         opacity: 1,
@@ -146,9 +147,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        const targetRect = getTargetRect();
-
-        if (!targetRect) {
+        if (!getTargetRect()) {
             finishFadeOnly();
             return;
         }
@@ -157,6 +156,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         window.setTimeout(() => {
             setContentVisible(true);
+            const targetRect = getTargetRect();
+            if (!targetRect) return;
+
             setModelFrame((previous) => {
                 return {
                     ...previous,
@@ -170,7 +172,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         }, ATMOSPHERE_FADE_MS);
 
         window.setTimeout(() => {
-            setOverlayVisible(false);
+            const targetRect = getTargetRect();
+            if (targetRect) {
+                setModelFrame((previous) => ({
+                    ...previous,
+                    top: targetRect.top + targetRect.height / 2,
+                    left: targetRect.left + targetRect.width / 2,
+                    width: targetRect.width,
+                    height: targetRect.height,
+                    opacity: 1,
+                }));
+            }
+            window.requestAnimationFrame(() => setOverlayVisible(false));
         }, ATMOSPHERE_FADE_MS + HANDOFF_SLIDE_MS);
     }, [fallbackDone, minDelayDone, modelLoaded, overlayVisible, pathname]);
 
@@ -230,12 +243,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                             transform: "translate(-50%, -50%)",
                         }}
                     >
-                        <div
-                            className={cn(
-                                "relative size-full",
-                                !atmosphereHidden && "animate-loader-drift",
-                            )}
-                        >
+                        <div className="relative size-full">
                             <ModelViewer
                                 url="/3D/logo_min.glb"
                                 width="100%"
