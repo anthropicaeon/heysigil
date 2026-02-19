@@ -204,6 +204,16 @@ body {
   position: relative;
 }
 
+.loader-model-shell {
+  transform: translate(-50%, -50%);
+}
+
+@media (max-width: 768px) {
+  .loader-model-shell {
+    transform: translate(calc(-50% + 14px), -50%);
+  }
+}
+
 body[data-loader-active='true'] [data-home-loader-target='sigil-hero-model'] {
   opacity: 0;
 }
