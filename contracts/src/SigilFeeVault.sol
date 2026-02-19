@@ -227,6 +227,45 @@ contract SigilFeeVault {
         emit DevAssigned(poolId, dev, totalTransferred);
     }
 
+    /// @notice Re-assign escrowed fees that accumulated AFTER the initial assignDev.
+    ///         Uses the same logic as assignDev but skips PoolAlreadyAssigned check.
+    ///         This handles the edge case where fees are deposited with dev=address(0)
+    ///         after the pool was already assigned (e.g. LP Locker dev wasn't updated).
+    function reassignDev(bytes32 poolId, address dev) external onlyOwner {
+        if (dev == address(0)) revert ZeroAddress();
+
+        bytes32 poolKey = poolId;
+
+        address[] storage tokens = unclaimedFeeTokens[poolKey];
+        uint256 len = tokens.length;
+        if (len == 0) revert NoUnclaimedFees();
+
+        uint256 totalTransferred = 0;
+
+        for (uint256 i; i < len; ++i) {
+            address token = tokens[i];
+            uint256 amount = unclaimedFees[poolKey][token];
+            if (amount > 0) {
+                unclaimedFees[poolKey][token] = 0;
+                devFees[dev][token] += amount;
+                totalDevFeesEarned[dev][token] += amount;
+                totalTransferred += amount;
+
+                if (!_devHasToken[dev][token]) {
+                    _devHasToken[dev][token] = true;
+                    devFeeTokens[dev].push(token);
+                }
+            }
+        }
+
+        // Mark as assigned if not already
+        if (!poolAssigned[poolKey]) {
+            poolAssigned[poolKey] = true;
+        }
+
+        emit DevAssigned(poolId, dev, totalTransferred);
+    }
+
     // ─── Expiry Sweep ────────────────────────────────────
 
     /// @notice Sweep expired unclaimed fees to protocol treasury.
