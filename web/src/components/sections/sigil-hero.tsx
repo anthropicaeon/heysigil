@@ -195,7 +195,7 @@ export default function SigilHero() {
                                 </Link>
                             </div>
 
-                            <div className="mt-8 -mx-6 flex flex-1 flex-col border-y border-border bg-[linear-gradient(180deg,hsl(var(--lavender)/0.2),hsl(var(--background)/0.85))] lg:-mx-12">
+                            <div className="mt-8 -mx-6 flex flex-1 flex-col border-t border-border bg-[linear-gradient(180deg,hsl(var(--lavender)/0.2),hsl(var(--background)/0.85))] lg:-mx-12">
                                 <div className="flex flex-col gap-3 border-border border-b px-6 py-4 sm:flex-row sm:items-center sm:justify-between lg:px-12">
                                     <div className="space-y-1">
                                         <p className="text-xs uppercase tracking-[0.14em] text-primary">
@@ -395,7 +395,7 @@ export default function SigilHero() {
                                         </form>
                                     </div>
                                 ) : (
-                                    <div className="flex flex-1 flex-col justify-end border-border border-t bg-[linear-gradient(180deg,transparent,hsl(var(--sage)/0.08))] px-6 py-4 lg:px-12">
+                                    <div className="flex flex-1 flex-col justify-end bg-[linear-gradient(180deg,transparent,hsl(var(--sage)/0.08))] px-6 py-4 lg:px-12">
                                         <div className="text-xs text-muted-foreground">
                                             Open quick launch to create an unclaimed token and receive a one-time claim token.
                                         </div>
