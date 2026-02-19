@@ -27,6 +27,31 @@ export type {
     WalletInfo,
 };
 
+export interface QuickLaunchResponse {
+    success: true;
+    deployed: boolean;
+    project: {
+        id: string;
+        projectId: string;
+        name: string;
+        symbol?: string;
+    };
+    token?: {
+        address: string;
+        poolId: string;
+        txHash: string;
+        explorerUrl: string;
+        dexUrl: string;
+    };
+    claimToken: string;
+    claimTokenExpiresAt: string;
+    launchDefaults: {
+        repo: string;
+        repoUrl: string;
+        claimLaterSupported: true;
+    };
+}
+
 // ─── Error Class ───────────────────────────────────────
 
 export class ApiError extends Error {
@@ -166,6 +191,11 @@ export const apiClient = {
     },
 
     launch: {
+        quick: () =>
+            request<QuickLaunchResponse>("/api/launch/quick", {
+                method: "POST",
+                body: JSON.stringify({}),
+            }),
         myProjects: (accessToken: string) =>
             request<{ projects: ProjectInfo[]; claimableProjects: ProjectInfo[] }>(
                 "/api/launch/my-projects",

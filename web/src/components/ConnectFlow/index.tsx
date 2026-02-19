@@ -20,7 +20,6 @@ import { PixelCard } from "@/components/ui/pixel-card";
 import { Textarea } from "@/components/ui/textarea";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import { cn } from "@/lib/utils";
-import type { ProjectInfo } from "@/types";
 
 type ConnectStep = "stack" | "handshake" | "configure" | "run" | "manage";
 
@@ -42,12 +41,6 @@ type ConnectedBot = {
     connectedAt?: string;
     activeTasks: number;
     updatedAt: string;
-};
-
-type AgentProject = {
-    projectId: string;
-    name: string | null;
-    category: "owned" | "claimable";
 };
 
 type McpToken = {
@@ -139,9 +132,6 @@ export default function ConnectFlow() {
     const [isConnected, setIsConnected] = useState(false);
     const [connectedBots, setConnectedBots] = useState<ConnectedBot[]>([]);
     const [error, setError] = useState<string | null>(null);
-    const [agentProjects, setAgentProjects] = useState<AgentProject[]>([]);
-    const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
-    const [isLoadingProjects, setIsLoadingProjects] = useState(false);
     const [mcpTokens, setMcpTokens] = useState<McpToken[]>([]);
     const [isLoadingTokens, setIsLoadingTokens] = useState(false);
     const [scopePresetId, setScopePresetId] = useState<McpScopePreset["id"]>("runtime-min");
@@ -151,6 +141,12 @@ export default function ConnectFlow() {
     const [tokenError, setTokenError] = useState<string | null>(null);
     const [freshPat, setFreshPat] = useState<string | null>(null);
     const [patCopied, setPatCopied] = useState(false);
+    const [isQuickLaunching, setIsQuickLaunching] = useState(false);
+    const [launchClaimToken, setLaunchClaimToken] = useState("");
+    const [claimStatus, setClaimStatus] = useState<string | null>(null);
+    const [claimedProjectId, setClaimedProjectId] = useState<string | null>(null);
+    const [claimRepoUrl, setClaimRepoUrl] = useState("");
+    const [claimUpdateStatus, setClaimUpdateStatus] = useState<string | null>(null);
 
     const stepIndex = useMemo(() => STEP_SEQUENCE.indexOf(step), [step]);
     const selectedStackData = STACKS.find((item) => item.id === selectedStack) ?? STACKS[0];
@@ -158,10 +154,6 @@ export default function ConnectFlow() {
     const selectedScopePreset = useMemo(
         () => MCP_SCOPE_PRESETS.find((preset) => preset.id === scopePresetId) ?? MCP_SCOPE_PRESETS[0],
         [scopePresetId],
-    );
-    const selectedProjects = useMemo(
-        () => agentProjects.filter((project) => selectedProjectIds.includes(project.projectId)),
-        [agentProjects, selectedProjectIds],
     );
     const activeMcpTokens = useMemo(() => {
         const now = Date.now();
@@ -198,58 +190,6 @@ export default function ConnectFlow() {
         }
     }, [privy]);
 
-    const fetchAgentProjects = useCallback(async () => {
-        if (!privy?.authenticated || !privy?.getAccessToken) {
-            setAgentProjects([]);
-            setSelectedProjectIds([]);
-            return;
-        }
-
-        setIsLoadingProjects(true);
-        try {
-            const token = await privy.getAccessToken();
-            const res = await fetch(`${API_BASE}/api/launch/my-projects`, {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-            });
-            if (!res.ok) return;
-
-            const data = (await res.json()) as {
-                projects: ProjectInfo[];
-                claimableProjects: ProjectInfo[];
-            };
-
-            const owned = (data.projects || []).map((project) => ({
-                projectId: project.projectId,
-                name: project.name,
-                category: "owned" as const,
-            }));
-            const claimable = (data.claimableProjects || []).map((project) => ({
-                projectId: project.projectId,
-                name: project.name,
-                category: "claimable" as const,
-            }));
-
-            const mergedByProjectId = new Map<string, AgentProject>();
-            for (const project of [...claimable, ...owned]) {
-                mergedByProjectId.set(project.projectId, project);
-            }
-
-            const merged = Array.from(mergedByProjectId.values());
-            setAgentProjects(merged);
-            setSelectedProjectIds((current) => {
-                const allowed = new Set(merged.map((project) => project.projectId));
-                const stillValid = current.filter((id) => allowed.has(id));
-                if (stillValid.length > 0) return stillValid;
-                if (merged.length > 0) return [merged[0].projectId];
-                return [];
-            });
-        } catch {
-            /* silent — token card shows no projects */
-        } finally {
-            setIsLoadingProjects(false);
-        }
-    }, [privy]);
-
     const fetchMcpTokens = useCallback(async () => {
         if (!privy?.authenticated || !privy?.getAccessToken) {
             setMcpTokens([]);
@@ -274,9 +214,8 @@ export default function ConnectFlow() {
 
     useEffect(() => {
         void fetchBots();
-        void fetchAgentProjects();
         void fetchMcpTokens();
-    }, [fetchAgentProjects, fetchBots, fetchMcpTokens]);
+    }, [fetchBots, fetchMcpTokens]);
 
     useEffect(() => {
         if (!patCopied) return;
@@ -326,13 +265,32 @@ export default function ConnectFlow() {
 
         try {
             const token = await privy.getAccessToken();
+            const intentRes = await fetch(`${API_BASE}/api/connect/intent`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ endpoint, stack: selectedStack }),
+            });
+            const intentData = (await intentRes.json()) as { intentToken?: string; error?: string };
+            if (!intentRes.ok || !intentData.intentToken) {
+                setError(intentData.error || "Failed to create handshake intent");
+                return;
+            }
+
             const res = await fetch(`${API_BASE}/api/connect/handshake`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
-                body: JSON.stringify({ endpoint, stack: selectedStack, secret: secret || undefined }),
+                body: JSON.stringify({
+                    endpoint,
+                    stack: selectedStack,
+                    secret: secret || undefined,
+                    intentToken: intentData.intentToken,
+                }),
             });
 
             const data = await res.json();
@@ -355,6 +313,122 @@ export default function ConnectFlow() {
 
     // ─── Disconnect bot ─────────────────────────────────────
 
+    async function runOneClickRuntimeLaunch() {
+        if (!privy?.getAccessToken) return;
+        setIsQuickLaunching(true);
+        setError(null);
+        setTokenError(null);
+        setFreshPat(null);
+        setPatCopied(false);
+
+        try {
+            const token = await privy.getAccessToken();
+            const res = await fetch(`${API_BASE}/api/connect/quick-launch`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({
+                    stack: selectedStack,
+                    connectSecret: secret || undefined,
+                }),
+            });
+
+            const data = (await res.json()) as {
+                ok?: boolean;
+                endpoint?: string;
+                runtimeToken?: string;
+                error?: string;
+            };
+
+            if (!res.ok || !data.ok) {
+                setError(data.error || "One-click runtime launch failed");
+                return;
+            }
+
+            if (data.endpoint) {
+                setEndpoint(data.endpoint);
+            }
+            if (data.runtimeToken) {
+                setFreshPat(data.runtimeToken);
+            }
+
+            setIsConnected(true);
+            setStep("configure");
+            await fetchBots();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "One-click runtime launch failed");
+        } finally {
+            setIsQuickLaunching(false);
+        }
+    }
+
+    async function redeemLaunchClaimToken() {
+        if (!launchClaimToken.trim() || !privy?.getAccessToken) return;
+        setClaimStatus(null);
+        setError(null);
+
+        try {
+            const token = await privy.getAccessToken();
+            const res = await fetch(`${API_BASE}/api/claim/launch-token`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ claimToken: launchClaimToken.trim() }),
+            });
+
+            const data = (await res.json()) as {
+                success?: boolean;
+                message?: string;
+                error?: string;
+                projectId?: string;
+            };
+            if (!res.ok || !data.success) {
+                setClaimStatus(data.error || "Failed to redeem launch secret");
+                return;
+            }
+
+            setClaimStatus(data.message || "Launch secret redeemed. You can now update repo/details.");
+            setClaimedProjectId(data.projectId || null);
+            setLaunchClaimToken("");
+        } catch (err) {
+            setClaimStatus(err instanceof Error ? err.message : "Failed to redeem launch secret");
+        }
+    }
+
+    async function updateClaimedProjectMetadata() {
+        if (!claimedProjectId || !claimRepoUrl.trim() || !privy?.getAccessToken) return;
+        setClaimUpdateStatus(null);
+
+        try {
+            const token = await privy.getAccessToken();
+            const res = await fetch(`${API_BASE}/api/claim/projects/${encodeURIComponent(claimedProjectId)}`, {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                },
+                body: JSON.stringify({ repoUrl: claimRepoUrl.trim() }),
+            });
+
+            const data = (await res.json()) as { success?: boolean; error?: string };
+            if (!res.ok || !data.success) {
+                setClaimUpdateStatus(data.error || "Failed to update claimed project metadata");
+                return;
+            }
+
+            setClaimUpdateStatus("Claimed project metadata updated.");
+            setClaimRepoUrl("");
+        } catch (err) {
+            setClaimUpdateStatus(
+                err instanceof Error ? err.message : "Failed to update claimed project metadata",
+            );
+        }
+    }
+
     async function disconnectBot(botId: string) {
         if (!privy?.getAccessToken) return;
         try {
@@ -369,21 +443,8 @@ export default function ConnectFlow() {
         }
     }
 
-    function toggleProjectSelection(projectId: string) {
-        setSelectedProjectIds((current) => {
-            if (current.includes(projectId)) {
-                return current.filter((id) => id !== projectId);
-            }
-            return [...current, projectId];
-        });
-    }
-
     async function createMcpTokenForProjects() {
         if (!privy?.authenticated || !privy?.getAccessToken) return;
-        if (selectedProjectIds.length === 0) {
-            setTokenError("Select at least one owned or claimable project.");
-            return;
-        }
 
         setIsCreatingToken(true);
         setTokenError(null);
@@ -392,11 +453,7 @@ export default function ConnectFlow() {
 
         try {
             const accessToken = await privy.getAccessToken();
-            const selectedNames = selectedProjects.map((project) => project.name || project.projectId);
-            const autoName =
-                selectedNames.length === 1
-                    ? `${selectedNames[0]} runtime`
-                    : `Connect runtime (${selectedNames.length} projects)`;
+            const autoName = `${selectedStackData.label} runtime`;
             const finalName = tokenName.trim() || autoName;
 
             const res = await fetch(`${API_BASE}/api/mcp/tokens`, {
@@ -589,6 +646,74 @@ export default function ConnectFlow() {
                                     endpoint to bind this runtime to your Privy-authenticated Sigil account.
                                 </p>
 
+                                <div className="border border-border bg-sage/15 px-4 py-4 sm:px-5 space-y-3">
+                                    <p className="text-xs uppercase tracking-[0.12em] text-primary">
+                                        one-click runtime launch
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Launch SigilBot on Railway from this screen with no manual endpoint entry.
+                                        Runtime token is returned once.
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        onClick={runOneClickRuntimeLaunch}
+                                        disabled={!privy.authenticated || isQuickLaunching}
+                                    >
+                                        {isQuickLaunching ? "launching runtime..." : "launch sigilbot (1 click)"}
+                                    </Button>
+                                </div>
+
+                                <div className="border border-border bg-background px-4 py-4 sm:px-5 space-y-3">
+                                    <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                                        quick-launch claim secret
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                        If you launched from hero quick-launch, redeem the one-time secret here, then
+                                        update repo/details after claim.
+                                    </p>
+                                    <div className="flex flex-col gap-2 sm:flex-row">
+                                        <Input
+                                            value={launchClaimToken}
+                                            onChange={(event) => setLaunchClaimToken(event.target.value)}
+                                            placeholder="sigil_claim_..."
+                                        />
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={redeemLaunchClaimToken}
+                                            disabled={!launchClaimToken.trim()}
+                                        >
+                                            claim launch secret
+                                        </Button>
+                                    </div>
+                                    {claimStatus && (
+                                        <p className="text-xs text-muted-foreground">{claimStatus}</p>
+                                    )}
+                                    {claimedProjectId && (
+                                        <div className="space-y-2 border border-border bg-sage/10 px-3 py-3">
+                                            <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                                                update repo/details
+                                            </p>
+                                            <Input
+                                                value={claimRepoUrl}
+                                                onChange={(event) => setClaimRepoUrl(event.target.value)}
+                                                placeholder="https://github.com/you/your-repo"
+                                            />
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={updateClaimedProjectMetadata}
+                                                disabled={!claimRepoUrl.trim()}
+                                            >
+                                                update claimed repo
+                                            </Button>
+                                            {claimUpdateStatus && (
+                                                <p className="text-xs text-muted-foreground">{claimUpdateStatus}</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div className="border border-border bg-[linear-gradient(180deg,hsl(var(--lavender)/0.18),hsl(var(--background)/0.96))]">
                                     <div className="border-border border-b px-4 py-3 sm:px-5">
                                         <div className="flex items-center justify-between gap-3">
@@ -603,72 +728,12 @@ export default function ConnectFlow() {
                                             </Badge>
                                         </div>
                                         <p className="mt-1 text-xs text-muted-foreground">
-                                            Create a runtime PAT for one or more owned/claimable projects, then add it
-                                            to your bot env as <code>SIGIL_MCP_TOKEN</code>.
+                                            Create a runtime PAT, then add it to your bot env as{" "}
+                                            <code>SIGIL_MCP_TOKEN</code>.
                                         </p>
                                     </div>
 
                                     <div className="space-y-4 px-4 py-4 sm:px-5">
-                                        <div className="space-y-2">
-                                            <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                                                project selection
-                                            </p>
-                                            {isLoadingProjects ? (
-                                                <div className="border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
-                                                    loading projects...
-                                                </div>
-                                            ) : agentProjects.length === 0 ? (
-                                                <div className="border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
-                                                    no owned or claimable projects found yet. verify or launch first.
-                                                </div>
-                                            ) : (
-                                                <div className="grid gap-0 border border-border sm:grid-cols-2">
-                                                    {agentProjects.map((project, index) => {
-                                                        const selected = selectedProjectIds.includes(project.projectId);
-                                                        return (
-                                                            <button
-                                                                key={project.projectId}
-                                                                type="button"
-                                                                onClick={() => toggleProjectSelection(project.projectId)}
-                                                                className={cn(
-                                                                    "border-border px-3 py-3 text-left transition-colors",
-                                                                    index % 2 === 0 && "sm:border-r",
-                                                                    index < agentProjects.length - 2 &&
-                                                                        "border-b sm:border-b",
-                                                                    index === agentProjects.length - 1 &&
-                                                                        agentProjects.length % 2 === 1 &&
-                                                                        "sm:border-t",
-                                                                    selected
-                                                                        ? "bg-lavender/35"
-                                                                        : "bg-background hover:bg-sage/15",
-                                                                )}
-                                                            >
-                                                                <div className="flex items-center justify-between gap-2">
-                                                                    <p className="text-xs font-medium text-foreground">
-                                                                        {project.name || project.projectId}
-                                                                    </p>
-                                                                    <Badge
-                                                                        variant="outline"
-                                                                        className={cn(
-                                                                            "text-[10px]",
-                                                                            project.category === "owned"
-                                                                                ? "bg-sage/35"
-                                                                                : "bg-cream",
-                                                                        )}
-                                                                    >
-                                                                        {project.category}
-                                                                    </Badge>
-                                                                </div>
-                                                                <p className="mt-1 text-[11px] text-muted-foreground">
-                                                                    {project.projectId}
-                                                                </p>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-
                                         <div className="grid gap-4 sm:grid-cols-2">
                                             <div className="space-y-2">
                                                 <label
@@ -681,7 +746,7 @@ export default function ConnectFlow() {
                                                     id="connect-token-name"
                                                     value={tokenName}
                                                     onChange={(event) => setTokenName(event.target.value)}
-                                                    placeholder="auto from selected project(s)"
+                                                    placeholder="auto from runtime stack"
                                                 />
                                             </div>
                                             <div className="space-y-2">
@@ -776,11 +841,7 @@ export default function ConnectFlow() {
                                             <Button
                                                 type="button"
                                                 onClick={createMcpTokenForProjects}
-                                                disabled={
-                                                    !privy.authenticated ||
-                                                    selectedProjectIds.length === 0 ||
-                                                    isCreatingToken
-                                                }
+                                                disabled={!privy.authenticated || isCreatingToken}
                                             >
                                                 {isCreatingToken ? "creating token..." : "create runtime pat"}
                                             </Button>
