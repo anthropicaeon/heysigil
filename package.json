@@ -11,6 +11,7 @@
     "build": "bun build src/index.ts --outdir dist --target node",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate:safe": "node scripts/db-migrate-safe.mjs",
     "register-schema": "bun run src/scripts/register-schema.ts",
     "test": "bun test",
     "lint": "eslint src",

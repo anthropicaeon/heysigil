@@ -7,6 +7,7 @@ import {
     jsonb,
     integer,
     uniqueIndex,
+    index,
 } from "drizzle-orm/pg-core";
 
 export const verifications = pgTable("verifications", {
@@ -260,3 +261,81 @@ export const connectedBots = pgTable("connected_bots", {
     connectedAt: timestamp("connected_at").notNull().defaultNow(),
     disconnectedAt: timestamp("disconnected_at"),
 });
+
+// ─── Chat Persistence ───────────────────────────────────────────────
+
+/**
+ * Persistent chat sessions keyed by sessionId.
+ * In-memory session manager remains as a fallback when DB is unavailable.
+ */
+export const chatSessions = pgTable(
+    "chat_sessions",
+    {
+        /** Session identifier used by /api/chat */
+        id: varchar("id", { length: 64 }).primaryKey(),
+        /** Platform where session started (web, sdk, mcp, etc.) */
+        platform: varchar("platform", { length: 32 }).notNull().default("web"),
+        /** Owning user (Privy DID); null for anonymous sessions */
+        ownerUserId: varchar("owner_user_id", { length: 256 }),
+        createdAt: timestamp("created_at").notNull().defaultNow(),
+        updatedAt: timestamp("updated_at").notNull().defaultNow(),
+        lastMessageAt: timestamp("last_message_at"),
+    },
+    (table) => [
+        index("chat_sessions_owner_user_idx").on(table.ownerUserId),
+        index("chat_sessions_updated_at_idx").on(table.updatedAt),
+    ],
+);
+
+/**
+ * Persistent chat messages.
+ */
+export const chatMessages = pgTable(
+    "chat_messages",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        sessionId: varchar("session_id", { length: 64 })
+            .notNull()
+            .references(() => chatSessions.id, { onDelete: "cascade" }),
+        role: varchar("role", { length: 16 }).notNull(), // "user" | "assistant"
+        /** message origin actor */
+        source: varchar("source", { length: 16 }).notNull().default("user"), // "user" | "assistant" | "agent"
+        content: text("content").notNull(),
+        /** Privy DID of actor if authenticated */
+        createdByUserId: varchar("created_by_user_id", { length: 256 }),
+        createdAt: timestamp("created_at").notNull().defaultNow(),
+        deletedAt: timestamp("deleted_at"),
+        deletedBy: varchar("deleted_by", { length: 320 }),
+    },
+    (table) => [
+        index("chat_messages_session_created_idx").on(table.sessionId, table.createdAt),
+        index("chat_messages_created_by_idx").on(table.createdByUserId),
+        index("chat_messages_deleted_at_idx").on(table.deletedAt),
+    ],
+);
+
+/**
+ * Per-actor message voting.
+ * A single actor can keep one active vote per message.
+ */
+export const chatMessageVotes = pgTable(
+    "chat_message_votes",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        sessionId: varchar("session_id", { length: 64 })
+            .notNull()
+            .references(() => chatSessions.id, { onDelete: "cascade" }),
+        messageId: uuid("message_id")
+            .notNull()
+            .references(() => chatMessages.id, { onDelete: "cascade" }),
+        actorKey: varchar("actor_key", { length: 320 }).notNull(),
+        vote: integer("vote").notNull(), // 1 = upvote, -1 = downvote
+        createdAt: timestamp("created_at").notNull().defaultNow(),
+        updatedAt: timestamp("updated_at").notNull().defaultNow(),
+    },
+    (table) => [
+        uniqueIndex("chat_message_votes_unique_actor").on(table.messageId, table.actorKey),
+        index("chat_message_votes_session_idx").on(table.sessionId),
+        index("chat_message_votes_message_idx").on(table.messageId),
+    ],
+);

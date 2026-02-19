@@ -62,11 +62,104 @@ export function createTools(client: SigilClient): ToolDescriptor[] {
                     message: { type: "string" },
                     sessionId: { type: "string" },
                     walletAddress: { type: "string" },
+                    agentId: { type: "string" },
                 },
                 required: ["message"],
             },
             requiredScopes: ["chat:write"],
             handler: async (input) => client.chat.send(input as never),
+        },
+        {
+            name: "sigil_chat_history",
+            description: "Get chat session history and message metadata.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    sessionId: { type: "string" },
+                    limit: { type: "number" },
+                    offset: { type: "number" },
+                    includeDeleted: { type: "boolean" },
+                },
+                required: ["sessionId"],
+            },
+            requiredScopes: ["chat:write"],
+            handler: async (input) => {
+                const args = (input || {}) as {
+                    sessionId: string;
+                    limit?: number;
+                    offset?: number;
+                    includeDeleted?: boolean;
+                };
+                return client.chat.session(args.sessionId, {
+                    limit: args.limit,
+                    offset: args.offset,
+                    includeDeleted: args.includeDeleted,
+                });
+            },
+        },
+        {
+            name: "sigil_chat_agent_feed",
+            description: "Get aggregated agent-origin chat messages for the authenticated user.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    limit: { type: "number" },
+                },
+            },
+            requiredScopes: ["chat:write"],
+            handler: async (input) => {
+                const args = (input || {}) as { limit?: number };
+                return client.chat.agentFeed(args.limit);
+            },
+        },
+        {
+            name: "sigil_chat_delete_message",
+            description: "Soft-delete a message from a chat session.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    sessionId: { type: "string" },
+                    messageId: { type: "string" },
+                    reason: { type: "string" },
+                },
+                required: ["sessionId", "messageId"],
+            },
+            requiredScopes: ["chat:write"],
+            handler: async (input) => client.chat.deleteMessage(input as never),
+        },
+        {
+            name: "sigil_chat_upvote_message",
+            description: "Upvote a message in a chat session.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    sessionId: { type: "string" },
+                    messageId: { type: "string" },
+                },
+                required: ["sessionId", "messageId"],
+            },
+            requiredScopes: ["chat:write"],
+            handler: async (input) => {
+                const args = input as { sessionId: string; messageId: string };
+                return client.chat.upvote(args.sessionId, args.messageId);
+            },
+        },
+        {
+            name: "sigil_chat_downvote_message",
+            description: "Downvote a message in a chat session.",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    sessionId: { type: "string" },
+                    messageId: { type: "string" },
+                },
+                required: ["sessionId", "messageId"],
+            },
+            requiredScopes: ["chat:write"],
+            handler: async (input) => {
+                const args = input as { sessionId: string; messageId: string };
+                return client.chat.downvote(args.sessionId, args.messageId);
+            },
         },
         {
             name: "sigil_launch_list",

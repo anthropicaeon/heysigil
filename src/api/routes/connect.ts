@@ -13,6 +13,7 @@ import { z } from "zod";
 import { getDb, schema } from "../../db/client.js";
 import { privyAuth, getUserId } from "../../middleware/auth.js";
 import { loggers } from "../../utils/logger.js";
+import { listConnectedBotsPresence } from "../../services/connected-bots.js";
 
 const log = loggers.server;
 
@@ -27,6 +28,10 @@ const HandshakeRequestSchema = z.object({
     endpoint: z.string().url(),
     stack: z.enum(["sigilbot", "openclaw"]).default("sigilbot"),
     secret: z.string().optional(),
+});
+
+const PresenceQuerySchema = z.object({
+    windowMinutes: z.coerce.number().int().min(1).max(120).default(30),
 });
 
 // ─── POST /handshake ────────────────────────────────────
@@ -145,6 +150,34 @@ connect.get("/bots", async (c) => {
         );
 
     return c.json({ bots });
+});
+
+// ─── GET /bots/presence ─────────────────────────────────
+
+connect.get("/bots/presence", async (c) => {
+    const userId = getUserId(c);
+    if (!userId) return c.json({ error: "Authentication required" }, 401);
+
+    const parsed = PresenceQuerySchema.safeParse(c.req.query());
+    if (!parsed.success) {
+        return c.json({ error: "Invalid query", details: parsed.error.flatten() }, 400);
+    }
+
+    const { windowMinutes } = parsed.data;
+    const bots = await listConnectedBotsPresence(userId, windowMinutes);
+
+    const online = bots.filter((bot) => bot.presence === "online").length;
+    const offline = bots.length - online;
+
+    return c.json({
+        windowMinutes,
+        summary: {
+            total: bots.length,
+            online,
+            offline,
+        },
+        bots,
+    });
 });
 
 // ─── DELETE /bots/:id ───────────────────────────────────

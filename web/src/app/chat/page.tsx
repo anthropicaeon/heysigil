@@ -9,9 +9,11 @@
  */
 
 import {
+    Bot,
     BrainIcon,
     CheckCircleIcon,
     CopyIcon,
+    Loader2,
     NewspaperIcon,
     RefreshCcwIcon,
     ScaleIcon,
@@ -30,7 +32,6 @@ import {
     ChainOfThoughtStep,
 } from "@/components/ai-elements/chain-of-thought";
 import { Conversation, ConversationContent } from "@/components/ai-elements/conversation";
-import { ThinkingMessage } from "@/components/ai-elements/thinking-message";
 import { Message, MessageContent } from "@/components/ai-elements/message";
 import {
     PromptInput,
@@ -44,6 +45,7 @@ import { Reasoning, ReasoningContent } from "@/components/ai-elements/reasoning"
 import { Response } from "@/components/ai-elements/response";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
+import { ThinkingMessage } from "@/components/ai-elements/thinking-message";
 import { Tool, ToolContent, ToolHeader, ToolInput } from "@/components/ai-elements/tool";
 import PortfolioSidebar from "@/components/PortfolioSidebar";
 import {
@@ -75,6 +77,29 @@ interface ToolStep {
     description: string;
     status: "complete" | "active" | "pending";
     content?: React.ReactNode;
+}
+
+type SidebarTab = "chat" | "agents";
+
+interface AgentPresenceItem {
+    id: string;
+    stack: string;
+    endpoint: string;
+    connectionId: string | null;
+    botId: string | null;
+    status: string;
+    lastSeenAt: string | null;
+    presence: "online" | "offline";
+    minutesSinceSeen: number | null;
+}
+
+interface AgentFeedItem {
+    id: string;
+    sessionId: string;
+    role: "user" | "assistant";
+    source: "agent";
+    content: string;
+    timestamp: string;
 }
 
 function extractToolSteps(messages: MultiStepToolUIMessage[]): ToolStep[] {
@@ -179,13 +204,84 @@ export default function ChatPage() {
     const [status, setStatus] = useState<ChatStatus>("ready");
     const [showThinking, setShowThinking] = useState(false);
     const [sessionId, setSessionId] = useState<string | null>(null);
-    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    const [sidebarTab, setSidebarTab] = useState<SidebarTab>("chat");
+    const [agents, setAgents] = useState<AgentPresenceItem[]>([]);
+    const [agentMessages, setAgentMessages] = useState<MultiStepToolUIMessage[]>([]);
+    const [agentsLoading, setAgentsLoading] = useState(false);
+    const [agentsError, setAgentsError] = useState<string | null>(null);
     const inputRef = useRef(input);
     inputRef.current = input;
     const loadingStartTimeRef = useRef<number>(0);
     const pendingResponseRef = useRef<MultiStepToolUIMessage | null>(null);
 
     const privy = useOptionalPrivy();
+
+    const loadAgentsPresence = useCallback(async () => {
+        if (!privy?.authenticated || !privy?.getAccessToken) {
+            setAgents([]);
+            setAgentsError(null);
+            return;
+        }
+
+        setAgentsLoading(true);
+        setAgentsError(null);
+
+        try {
+            const token = await privy.getAccessToken();
+            const res = await fetch(`${API_BASE}/api/connect/bots/presence?windowMinutes=30`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+
+            const data = (await res.json()) as {
+                bots?: AgentPresenceItem[];
+                error?: string;
+            };
+
+            if (!res.ok) {
+                setAgentsError(data.error || "Failed to fetch agent presence");
+                return;
+            }
+
+            setAgents(data.bots || []);
+        } catch {
+            setAgentsError("Could not reach presence service");
+        } finally {
+            setAgentsLoading(false);
+        }
+    }, [privy]);
+
+    const loadAgentFeed = useCallback(async () => {
+        if (!privy?.authenticated || !privy?.getAccessToken) {
+            setAgentMessages([]);
+            return;
+        }
+
+        try {
+            const token = await privy.getAccessToken();
+            const res = await fetch(`${API_BASE}/api/chat/agents/feed?limit=120`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+
+            const data = (await res.json()) as {
+                messages?: AgentFeedItem[];
+            };
+
+            if (!res.ok) {
+                return;
+            }
+
+            const mapped: MultiStepToolUIMessage[] = (data.messages || []).map((msg) => ({
+                id: msg.id,
+                role: msg.role,
+                source: "agent",
+                parts: [{ type: "text", text: msg.content }],
+            }));
+
+            setAgentMessages(mapped);
+        } catch {
+            // Keep previous feed on transient network errors.
+        }
+    }, [privy]);
 
     // Hide footer on chat page
     useEffect(() => {
@@ -200,15 +296,34 @@ export default function ChatPage() {
         };
     }, []);
 
+    useEffect(() => {
+        if (sidebarTab !== "agents") return;
+
+        void loadAgentsPresence();
+        void loadAgentFeed();
+        const timer = window.setInterval(() => {
+            void loadAgentsPresence();
+            void loadAgentFeed();
+        }, 30000);
+
+        return () => window.clearInterval(timer);
+    }, [sidebarTab, loadAgentsPresence, loadAgentFeed]);
+
     const handleSubmit = useCallback(
         async (_: unknown, e: FormEvent) => {
             e.preventDefault();
+            if (sidebarTab === "agents") {
+                toast.info("Agents channel is read-only in this view.");
+                return;
+            }
+
             const message = inputRef.current.trim();
             if (!message || status !== "ready") return;
 
             const userMessage: MultiStepToolUIMessage = {
                 id: Date.now().toString(),
                 role: "user",
+                source: "user",
                 parts: [{ type: "text", text: message }],
             };
 
@@ -253,6 +368,7 @@ export default function ChatPage() {
                     pendingResponseRef.current = {
                         id: (Date.now() + 1).toString(),
                         role: "assistant",
+                        source: "assistant",
                         parts: data.parts,
                     };
                 }
@@ -289,6 +405,7 @@ export default function ChatPage() {
                     pendingResponseRef.current = {
                         id: (Date.now() + 1).toString(),
                         role: "assistant",
+                        source: "assistant",
                         parts: parts.length > 0 ? parts : [{ type: "text", text: JSON.stringify(data.response) }],
                     };
                 }
@@ -297,6 +414,7 @@ export default function ChatPage() {
                     pendingResponseRef.current = {
                         id: (Date.now() + 1).toString(),
                         role: "assistant",
+                        source: "assistant",
                         parts: [
                             {
                                 type: "text",
@@ -310,6 +428,7 @@ export default function ChatPage() {
                     pendingResponseRef.current = {
                         id: (Date.now() + 1).toString(),
                         role: "assistant",
+                        source: "assistant",
                         parts: [
                             {
                                 type: "text",
@@ -349,7 +468,7 @@ export default function ChatPage() {
                 }, remainingTime);
             }
         },
-        [status, sessionId, privy],
+        [status, sessionId, privy, sidebarTab],
     );
 
     const handleRegenerate = useCallback(() => {
@@ -363,6 +482,18 @@ export default function ChatPage() {
     const hasSources = (message: MultiStepToolUIMessage) =>
         message.role === "assistant" &&
         message.parts.filter((part) => part.type === "source-url").length > 0;
+
+    const onlineAgents = agents.filter((agent) => agent.presence === "online").length;
+    const offlineAgents = agents.length - onlineAgents;
+
+    const formatLastSeen = (agent: AgentPresenceItem) => {
+        if (agent.minutesSinceSeen === null) return "last seen unavailable";
+        if (agent.minutesSinceSeen <= 0) return "last seen just now";
+        if (agent.minutesSinceSeen === 1) return "last seen 1 min ago";
+        return `last seen ${agent.minutesSinceSeen} mins ago`;
+    };
+
+    const activeMessages = sidebarTab === "agents" ? agentMessages : messages;
 
     return (
         <section className="h-[calc(100vh-5rem)] bg-background relative overflow-hidden px-2.5 lg:px-0">
@@ -391,7 +522,13 @@ export default function ChatPage() {
                     <div className="flex-1 flex flex-col overflow-hidden">
                         <Conversation className="flex-1 overflow-hidden">
                             <ConversationContent>
-                                {messages.map((message) => (
+                                {sidebarTab === "agents" && activeMessages.length === 0 ? (
+                                    <div className="mx-6 mt-6 border border-border bg-secondary/20 px-4 py-3 text-sm text-muted-foreground lg:mx-12">
+                                        Agent feed is waiting for agent-origin messages.
+                                    </div>
+                                ) : null}
+
+                                {activeMessages.map((message) => (
                                     <div key={message.id} className="flex flex-col">
                                         {/* Sources */}
                                         {hasSources(message) && (
@@ -585,7 +722,7 @@ export default function ChatPage() {
                                         })}
 
                                         {/* Actions for assistant messages */}
-                                        {message.role === "assistant" && (
+                                        {sidebarTab === "chat" && message.role === "assistant" && (
                                             <Actions>
                                                 <Action label="Retry" onClick={handleRegenerate}>
                                                     <RefreshCcwIcon className="size-3" />
@@ -611,7 +748,7 @@ export default function ChatPage() {
                                 ))}
 
                                 {/* Loading/Thinking indicator */}
-                                {showThinking && (
+                                {sidebarTab === "chat" && showThinking && (
                                     <ThinkingMessage
                                         status={status === "streaming" ? "streaming" : "submitted"}
                                     />
@@ -620,7 +757,7 @@ export default function ChatPage() {
                         </Conversation>
 
                         {/* Suggestions */}
-                        {messages.length === 1 && (
+                        {sidebarTab === "chat" && messages.length === 1 && (
                             <div className="border-border border-t shrink-0">
                                 <div className="px-6 py-2 lg:px-12 border-border border-b bg-secondary/30">
                                     <p className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -652,18 +789,23 @@ export default function ChatPage() {
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     placeholder={
-                                        status === "ready"
-                                            ? "Ask Sigil anything..."
-                                            : status === "submitted"
-                                              ? "Connecting to Sigil..."
-                                              : "Sigil is thinking..."
+                                        sidebarTab === "agents"
+                                            ? "Agents stream is read-only..."
+                                            : status === "ready"
+                                              ? "Ask Sigil anything..."
+                                              : status === "submitted"
+                                                ? "Connecting to Sigil..."
+                                                : "Sigil is thinking..."
                                     }
-                                    disabled={status !== "ready"}
+                                    disabled={status !== "ready" || sidebarTab === "agents"}
                                 />
                                 <PromptInputToolbar>
                                     <PromptInputStatus status={status} />
                                     <PromptInputTools className="ml-auto">
-                                        <PromptInputSubmit disabled={!input.trim()} status={status} />
+                                        <PromptInputSubmit
+                                            disabled={!input.trim() || sidebarTab === "agents"}
+                                            status={status}
+                                        />
                                     </PromptInputTools>
                                 </PromptInputToolbar>
                             </PromptInput>
@@ -671,12 +813,137 @@ export default function ChatPage() {
                     </div>
 
                     {/* Portfolio Sidebar */}
-                    <div className="hidden lg:block shrink-0 border-border border-l">
-                        <PortfolioSidebar
-                            sessionId={sessionId}
-                            collapsed={sidebarCollapsed}
-                            onToggle={() => setSidebarCollapsed((prev) => !prev)}
-                        />
+                    <div className="hidden lg:flex w-[340px] shrink-0 border-border border-l bg-background flex-col">
+                        <div className="grid grid-cols-2 border-b border-border bg-secondary/20">
+                            <button
+                                type="button"
+                                onClick={() => setSidebarTab("chat")}
+                                className={`px-4 py-3 text-left text-xs uppercase tracking-[0.14em] border-border border-r transition-colors ${
+                                    sidebarTab === "chat"
+                                        ? "bg-lavender/35 text-foreground"
+                                        : "bg-background text-muted-foreground hover:bg-sage/15"
+                                }`}
+                            >
+                                chat
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSidebarTab("agents")}
+                                className={`px-4 py-3 text-left text-xs uppercase tracking-[0.14em] transition-colors ${
+                                    sidebarTab === "agents"
+                                        ? "bg-lavender/35 text-foreground"
+                                        : "bg-background text-muted-foreground hover:bg-sage/15"
+                                }`}
+                            >
+                                agents
+                            </button>
+                        </div>
+
+                        <div className="min-h-0 flex-1">
+                            {sidebarTab === "chat" ? (
+                                <PortfolioSidebar
+                                    sessionId={sessionId}
+                                    collapsed={false}
+                                    onToggle={() => {}}
+                                    showCollapseToggle={false}
+                                    className="h-full"
+                                />
+                            ) : (
+                                <div className="h-full flex flex-col bg-background">
+                                    <div className="border-b border-border bg-sage/20 px-4 py-3">
+                                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
+                                            Agent Presence
+                                        </p>
+                                        <p className="mt-1 text-sm text-foreground">
+                                            {onlineAgents} online / {offlineAgents} offline
+                                        </p>
+                                    </div>
+
+                                    {!privy?.authenticated ? (
+                                        <div className="flex-1 flex flex-col">
+                                            <div className="border-b border-border px-4 py-4">
+                                                <p className="text-sm text-foreground">
+                                                    Sign in to view connected agents.
+                                                </p>
+                                            </div>
+                                            <div className="px-4 py-4 border-b border-border">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => privy.login?.()}
+                                                    className="w-full border border-border bg-lavender/80 px-4 py-2 text-sm text-foreground hover:bg-lavender/90 transition-colors"
+                                                >
+                                                    Sign In
+                                                </button>
+                                            </div>
+                                            <div className="flex-1 bg-cream/20" />
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {agentsError ? (
+                                                <div className="border-b border-border px-4 py-3 bg-red-50">
+                                                    <p className="text-xs text-red-700">{agentsError}</p>
+                                                </div>
+                                            ) : null}
+
+                                            {agentsLoading && agents.length === 0 ? (
+                                                <div className="border-b border-border px-4 py-4 flex items-center gap-2 text-sm text-muted-foreground">
+                                                    <Loader2 className="size-4 animate-spin" />
+                                                    loading agents...
+                                                </div>
+                                            ) : null}
+
+                                            {!agentsLoading && agents.length === 0 ? (
+                                                <div className="border-b border-border px-4 py-4 text-sm text-muted-foreground">
+                                                    No connected agents yet.
+                                                </div>
+                                            ) : null}
+
+                                            <div className="flex-1 overflow-y-auto divide-y divide-border">
+                                                {agents.map((agent) => (
+                                                    <div key={agent.id} className="px-4 py-3">
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="min-w-0">
+                                                                <div className="flex items-center gap-2">
+                                                                    <Bot className="size-4 text-primary" />
+                                                                    <p className="text-sm font-medium text-foreground truncate">
+                                                                        {agent.botId || agent.connectionId || agent.id.slice(0, 8)}
+                                                                    </p>
+                                                                </div>
+                                                                <p className="mt-1 text-xs text-muted-foreground uppercase tracking-[0.12em]">
+                                                                    {agent.stack}
+                                                                </p>
+                                                            </div>
+                                                            <span
+                                                                className={`inline-flex items-center gap-1 px-2 py-1 border text-[10px] uppercase tracking-[0.12em] ${
+                                                                    agent.presence === "online"
+                                                                        ? "border-sage/60 bg-sage/35 text-foreground"
+                                                                        : "border-border bg-background text-muted-foreground"
+                                                                }`}
+                                                            >
+                                                                <span
+                                                                    className={`size-1.5 ${
+                                                                        agent.presence === "online"
+                                                                            ? "bg-green-500"
+                                                                            : "bg-muted-foreground/60"
+                                                                    }`}
+                                                                />
+                                                                {agent.presence}
+                                                            </span>
+                                                        </div>
+                                                        <p className="mt-2 text-xs text-muted-foreground truncate">
+                                                            {formatLastSeen(agent)}
+                                                        </p>
+                                                        <p className="mt-1 text-[11px] text-muted-foreground truncate">
+                                                            {agent.endpoint}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -33,12 +33,16 @@ interface PortfolioSidebarProps {
     sessionId: string | null;
     collapsed: boolean;
     onToggle: () => void;
+    showCollapseToggle?: boolean;
+    className?: string;
 }
 
 export default function PortfolioSidebar({
     sessionId,
     collapsed,
     onToggle,
+    showCollapseToggle = true,
+    className,
 }: PortfolioSidebarProps) {
     const [copied, setCopied] = useState(false);
     const [showWithdraw, setShowWithdraw] = useState(false);
@@ -122,7 +126,10 @@ export default function PortfolioSidebar({
     if (collapsed) {
         return (
             <div
-                className="w-14 bg-background flex flex-col cursor-pointer hover:bg-secondary/20 transition-colors"
+                className={cn(
+                    "w-14 bg-background flex flex-col cursor-pointer hover:bg-secondary/20 transition-colors",
+                    className,
+                )}
                 onClick={onToggle}
             >
                 {/* Collapsed Header */}
@@ -150,20 +157,22 @@ export default function PortfolioSidebar({
 
     // Expanded state
     return (
-        <div className="w-72 bg-background flex flex-col h-full">
+        <div className={cn("w-full bg-background flex flex-col h-full", className)}>
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/30">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Portfolio
                 </span>
-                <button
-                    type="button"
-                    onClick={onToggle}
-                    className="size-6 hover:bg-background flex items-center justify-center transition-colors border border-border"
-                    title="Collapse"
-                >
-                    <ChevronLeft className="size-3 text-muted-foreground" />
-                </button>
+                {showCollapseToggle ? (
+                    <button
+                        type="button"
+                        onClick={onToggle}
+                        className="size-6 hover:bg-background flex items-center justify-center transition-colors border border-border"
+                        title="Collapse"
+                    >
+                        <ChevronLeft className="size-3 text-muted-foreground" />
+                    </button>
+                ) : null}
             </div>
 
             {/* Content */}
@@ -448,10 +457,14 @@ export default function PortfolioSidebar({
                                 <div className="px-4 py-3 border-b border-border space-y-3">
                                     {/* Token selector */}
                                     <div>
-                                        <label className="text-xs text-muted-foreground block mb-1">
+                                        <label
+                                            htmlFor="withdraw-token"
+                                            className="text-xs text-muted-foreground block mb-1"
+                                        >
                                             Token
                                         </label>
                                         <select
+                                            id="withdraw-token"
                                             value={withdrawToken}
                                             onChange={(e) => setWithdrawToken(e.target.value)}
                                             className="w-full text-sm border border-border bg-background px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
@@ -466,10 +479,14 @@ export default function PortfolioSidebar({
 
                                     {/* Destination address */}
                                     <div>
-                                        <label className="text-xs text-muted-foreground block mb-1">
+                                        <label
+                                            htmlFor="withdraw-to"
+                                            className="text-xs text-muted-foreground block mb-1"
+                                        >
                                             To Address
                                         </label>
                                         <input
+                                            id="withdraw-to"
                                             type="text"
                                             value={withdrawTo}
                                             onChange={(e) => setWithdrawTo(e.target.value)}
@@ -480,10 +497,14 @@ export default function PortfolioSidebar({
 
                                     {/* Amount */}
                                     <div>
-                                        <label className="text-xs text-muted-foreground block mb-1">
+                                        <label
+                                            htmlFor="withdraw-amount"
+                                            className="text-xs text-muted-foreground block mb-1"
+                                        >
                                             Amount
                                         </label>
                                         <input
+                                            id="withdraw-amount"
                                             type="text"
                                             value={withdrawAmount}
                                             onChange={(e) => setWithdrawAmount(e.target.value)}

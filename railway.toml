@@ -3,4 +3,5 @@ installCommand = "bun install"
 buildCommand = "npm install"
 
 [deploy]
+preDeployCommand = "npm run db:migrate:safe"
 startCommand = "npx tsx src/index.ts"

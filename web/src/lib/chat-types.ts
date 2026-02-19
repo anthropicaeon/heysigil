@@ -147,6 +147,7 @@ export type MessagePart =
 export interface MultiStepToolUIMessage {
     id: string;
     role: "user" | "assistant";
+    source?: "user" | "assistant" | "agent";
     content?: string;
     parts: MessagePart[];
 }

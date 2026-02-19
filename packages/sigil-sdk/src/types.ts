@@ -117,11 +117,86 @@ export interface ChatMessageRequest {
     message: string;
     sessionId?: string | null;
     walletAddress?: string;
+    agentId?: string;
 }
 
 export interface ChatMessageResponse {
     sessionId: string;
     response: unknown;
+}
+
+export interface ChatSessionQuery {
+    limit?: number;
+    offset?: number;
+    includeDeleted?: boolean;
+}
+
+export interface ChatHistoryMessage {
+    id: string;
+    role: "user" | "assistant";
+    source: "user" | "assistant" | "agent";
+    content: string;
+    timestamp: string;
+    deleted: boolean;
+    deletedAt: string | null;
+    upvotes: number;
+    downvotes: number;
+    myVote: "up" | "down" | "none";
+}
+
+export interface ChatSessionResponse {
+    sessionId: string;
+    platform: string;
+    hasWallet: boolean;
+    messages: ChatHistoryMessage[];
+    pagination?: {
+        limit: number;
+        offset: number;
+        count: number;
+        total: number;
+        hasMore: boolean;
+    };
+}
+
+export interface ChatVoteRequest {
+    sessionId: string;
+    messageId: string;
+    vote: "up" | "down";
+}
+
+export interface ChatVoteResponse {
+    success: boolean;
+    messageId: string;
+    vote: "up" | "down";
+    upvotes: number;
+    downvotes: number;
+}
+
+export interface ChatDeleteRequest {
+    sessionId: string;
+    messageId: string;
+    reason?: string;
+}
+
+export interface ChatDeleteResponse {
+    success: boolean;
+    messageId: string;
+    deletedAt: string;
+}
+
+export interface ChatAgentFeedItem {
+    id: string;
+    sessionId: string;
+    role: "user" | "assistant";
+    source: "agent";
+    content: string;
+    timestamp: string;
+}
+
+export interface ChatAgentFeedResponse {
+    messages: ChatAgentFeedItem[];
+    limit: number;
+    count: number;
 }
 
 export interface FeesTotalsResponse {
