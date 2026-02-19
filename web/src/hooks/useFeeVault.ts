@@ -9,7 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatUnits } from "viem";
 
-import { FEE_VAULT_ABI, FEE_VAULT_ADDRESS, publicClient, USDC_ADDRESS } from "@/config/contracts";
+import { FEE_VAULT_ABI, FEE_VAULT_ADDRESS, FEE_VAULT_ADDRESS_V1, publicClient, USDC_ADDRESS } from "@/config/contracts";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import { apiClient } from "@/lib/api-client";
 import { getErrorMessage } from "@/lib/errors";
@@ -53,6 +53,51 @@ interface UseFeeVaultReturn {
     refresh: () => Promise<void>;
 }
 
+// ─── Helper: read fees from a single vault ──────────────
+
+async function readVaultFees(
+    vaultAddress: `0x${string}`,
+    wallet: `0x${string}`,
+): Promise<{ usdc: bigint; lifetime: bigint; balances: FeeBalance[] }> {
+    const [usdcBalance, usdcLifetime, [tokens, amounts]] = await Promise.all([
+        publicClient.readContract({
+            address: vaultAddress,
+            abi: FEE_VAULT_ABI,
+            functionName: "devFees",
+            args: [wallet, USDC_ADDRESS],
+        }),
+        publicClient.readContract({
+            address: vaultAddress,
+            abi: FEE_VAULT_ABI,
+            functionName: "totalDevFeesEarned",
+            args: [wallet, USDC_ADDRESS],
+        }),
+        publicClient.readContract({
+            address: vaultAddress,
+            abi: FEE_VAULT_ABI,
+            functionName: "getDevFeeBalances",
+            args: [wallet],
+        }),
+    ]);
+
+    const balances: FeeBalance[] = [];
+    for (let i = 0; i < tokens.length; i++) {
+        if (amounts[i] > BigInt(0)) {
+            const isUsdc = tokens[i].toLowerCase() === USDC_ADDRESS.toLowerCase();
+            balances.push({
+                token: tokens[i],
+                symbol: isUsdc ? "USDC" : tokens[i].slice(0, 6) + "...",
+                balance: amounts[i],
+                formatted: isUsdc
+                    ? formatCurrency(amounts[i])
+                    : formatUnits(amounts[i], 18),
+            });
+        }
+    }
+
+    return { usdc: usdcBalance as bigint, lifetime: usdcLifetime as bigint, balances };
+}
+
 // ─── Hook ───────────────────────────────────────────────
 
 export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
@@ -76,7 +121,7 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         };
     }, []);
 
-    // ── Fetch balances ──
+    // ── Fetch balances from both V2 + V1 vaults ──
     const refresh = useCallback(async () => {
         if (!walletAddress || FEE_VAULT_ADDRESS === "0x0000000000000000000000000000000000000000")
             return;
@@ -85,52 +130,52 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         setError(null);
 
         try {
-            // Read USDC claimable
-            const usdcBalance = await publicClient.readContract({
-                address: FEE_VAULT_ADDRESS,
-                abi: FEE_VAULT_ABI,
-                functionName: "devFees",
-                args: [walletAddress as `0x${string}`, USDC_ADDRESS],
-            });
+            const wallet = walletAddress as `0x${string}`;
 
-            // Read lifetime USDC
-            const usdcLifetime = await publicClient.readContract({
-                address: FEE_VAULT_ADDRESS,
-                abi: FEE_VAULT_ABI,
-                functionName: "totalDevFeesEarned",
-                args: [walletAddress as `0x${string}`, USDC_ADDRESS],
-            });
+            // Read from V2 vault
+            const v2 = await readVaultFees(FEE_VAULT_ADDRESS, wallet);
 
-            // Read all token balances
-            const [tokens, balances] = await publicClient.readContract({
-                address: FEE_VAULT_ADDRESS,
-                abi: FEE_VAULT_ABI,
-                functionName: "getDevFeeBalances",
-                args: [walletAddress as `0x${string}`],
-            });
+            // Read from V1 vault (if configured)
+            let v1 = { usdc: BigInt(0), lifetime: BigInt(0), balances: [] as FeeBalance[] };
+            if (FEE_VAULT_ADDRESS_V1 && FEE_VAULT_ADDRESS_V1 !== "") {
+                try {
+                    v1 = await readVaultFees(FEE_VAULT_ADDRESS_V1, wallet);
+                } catch {
+                    // V1 vault read failed — that's fine, just use V2
+                }
+            }
 
             if (!isMounted.current) return;
 
-            setClaimableUsdc(formatCurrency(usdcBalance));
-            setClaimableRaw(usdcBalance as bigint);
-            setLifetimeUsdc(formatCurrency(usdcLifetime));
-            setLifetimeRaw(usdcLifetime as bigint);
+            // Aggregate totals
+            const totalUsdc = v2.usdc + v1.usdc;
+            const totalLifetime = v2.lifetime + v1.lifetime;
 
-            const feeBalances: FeeBalance[] = [];
-            for (let i = 0; i < tokens.length; i++) {
-                if (balances[i] > BigInt(0)) {
-                    const isUsdc = tokens[i].toLowerCase() === USDC_ADDRESS.toLowerCase();
-                    feeBalances.push({
-                        token: tokens[i],
-                        symbol: isUsdc ? "USDC" : tokens[i].slice(0, 6) + "...",
-                        balance: balances[i],
+            setClaimableUsdc(formatCurrency(totalUsdc));
+            setClaimableRaw(totalUsdc);
+            setLifetimeUsdc(formatCurrency(totalLifetime));
+            setLifetimeRaw(totalLifetime);
+
+            // Merge balances (combine same-token entries)
+            const balanceMap = new Map<string, FeeBalance>();
+            for (const b of [...v2.balances, ...v1.balances]) {
+                const key = b.token.toLowerCase();
+                const existing = balanceMap.get(key);
+                if (existing) {
+                    const combined = existing.balance + b.balance;
+                    const isUsdc = key === USDC_ADDRESS.toLowerCase();
+                    balanceMap.set(key, {
+                        ...existing,
+                        balance: combined,
                         formatted: isUsdc
-                            ? formatCurrency(balances[i])
-                            : formatUnits(balances[i], 18), // assume 18 dec for non-USDC
+                            ? formatCurrency(combined)
+                            : formatUnits(combined, 18),
                     });
+                } else {
+                    balanceMap.set(key, b);
                 }
             }
-            setAllBalances(feeBalances);
+            setAllBalances(Array.from(balanceMap.values()));
         } catch (err) {
             if (isMounted.current) {
                 setError(getErrorMessage(err, "Failed to read fees"));
