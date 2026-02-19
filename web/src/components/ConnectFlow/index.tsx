@@ -3,8 +3,9 @@
 import {
     Activity,
     Bot,
-    CheckCircle,
     Clock3,
+    Copy,
+    KeyRound,
     ListChecks,
     MessageSquareText,
     Sparkles,
@@ -19,6 +20,7 @@ import { PixelCard } from "@/components/ui/pixel-card";
 import { Textarea } from "@/components/ui/textarea";
 import { useOptionalPrivy } from "@/hooks/useOptionalPrivy";
 import { cn } from "@/lib/utils";
+import type { ProjectInfo } from "@/types";
 
 type ConnectStep = "stack" | "handshake" | "configure" | "run" | "manage";
 
@@ -40,6 +42,30 @@ type ConnectedBot = {
     connectedAt?: string;
     activeTasks: number;
     updatedAt: string;
+};
+
+type AgentProject = {
+    projectId: string;
+    name: string | null;
+    category: "owned" | "claimable";
+};
+
+type McpToken = {
+    id: string;
+    name: string;
+    tokenPrefix: string;
+    scopes: string[];
+    expiresAt: string | null;
+    lastUsedAt: string | null;
+    revokedAt: string | null;
+    createdAt: string;
+};
+
+type McpScopePreset = {
+    id: "runtime-min" | "runtime-full";
+    label: string;
+    description: string;
+    scopes: string[];
 };
 
 const STACKS: BotStackOption[] = [
@@ -69,6 +95,32 @@ const STEP_SEQUENCE: ConnectStep[] = ["stack", "handshake", "configure", "run", 
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
+const MCP_SCOPE_PRESETS: McpScopePreset[] = [
+    {
+        id: "runtime-min",
+        label: "runtime minimal",
+        description: "chat + launch read + dashboard visibility",
+        scopes: ["chat:write", "launch:read", "dashboard:read"],
+    },
+    {
+        id: "runtime-full",
+        label: "runtime full",
+        description: "full runtime operations for launch and verification workflows",
+        scopes: [
+            "verify:read",
+            "verify:write",
+            "dashboard:read",
+            "chat:write",
+            "developers:read",
+            "launch:read",
+            "launch:write",
+            "wallet:read",
+            "fees:read",
+            "claim:write",
+        ],
+    },
+];
+
 // TODO(connect-data): Replace prompt/task mocks with API data from bot profile store.
 const MOCK_PROMPT_STAGES = {
     planner: "Break user goal into milestones and estimate risk before execution.",
@@ -87,10 +139,38 @@ export default function ConnectFlow() {
     const [isConnected, setIsConnected] = useState(false);
     const [connectedBots, setConnectedBots] = useState<ConnectedBot[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [agentProjects, setAgentProjects] = useState<AgentProject[]>([]);
+    const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
+    const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+    const [mcpTokens, setMcpTokens] = useState<McpToken[]>([]);
+    const [isLoadingTokens, setIsLoadingTokens] = useState(false);
+    const [scopePresetId, setScopePresetId] = useState<McpScopePreset["id"]>("runtime-min");
+    const [tokenName, setTokenName] = useState("");
+    const [tokenExpiresInDays, setTokenExpiresInDays] = useState(30);
+    const [isCreatingToken, setIsCreatingToken] = useState(false);
+    const [tokenError, setTokenError] = useState<string | null>(null);
+    const [freshPat, setFreshPat] = useState<string | null>(null);
+    const [patCopied, setPatCopied] = useState(false);
 
     const stepIndex = useMemo(() => STEP_SEQUENCE.indexOf(step), [step]);
     const selectedStackData = STACKS.find((item) => item.id === selectedStack) ?? STACKS[0];
     const isDev = process.env.NODE_ENV === "development";
+    const selectedScopePreset = useMemo(
+        () => MCP_SCOPE_PRESETS.find((preset) => preset.id === scopePresetId) ?? MCP_SCOPE_PRESETS[0],
+        [scopePresetId],
+    );
+    const selectedProjects = useMemo(
+        () => agentProjects.filter((project) => selectedProjectIds.includes(project.projectId)),
+        [agentProjects, selectedProjectIds],
+    );
+    const activeMcpTokens = useMemo(() => {
+        const now = Date.now();
+        return mcpTokens.filter((token) => {
+            if (token.revokedAt) return false;
+            if (!token.expiresAt) return true;
+            return new Date(token.expiresAt).getTime() > now;
+        });
+    }, [mcpTokens]);
 
     // ─── Fetch connected bots ───────────────────────────────
 
@@ -116,11 +196,93 @@ export default function ConnectFlow() {
         } catch {
             /* silent — sidebar just stays empty */
         }
-    }, [privy?.authenticated, privy?.getAccessToken]);
+    }, [privy]);
+
+    const fetchAgentProjects = useCallback(async () => {
+        if (!privy?.authenticated || !privy?.getAccessToken) {
+            setAgentProjects([]);
+            setSelectedProjectIds([]);
+            return;
+        }
+
+        setIsLoadingProjects(true);
+        try {
+            const token = await privy.getAccessToken();
+            const res = await fetch(`${API_BASE}/api/launch/my-projects`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            if (!res.ok) return;
+
+            const data = (await res.json()) as {
+                projects: ProjectInfo[];
+                claimableProjects: ProjectInfo[];
+            };
+
+            const owned = (data.projects || []).map((project) => ({
+                projectId: project.projectId,
+                name: project.name,
+                category: "owned" as const,
+            }));
+            const claimable = (data.claimableProjects || []).map((project) => ({
+                projectId: project.projectId,
+                name: project.name,
+                category: "claimable" as const,
+            }));
+
+            const mergedByProjectId = new Map<string, AgentProject>();
+            for (const project of [...claimable, ...owned]) {
+                mergedByProjectId.set(project.projectId, project);
+            }
+
+            const merged = Array.from(mergedByProjectId.values());
+            setAgentProjects(merged);
+            setSelectedProjectIds((current) => {
+                const allowed = new Set(merged.map((project) => project.projectId));
+                const stillValid = current.filter((id) => allowed.has(id));
+                if (stillValid.length > 0) return stillValid;
+                if (merged.length > 0) return [merged[0].projectId];
+                return [];
+            });
+        } catch {
+            /* silent — token card shows no projects */
+        } finally {
+            setIsLoadingProjects(false);
+        }
+    }, [privy]);
+
+    const fetchMcpTokens = useCallback(async () => {
+        if (!privy?.authenticated || !privy?.getAccessToken) {
+            setMcpTokens([]);
+            return;
+        }
+
+        setIsLoadingTokens(true);
+        try {
+            const token = await privy.getAccessToken();
+            const res = await fetch(`${API_BASE}/api/mcp/tokens`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            if (!res.ok) return;
+            const data = (await res.json()) as { tokens: McpToken[] };
+            setMcpTokens(data.tokens || []);
+        } catch {
+            /* silent — list just stays empty */
+        } finally {
+            setIsLoadingTokens(false);
+        }
+    }, [privy]);
 
     useEffect(() => {
-        fetchBots();
-    }, [fetchBots]);
+        void fetchBots();
+        void fetchAgentProjects();
+        void fetchMcpTokens();
+    }, [fetchAgentProjects, fetchBots, fetchMcpTokens]);
+
+    useEffect(() => {
+        if (!patCopied) return;
+        const timer = window.setTimeout(() => setPatCopied(false), 2000);
+        return () => window.clearTimeout(timer);
+    }, [patCopied]);
 
     // ─── Dev step cycling ───────────────────────────────────
 
@@ -204,6 +366,74 @@ export default function ConnectFlow() {
             await fetchBots();
         } catch {
             /* silent */
+        }
+    }
+
+    function toggleProjectSelection(projectId: string) {
+        setSelectedProjectIds((current) => {
+            if (current.includes(projectId)) {
+                return current.filter((id) => id !== projectId);
+            }
+            return [...current, projectId];
+        });
+    }
+
+    async function createMcpTokenForProjects() {
+        if (!privy?.authenticated || !privy?.getAccessToken) return;
+        if (selectedProjectIds.length === 0) {
+            setTokenError("Select at least one owned or claimable project.");
+            return;
+        }
+
+        setIsCreatingToken(true);
+        setTokenError(null);
+        setFreshPat(null);
+        setPatCopied(false);
+
+        try {
+            const accessToken = await privy.getAccessToken();
+            const selectedNames = selectedProjects.map((project) => project.name || project.projectId);
+            const autoName =
+                selectedNames.length === 1
+                    ? `${selectedNames[0]} runtime`
+                    : `Connect runtime (${selectedNames.length} projects)`;
+            const finalName = tokenName.trim() || autoName;
+
+            const res = await fetch(`${API_BASE}/api/mcp/tokens`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                },
+                body: JSON.stringify({
+                    name: finalName,
+                    scopes: selectedScopePreset.scopes,
+                    expiresInDays: tokenExpiresInDays,
+                }),
+            });
+
+            const data = (await res.json()) as { token?: string; error?: string };
+            if (!res.ok || !data.token) {
+                setTokenError(data.error || "Failed to create MCP token");
+                return;
+            }
+
+            setFreshPat(data.token);
+            await fetchMcpTokens();
+        } catch (err) {
+            setTokenError(err instanceof Error ? err.message : "Failed to create token");
+        } finally {
+            setIsCreatingToken(false);
+        }
+    }
+
+    async function copyFreshPat() {
+        if (!freshPat) return;
+        try {
+            await navigator.clipboard.writeText(freshPat);
+            setPatCopied(true);
+        } catch {
+            setPatCopied(false);
         }
     }
 
@@ -359,22 +589,270 @@ export default function ConnectFlow() {
                                     endpoint to bind this runtime to your Privy-authenticated Sigil account.
                                 </p>
 
+                                <div className="border border-border bg-[linear-gradient(180deg,hsl(var(--lavender)/0.18),hsl(var(--background)/0.96))]">
+                                    <div className="border-border border-b px-4 py-3 sm:px-5">
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <KeyRound className="size-4 text-primary" />
+                                                <p className="text-xs uppercase tracking-[0.14em] text-primary">
+                                                    mcp access token
+                                                </p>
+                                            </div>
+                                            <Badge variant="outline" className="text-[11px]">
+                                                shown once
+                                            </Badge>
+                                        </div>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Create a runtime PAT for one or more owned/claimable projects, then add it
+                                            to your bot env as <code>SIGIL_MCP_TOKEN</code>.
+                                        </p>
+                                    </div>
+
+                                    <div className="space-y-4 px-4 py-4 sm:px-5">
+                                        <div className="space-y-2">
+                                            <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                                                project selection
+                                            </p>
+                                            {isLoadingProjects ? (
+                                                <div className="border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+                                                    loading projects...
+                                                </div>
+                                            ) : agentProjects.length === 0 ? (
+                                                <div className="border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+                                                    no owned or claimable projects found yet. verify or launch first.
+                                                </div>
+                                            ) : (
+                                                <div className="grid gap-0 border border-border sm:grid-cols-2">
+                                                    {agentProjects.map((project, index) => {
+                                                        const selected = selectedProjectIds.includes(project.projectId);
+                                                        return (
+                                                            <button
+                                                                key={project.projectId}
+                                                                type="button"
+                                                                onClick={() => toggleProjectSelection(project.projectId)}
+                                                                className={cn(
+                                                                    "border-border px-3 py-3 text-left transition-colors",
+                                                                    index % 2 === 0 && "sm:border-r",
+                                                                    index < agentProjects.length - 2 &&
+                                                                        "border-b sm:border-b",
+                                                                    index === agentProjects.length - 1 &&
+                                                                        agentProjects.length % 2 === 1 &&
+                                                                        "sm:border-t",
+                                                                    selected
+                                                                        ? "bg-lavender/35"
+                                                                        : "bg-background hover:bg-sage/15",
+                                                                )}
+                                                            >
+                                                                <div className="flex items-center justify-between gap-2">
+                                                                    <p className="text-xs font-medium text-foreground">
+                                                                        {project.name || project.projectId}
+                                                                    </p>
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className={cn(
+                                                                            "text-[10px]",
+                                                                            project.category === "owned"
+                                                                                ? "bg-sage/35"
+                                                                                : "bg-cream",
+                                                                        )}
+                                                                    >
+                                                                        {project.category}
+                                                                    </Badge>
+                                                                </div>
+                                                                <p className="mt-1 text-[11px] text-muted-foreground">
+                                                                    {project.projectId}
+                                                                </p>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <label
+                                                    htmlFor="connect-token-name"
+                                                    className="text-xs uppercase tracking-wide text-muted-foreground"
+                                                >
+                                                    token label
+                                                </label>
+                                                <Input
+                                                    id="connect-token-name"
+                                                    value={tokenName}
+                                                    onChange={(event) => setTokenName(event.target.value)}
+                                                    placeholder="auto from selected project(s)"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label
+                                                    htmlFor="connect-token-expiry"
+                                                    className="text-xs uppercase tracking-wide text-muted-foreground"
+                                                >
+                                                    expires in days
+                                                </label>
+                                                <Input
+                                                    id="connect-token-expiry"
+                                                    type="number"
+                                                    min={1}
+                                                    max={365}
+                                                    value={tokenExpiresInDays}
+                                                    onChange={(event) =>
+                                                        setTokenExpiresInDays(
+                                                            Math.max(
+                                                                1,
+                                                                Math.min(
+                                                                    365,
+                                                                    Number.parseInt(event.target.value || "30", 10),
+                                                                ),
+                                                            ),
+                                                        )
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                                scope preset
+                                            </p>
+                                            <div className="grid gap-0 border border-border sm:grid-cols-2">
+                                                {MCP_SCOPE_PRESETS.map((preset, index) => (
+                                                    <button
+                                                        key={preset.id}
+                                                        type="button"
+                                                        onClick={() => setScopePresetId(preset.id)}
+                                                        className={cn(
+                                                            "border-border px-3 py-3 text-left transition-colors",
+                                                            index === 0 ? "border-b sm:border-b-0 sm:border-r" : "",
+                                                            scopePresetId === preset.id
+                                                                ? "bg-lavender/35"
+                                                                : "bg-background hover:bg-sage/15",
+                                                        )}
+                                                    >
+                                                        <p className="text-xs font-medium text-foreground">
+                                                            {preset.label}
+                                                        </p>
+                                                        <p className="mt-1 text-[11px] text-muted-foreground">
+                                                            {preset.description}
+                                                        </p>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {tokenError && (
+                                            <div className="border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">
+                                                {tokenError}
+                                            </div>
+                                        )}
+
+                                        {freshPat && (
+                                            <div className="border border-border bg-background">
+                                                <div className="border-border border-b px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                                                    new token
+                                                </div>
+                                                <div className="px-3 py-3">
+                                                    <code className="block break-all text-xs text-foreground">
+                                                        {freshPat}
+                                                    </code>
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={copyFreshPat}
+                                                            className="gap-1.5"
+                                                        >
+                                                            <Copy className="size-3.5" />
+                                                            {patCopied ? "copied" : "copy token"}
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Button
+                                                type="button"
+                                                onClick={createMcpTokenForProjects}
+                                                disabled={
+                                                    !privy.authenticated ||
+                                                    selectedProjectIds.length === 0 ||
+                                                    isCreatingToken
+                                                }
+                                            >
+                                                {isCreatingToken ? "creating token..." : "create runtime pat"}
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                onClick={() => void fetchMcpTokens()}
+                                                disabled={isLoadingTokens}
+                                            >
+                                                refresh token list
+                                            </Button>
+                                        </div>
+
+                                        <div className="border border-border bg-background">
+                                            <div className="border-border border-b px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                                                active tokens
+                                            </div>
+                                            <div className="divide-y divide-border">
+                                                {isLoadingTokens && (
+                                                    <div className="px-3 py-3 text-xs text-muted-foreground">
+                                                        loading tokens...
+                                                    </div>
+                                                )}
+                                                {!isLoadingTokens && activeMcpTokens.length === 0 && (
+                                                    <div className="px-3 py-3 text-xs text-muted-foreground">
+                                                        no active MCP tokens yet.
+                                                    </div>
+                                                )}
+                                                {activeMcpTokens.map((token) => (
+                                                    <div key={token.id} className="px-3 py-3">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <p className="text-xs font-medium text-foreground">
+                                                                {token.name}
+                                                            </p>
+                                                            <Badge variant="outline" className="text-[10px]">
+                                                                {token.scopes.length} scopes
+                                                            </Badge>
+                                                        </div>
+                                                        <p className="mt-1 text-[11px] text-muted-foreground">
+                                                            {token.tokenPrefix}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div className="grid gap-4 md:grid-cols-2">
                                     <div className="space-y-2">
-                                        <label className="text-xs uppercase tracking-wide text-muted-foreground">
+                                        <label
+                                            htmlFor="connect-endpoint"
+                                            className="text-xs uppercase tracking-wide text-muted-foreground"
+                                        >
                                             deployed endpoint
                                         </label>
                                         <Input
+                                            id="connect-endpoint"
                                             value={endpoint}
                                             onChange={(event) => setEndpoint(event.target.value)}
                                             placeholder="https://your-bot.up.railway.app"
                                         />
                                     </div>
                                     <div className="space-y-2">
-                                        <label className="text-xs uppercase tracking-wide text-muted-foreground">
+                                        <label
+                                            htmlFor="connect-secret"
+                                            className="text-xs uppercase tracking-wide text-muted-foreground"
+                                        >
                                             connect secret (optional)
                                         </label>
                                         <Input
+                                            id="connect-secret"
                                             value={secret}
                                             onChange={(event) => setSecret(event.target.value)}
                                             placeholder="x-sigil-connect-secret"
@@ -431,10 +909,14 @@ export default function ConnectFlow() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <label className="text-xs uppercase tracking-wide text-muted-foreground">
+                                    <label
+                                        htmlFor="connect-planner-prompt"
+                                        className="text-xs uppercase tracking-wide text-muted-foreground"
+                                    >
                                         planner stage prompt
                                     </label>
                                     <Textarea
+                                        id="connect-planner-prompt"
                                         value={notes}
                                         onChange={(event) => setNotes(event.target.value)}
                                         className="min-h-[120px]"
