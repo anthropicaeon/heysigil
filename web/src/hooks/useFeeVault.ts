@@ -137,7 +137,7 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
 
             // Read from V1 vault (if configured)
             let v1 = { usdc: BigInt(0), lifetime: BigInt(0), balances: [] as FeeBalance[] };
-            if (FEE_VAULT_ADDRESS_V1 && FEE_VAULT_ADDRESS_V1 !== "") {
+            if (FEE_VAULT_ADDRESS_V1 && (FEE_VAULT_ADDRESS_V1 as string) !== "") {
                 try {
                     v1 = await readVaultFees(FEE_VAULT_ADDRESS_V1, wallet);
                 } catch {
