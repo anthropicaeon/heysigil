@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-02-19T19:10:00Z",
+  "generatedAt": "2026-02-19T21:55:00Z",
   "entries": [
     {
       "id": "2026-02-19-f815eda",
@@ -8,7 +8,11 @@
       "date": "2026-02-19T15:54:02+02:00",
       "title": "Configuring MCP Server service + PAT",
       "type": "feature",
-      "area": ["mcp", "api", "auth"],
+      "area": [
+        "mcp",
+        "api",
+        "auth"
+      ],
       "features": [
         "Added secure MCP transport endpoint and runtime bootstrap",
         "Enabled PAT-backed MCP access with scope-aware execution",
@@ -28,7 +32,11 @@
       "date": "2026-02-19T15:05:47+02:00",
       "title": "Persisted chat ops, agent feed separation, and presence tabs",
       "type": "feature",
-      "area": ["chat", "agents", "database"],
+      "area": [
+        "chat",
+        "agents",
+        "database"
+      ],
       "features": [
         "Persistent chat storage with delete, upvote, and downvote operations",
         "Dedicated agent feed separation from user chat surface",
@@ -48,7 +56,10 @@
       "date": "2026-02-19T15:24:43+02:00",
       "title": "Web patches and UI refinements",
       "type": "ui",
-      "area": ["web", "design-system"],
+      "area": [
+        "web",
+        "design-system"
+      ],
       "features": [
         "Applied border-centric UI alignment patches across key surfaces",
         "Refined spacing, framing, and visual consistency details",
@@ -68,7 +79,11 @@
       "date": "2026-02-19T04:15:58-08:00",
       "title": "Dual-vault frontend support (V2 + V1)",
       "type": "feature",
-      "area": ["frontend", "fees", "vault"],
+      "area": [
+        "frontend",
+        "fees",
+        "vault"
+      ],
       "features": [
         "Extended frontend fee reads to include both FeeVault V2 and V1",
         "Improved continuity for users during vault transition",
@@ -88,7 +103,11 @@
       "date": "2026-02-19T04:12:24-08:00",
       "title": "V2 contract integration for claims and fee collection",
       "type": "feature",
-      "area": ["contracts", "claims", "fees"],
+      "area": [
+        "contracts",
+        "claims",
+        "fees"
+      ],
       "features": [
         "Integrated V2 contract paths for claims and fee collection",
         "Added dual-vault behavior to support ongoing migration",
@@ -108,7 +127,10 @@
       "date": "2026-02-19T03:20:21-08:00",
       "title": "Removed hardcoded deployer private key",
       "type": "security",
-      "area": ["security", "scripts"],
+      "area": [
+        "security",
+        "scripts"
+      ],
       "features": [
         "Eliminated hardcoded secret material from scripts",
         "Moved sensitive configuration to environment-based flow",
@@ -128,7 +150,11 @@
       "date": "2026-02-19T00:44:52-08:00",
       "title": "Portfolio balance fixes and withdraw/send support",
       "type": "feature",
-      "area": ["wallet", "portfolio", "payments"],
+      "area": [
+        "wallet",
+        "portfolio",
+        "payments"
+      ],
       "features": [
         "Corrected portfolio balance behavior",
         "Added withdraw/send wallet actions",
@@ -148,7 +174,11 @@
       "date": "2026-02-18T23:37:37-08:00",
       "title": "Added .sigil attestation scan endpoint and CLI package",
       "type": "feature",
-      "area": ["attestation", "scan", "cli"],
+      "area": [
+        "attestation",
+        "scan",
+        "cli"
+      ],
       "features": [
         "Added .sigil file attestation support",
         "Introduced scan endpoint for verification workflows",
@@ -168,7 +198,11 @@
       "date": "2026-02-18T21:29:20-08:00",
       "title": "Connected /connect handshake to real API flow",
       "type": "feature",
-      "area": ["connect", "api", "agents"],
+      "area": [
+        "connect",
+        "api",
+        "agents"
+      ],
       "features": [
         "Replaced placeholder handshake interactions with real API calls",
         "Connected runtime handshake lifecycle to backend persistence",
@@ -188,7 +222,11 @@
       "date": "2026-02-18T22:16:24-08:00",
       "title": "Fixed claimable USDC derivation",
       "type": "fix",
-      "area": ["fees", "claiming", "accounting"],
+      "area": [
+        "fees",
+        "claiming",
+        "accounting"
+      ],
       "features": [
         "Corrected claimable USDC calculation logic",
         "Aligned displayed claimable value with on-chain realities",
@@ -201,6 +239,725 @@
         "Reduced user-facing revert scenarios in claim flow"
       ],
       "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-19-7a8a617",
+      "commit": "7a8a617163f51d09527bae6ccfe67ec9c01c5bc6",
+      "date": "2026-02-19T03:52:18+02:00",
+      "title": "Refined navigation and added package smoke harness",
+      "type": "ui",
+      "area": [
+        "web",
+        "navigation",
+        "testing"
+      ],
+      "features": [
+        "Refined dropdown navigation alignment and interaction behavior",
+        "Added smoke-test harness for package validation flows",
+        "Improved production confidence before npm publishing"
+      ],
+      "reason": "Tighten navigation UX while validating package outputs with repeatable checks.",
+      "details": [
+        "Updated nav interaction details to better match border-centric surfaces",
+        "Added script paths for quick package health validation",
+        "Reduced regressions during web and package iteration"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-19-a555747",
+      "commit": "a555747c8ab01eed3a7dd1ca058f448636c2844d",
+      "date": "2026-02-19T01:04:39+02:00",
+      "title": "Added DB-backed token auth and MCP server package",
+      "type": "feature",
+      "area": [
+        "mcp",
+        "auth",
+        "database"
+      ],
+      "features": [
+        "Introduced database-backed token authentication for MCP access",
+        "Added workspace MCP server package for agent tooling",
+        "Connected auth model to service runtime expectations"
+      ],
+      "reason": "Move MCP from local prototype behavior to production-ready authenticated access.",
+      "details": [
+        "Created persistent token records to back MCP auth checks",
+        "Established package boundary for MCP server logic",
+        "Aligned token validation with existing backend patterns"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-19-443fad6",
+      "commit": "443fad65a4b1b6a8d523939fd79da9d6675d470e",
+      "date": "2026-02-19T01:01:43+02:00",
+      "title": "Scaffolded workspace SDK and shared core package",
+      "type": "feature",
+      "area": [
+        "sdk",
+        "packages",
+        "core"
+      ],
+      "features": [
+        "Created initial SDK package scaffolding in workspace",
+        "Added shared core package for reusable domain logic",
+        "Prepared package architecture for MCP and app parity"
+      ],
+      "reason": "Centralize reusable integration logic and prevent duplicated client implementations.",
+      "details": [
+        "Split common functionality into package-level modules",
+        "Set foundation for consistent API contracts across surfaces",
+        "Improved long-term maintainability for external integrations"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-19-e3b1314",
+      "commit": "e3b13149155e2a486ead5573f7255c4027178d4c",
+      "date": "2026-02-19T00:57:43+02:00",
+      "title": "Upgraded hero with interactive 3D model",
+      "type": "ui",
+      "area": [
+        "web",
+        "hero",
+        "3d"
+      ],
+      "features": [
+        "Replaced static hero imagery with interactive 3D model presentation",
+        "Connected model viewer interactions for hover and motion behavior",
+        "Improved visual emphasis of the homepage right-side hero stage"
+      ],
+      "reason": "Increase hero impact and align branding with interactive product storytelling.",
+      "details": [
+        "Integrated model viewer into hero composition",
+        "Calibrated scene offsets and framing for layout fit",
+        "Set foundation for loader-to-hero model continuity"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-18-babaec7",
+      "commit": "babaec7e72404d0a2cdbb960da9360df6bc0eb9a",
+      "date": "2026-02-18T17:46:40+02:00",
+      "title": "Comprehensive hero page enhancement",
+      "type": "ui",
+      "area": [
+        "web",
+        "hero",
+        "design-system"
+      ],
+      "features": [
+        "Expanded hero composition with stronger border-centric visual hierarchy",
+        "Improved typography and section rhythm for readability",
+        "Applied memorable layout treatment across hero modules"
+      ],
+      "reason": "Make the first-screen experience clearer and more distinctive.",
+      "details": [
+        "Refined hero content blocks and spacing rhythm",
+        "Aligned visual treatment with dashboard and features pages",
+        "Reduced generic layout patterns in primary marketing surface"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-18-58d737b",
+      "commit": "58d737b14a0666cfe0a27ad7fb12d6fc54289cff",
+      "date": "2026-02-18T17:28:55+02:00",
+      "title": "Memorable dashboard refresh with PixelCard surfaces",
+      "type": "ui",
+      "area": [
+        "dashboard",
+        "web",
+        "design-system"
+      ],
+      "features": [
+        "Redesigned dashboard hero and key sections with PixelCard language",
+        "Improved data block legibility through border-centric separation",
+        "Aligned dashboard visuals with broader site style system"
+      ],
+      "reason": "Create consistency between operational dashboard and marketing-facing pages.",
+      "details": [
+        "Applied shared surface patterns and spacing system",
+        "Reduced visual drift across dashboard components",
+        "Improved scanability of core dashboard actions"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-18-561a34e",
+      "commit": "561a34e1617a1c17a9180f92406fce91df05a9d3",
+      "date": "2026-02-18T17:30:36+02:00",
+      "title": "Enhanced developers page with PixelCard hero",
+      "type": "ui",
+      "area": [
+        "developers",
+        "web",
+        "design-system"
+      ],
+      "features": [
+        "Added stronger developers-page hero treatment",
+        "Improved section flow and visual emphasis in developer content",
+        "Brought page styling in line with border-centric system"
+      ],
+      "reason": "Increase clarity and consistency for technical onboarding surfaces.",
+      "details": [
+        "Reworked hero and section hierarchy for developer audience",
+        "Harmonized borders, spacing, and gradients with core pages",
+        "Improved overall readability for docs-adjacent content"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-18-06b4cdc",
+      "commit": "06b4cdc67cc4f57acb06d0f4a86c259afae17b87",
+      "date": "2026-02-18T05:50:24+02:00",
+      "title": "Added border-centric pages with briefing cards",
+      "type": "ui",
+      "area": [
+        "web",
+        "pages",
+        "design-system"
+      ],
+      "features": [
+        "Introduced border-centric page variants with briefing card components",
+        "Standardized layout shells for cross-page consistency",
+        "Extended reusable visual system primitives"
+      ],
+      "reason": "Scale design consistency without repeating one-off layout code.",
+      "details": [
+        "Created page-level structures for border-centric composition",
+        "Added briefing card usage patterns for section intros",
+        "Enabled faster page iteration with shared styling conventions"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-18-ff7ebd8",
+      "commit": "ff7ebd8314b9998c3685e3784087b73b26be503c",
+      "date": "2026-02-18T04:53:49+02:00",
+      "title": "Completed border-centric UI/UX refresh",
+      "type": "ui",
+      "area": [
+        "web",
+        "design-system",
+        "ux"
+      ],
+      "features": [
+        "Rolled out broad border-centric UI refresh across key web surfaces",
+        "Aligned typography, spacing, and cards to a shared style language",
+        "Reduced inconsistencies between app sections"
+      ],
+      "reason": "Establish a consistent design baseline for fast feature iteration.",
+      "details": [
+        "Applied shared visual grammar to multiple routes",
+        "Resolved uneven spacing and framing behavior",
+        "Improved perception of quality across the product"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-18-b712353",
+      "commit": "b7123539f38f1d54c36cae0ea47e6b821ef161aa",
+      "date": "2026-02-18T05:36:45+02:00",
+      "title": "Added multi-step AI chat with border-centric design",
+      "type": "feature",
+      "area": [
+        "chat",
+        "ai",
+        "web"
+      ],
+      "features": [
+        "Introduced multi-step AI chat flow in the web experience",
+        "Applied border-centric treatment to chat layout and framing",
+        "Improved conversation-state clarity during multi-stage responses"
+      ],
+      "reason": "Upgrade chat from simple prompt/response to guided multi-step interaction.",
+      "details": [
+        "Added UX structure for staged chat progress",
+        "Aligned component styling with core design system",
+        "Prepared surface for persisted and agent-aware chat enhancements"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-18-004c504",
+      "commit": "004c504128269dc63b3903ad3fb0f9676bc13b6a",
+      "date": "2026-02-18T14:56:08-08:00",
+      "title": "Redesigned agents page with human/agent mode toggle",
+      "type": "ui",
+      "area": [
+        "agents",
+        "web",
+        "design-system"
+      ],
+      "features": [
+        "Reworked agents page around a clearer skill-oriented layout",
+        "Added mode switching between human and agent perspectives",
+        "Improved structural clarity of agents surface content"
+      ],
+      "reason": "Make agents page usable for both builder and runtime contexts.",
+      "details": [
+        "Introduced explicit audience-mode UX switching",
+        "Updated page sections to reflect agent workflows",
+        "Reduced ambiguity in agent onboarding structure"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-18-dcd5254",
+      "commit": "dcd52543d6e920a2d556c04bd751abffae6c9e9e",
+      "date": "2026-02-18T14:40:24-08:00",
+      "title": "Added agents page, key-pair attestation, and launch flow",
+      "type": "feature",
+      "area": [
+        "agents",
+        "attestation",
+        "launch"
+      ],
+      "features": [
+        "Introduced dedicated agents page in app routing",
+        "Added agent key-pair attestation workflow",
+        "Connected initial agent launch flow"
+      ],
+      "reason": "Establish first-class support for agent identity and deployment lifecycle.",
+      "details": [
+        "Implemented routing and UI foundation for agents page",
+        "Added attestation path for agent-owned credentials",
+        "Integrated launch entrypoint for agent setup"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-18-8e6e456",
+      "commit": "8e6e456c3dcb92a4583f95fa367e427ffd873205",
+      "date": "2026-02-18T14:33:24-08:00",
+      "title": "Enabled automatic SigilToken verification on Basescan",
+      "type": "feature",
+      "area": [
+        "launch",
+        "verification",
+        "contracts"
+      ],
+      "features": [
+        "Added automatic verification after each token launch",
+        "Integrated Basescan verification into deployment flow",
+        "Reduced manual post-launch operational steps"
+      ],
+      "reason": "Improve trust and transparency immediately after launches.",
+      "details": [
+        "Hooked verification call into launch completion path",
+        "Reduced need for manual explorer verification tasks",
+        "Improved launch readiness for downstream integrations"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-18-5314dd9",
+      "commit": "5314dd92a038e979336a6c2cac44a5a15fdca69c",
+      "date": "2026-02-18T12:56:31-08:00",
+      "title": "Collected V3 LP fees and fixed fee display pipeline",
+      "type": "fix",
+      "area": [
+        "fees",
+        "indexing",
+        "dashboard"
+      ],
+      "features": [
+        "Extended fee collection to include V3 LP fee paths",
+        "Repaired fee display pipeline for surfaced balances",
+        "Improved end-to-end fee accounting consistency"
+      ],
+      "reason": "Address mismatches between on-chain fee generation and displayed values.",
+      "details": [
+        "Fixed fee data path from collection through UI display",
+        "Improved accuracy of user-visible earnings data",
+        "Reduced support burden around fee discrepancies"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-18-c757e62",
+      "commit": "c757e62ffda39bd9b22457030489ce683c16687f",
+      "date": "2026-02-18T10:24:37-08:00",
+      "title": "Auto-funded gas inside claim endpoint",
+      "type": "feature",
+      "area": [
+        "claims",
+        "gas",
+        "backend"
+      ],
+      "features": [
+        "Moved gas funding into claim endpoint workflow",
+        "Removed separate manual gas preparation step",
+        "Simplified claim process for end users"
+      ],
+      "reason": "Eliminate user friction and failures caused by missing claim gas.",
+      "details": [
+        "Integrated auto-funding in claim transaction sequence",
+        "Collapsed multi-step claim prep into single backend path",
+        "Improved claim success rate for constrained wallets"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-18-5f2185b",
+      "commit": "5f2185be8a7884d18c8ef44c4949daced0a1ebcb",
+      "date": "2026-02-18T10:14:33-08:00",
+      "title": "Added server-side fee claiming",
+      "type": "feature",
+      "area": [
+        "claims",
+        "backend",
+        "wallet"
+      ],
+      "features": [
+        "Moved fee claiming execution to server-side flow",
+        "Removed dependency on client-side Privy signer for claims",
+        "Improved consistency of claim execution across environments"
+      ],
+      "reason": "Stabilize fee claiming by centralizing transaction orchestration.",
+      "details": [
+        "Implemented backend-controlled claim transaction handling",
+        "Reduced client signer dependency complexity",
+        "Prepared pathway for sponsored and automated claim strategies"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-18-364cc00",
+      "commit": "364cc00fb5345045d4e6c330d2bbad959e33efe3",
+      "date": "2026-02-18T09:23:55-08:00",
+      "title": "Enabled gasless fee claims via backend sponsorship",
+      "type": "feature",
+      "area": [
+        "claims",
+        "gas",
+        "backend"
+      ],
+      "features": [
+        "Introduced backend-sponsored gas for fee claim transactions",
+        "Reduced wallet funding requirements for claim actions",
+        "Improved claim accessibility for more users"
+      ],
+      "reason": "Lower barriers to claiming fees by removing gas prerequisites.",
+      "details": [
+        "Added sponsorship logic to claim execution path",
+        "Reduced failed claims caused by low user gas balances",
+        "Aligned claims UX with one-click operational goals"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-17-d1a4eda",
+      "commit": "d1a4eda8a6038e6f42a01e9567f0923bb4a669eb",
+      "date": "2026-02-17T12:05:31-08:00",
+      "title": "Auto-created custodial wallet for each chat session",
+      "type": "feature",
+      "area": [
+        "chat",
+        "wallet",
+        "auth"
+      ],
+      "features": [
+        "Created custodial wallet automatically for new chat sessions",
+        "Connected session lifecycle with wallet provisioning",
+        "Reduced onboarding friction for first-time users"
+      ],
+      "reason": "Ensure chat-linked wallet features work immediately without manual setup.",
+      "details": [
+        "Hooked wallet creation into chat session startup",
+        "Standardized wallet availability across chat flows",
+        "Prepared ground for persistent account-linked interactions"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-17-5925bd5",
+      "commit": "5925bd5fb17241d24de3fe03b205a33c206bed4e",
+      "date": "2026-02-17T22:54:55-08:00",
+      "title": "Auto-created wallet on Privy login",
+      "type": "feature",
+      "area": [
+        "auth",
+        "wallet",
+        "privy"
+      ],
+      "features": [
+        "Automatically provisioned wallet at Privy login time",
+        "Linked identity session start to wallet readiness",
+        "Removed manual wallet setup path for authenticated users"
+      ],
+      "reason": "Make authenticated onboarding immediate for wallet-dependent flows.",
+      "details": [
+        "Connected login lifecycle to wallet creation path",
+        "Improved readiness for launch and claim flows after sign-in",
+        "Reduced setup failures tied to missing wallet records"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-17-b4e87c2",
+      "commit": "b4e87c25e989ce2ca49ecea407103bb757c3bf5a",
+      "date": "2026-02-17T21:58:51-08:00",
+      "title": "Wired chat page to real backend API",
+      "type": "fix",
+      "area": [
+        "chat",
+        "api",
+        "web"
+      ],
+      "features": [
+        "Replaced setTimeout mock responses with real API requests",
+        "Connected chat input/output to backend service contract",
+        "Improved realism and reliability of chat behavior"
+      ],
+      "reason": "Move chat from prototype behavior to production data flow.",
+      "details": [
+        "Removed mock response timing path in chat page",
+        "Implemented backend request handling for message exchange",
+        "Reduced mismatch between local UI and deployed behavior"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-17-7ba7d0b",
+      "commit": "7ba7d0b5ce78ebb1a29831cfbd7d25589f9731a9",
+      "date": "2026-02-17T22:19:07-08:00",
+      "title": "Replaced fake portfolio sidebar with real wallet data",
+      "type": "fix",
+      "area": [
+        "chat",
+        "wallet",
+        "dashboard"
+      ],
+      "features": [
+        "Swapped placeholder portfolio sidebar values for live wallet data",
+        "Connected sidebar state to actual account records",
+        "Improved trustworthiness of sidebar financial information"
+      ],
+      "reason": "Prevent confusion caused by mock balances in production-like chat surfaces.",
+      "details": [
+        "Removed static sample portfolio values from chat sidebar",
+        "Wired wallet/balance fetch pipeline into sidebar render",
+        "Aligned displayed values with user account state"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-17-0e2e247",
+      "commit": "0e2e247847f1f854fb5b86fb7fd86d873b300aaa",
+      "date": "2026-02-17T01:03:58+02:00",
+      "title": "Launched transparent fee distribution flow",
+      "type": "feature",
+      "area": [
+        "fees",
+        "distribution",
+        "backend"
+      ],
+      "features": [
+        "Added transparent fee distribution mechanics",
+        "Improved visibility into fee routing and payouts",
+        "Aligned distribution behavior with trust and auditability goals"
+      ],
+      "reason": "Make protocol fee movements easier to reason about for builders and contributors.",
+      "details": [
+        "Implemented clearer distribution pathing for accrued fees",
+        "Reduced ambiguity around payout destinations and calculations",
+        "Set groundwork for richer fee reporting surfaces"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-17-8e23a60",
+      "commit": "8e23a601450b4b95e0f0bce62afcebb303189bc1",
+      "date": "2026-02-17T02:42:52+02:00",
+      "title": "Added OpenAPI and Swagger specification",
+      "type": "docs",
+      "area": [
+        "api",
+        "openapi",
+        "documentation"
+      ],
+      "features": [
+        "Added formal OpenAPI specification for REST routes",
+        "Enabled Swagger-compatible API documentation workflows",
+        "Improved contract clarity for SDK and integrator work"
+      ],
+      "reason": "Provide a stable, machine-readable API contract for internal and external consumers.",
+      "details": [
+        "Defined route schemas for documented API endpoints",
+        "Improved discoverability for backend capabilities",
+        "Reduced integration friction across packages and clients"
+      ],
+      "author": "Savage"
+    },
+    {
+      "id": "2026-02-16-7316050",
+      "commit": "73160507a9a883568d8942249f873a850e93e455",
+      "date": "2026-02-16T00:17:54-08:00",
+      "title": "Restructured hero and added governance/dashboard pages",
+      "type": "feature",
+      "area": [
+        "web",
+        "hero",
+        "governance"
+      ],
+      "features": [
+        "Restructured homepage hero layout and messaging",
+        "Added governance and dashboard routes to web surface",
+        "Expanded product narrative beyond single-page landing"
+      ],
+      "reason": "Evolve the product from landing concept to multi-surface application.",
+      "details": [
+        "Introduced new route-level shells for governance and dashboard",
+        "Improved hero framing for protocol messaging",
+        "Created base information architecture for product expansion"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-16-36fbf1d",
+      "commit": "36fbf1d4030984f49fc0eee7ffc8f6874f5d7e14",
+      "date": "2026-02-15T02:25:26-08:00",
+      "title": "Added Privy auth, Sentinel security, and portfolio sidebar",
+      "type": "feature",
+      "area": [
+        "auth",
+        "security",
+        "dashboard"
+      ],
+      "features": [
+        "Integrated Privy login system into app flows",
+        "Introduced Sentinel security layer improvements",
+        "Added portfolio sidebar and expanded landing pages"
+      ],
+      "reason": "Ship the first cohesive auth plus security plus portfolio user experience baseline.",
+      "details": [
+        "Connected authentication into primary frontend flows",
+        "Added security monitoring and control-path primitives",
+        "Expanded UI surfaces for user portfolio context"
+      ],
+      "author": "xodivc xode"
+    },
+    {
+      "id": "2026-02-15-b42c95e",
+      "commit": "b42c95e7e9aa7bee370aae4d974a1bc87f122694",
+      "date": "2026-02-15T03:05:23+00:00",
+      "title": "Added Sigil V4 fee loop contract suite",
+      "type": "feature",
+      "area": [
+        "contracts",
+        "fees",
+        "v4"
+      ],
+      "features": [
+        "Added Hook, FeeVault, Factory, and Token contracts for Sigil V4",
+        "Established on-chain fee loop architecture components",
+        "Prepared contract foundation for protocol fee capture"
+      ],
+      "reason": "Define core smart-contract primitives for Sigil fee economics.",
+      "details": [
+        "Introduced contract modules required for V4 fee lifecycle",
+        "Aligned contracts with planned launch and claim pathways",
+        "Enabled subsequent integration work across backend and UI"
+      ],
+      "author": "Claude"
+    },
+    {
+      "id": "2026-02-15-2f8e76a",
+      "commit": "2f8e76ab4f7d959043fbca73c2b61f3c88757abb",
+      "date": "2026-02-15T02:31:28+00:00",
+      "title": "Rebranded frontend to Sigil design language",
+      "type": "ui",
+      "area": [
+        "web",
+        "branding",
+        "design-system"
+      ],
+      "features": [
+        "Applied Sigil brand palette across frontend",
+        "Shifted visual style to higher-polish product presentation",
+        "Aligned landing experience with new brand direction"
+      ],
+      "reason": "Create a distinct product identity before broader launch activity.",
+      "details": [
+        "Updated core color and styling foundations",
+        "Adjusted major frontend surfaces for brand consistency",
+        "Prepared site for follow-on border-centric evolution"
+      ],
+      "author": "Claude"
+    },
+    {
+      "id": "2026-02-14-19c1821",
+      "commit": "19c182168c30b932e309e55e2271d96fc93766e3",
+      "date": "2026-02-14T20:01:57+00:00",
+      "title": "Renamed project to Sigil and added chat agent",
+      "type": "feature",
+      "area": [
+        "branding",
+        "chat",
+        "deployment"
+      ],
+      "features": [
+        "Renamed project identity to Sigil",
+        "Added early chat-agent experience",
+        "Fixed Vercel deployment configuration during rename"
+      ],
+      "reason": "Consolidate product identity while keeping deployment pipeline operational.",
+      "details": [
+        "Updated naming and messaging toward Sigil brand",
+        "Introduced initial agentic interaction surface",
+        "Addressed deployment issues caused by transition changes"
+      ],
+      "author": "Claude"
+    },
+    {
+      "id": "2026-02-14-b5a12eb",
+      "commit": "b5a12ebb952fedf36cfd49309de1d3aa71e6f539",
+      "date": "2026-02-14T18:17:15+00:00",
+      "title": "Built verification backend, frontend, and reward contract",
+      "type": "feature",
+      "area": [
+        "verification",
+        "backend",
+        "contracts"
+      ],
+      "features": [
+        "Implemented verification backend endpoints and flow",
+        "Added frontend components for verification UX",
+        "Introduced initial pool reward contract support"
+      ],
+      "reason": "Deliver end-to-end verification baseline with integrated protocol reward path.",
+      "details": [
+        "Connected backend and frontend around shared verification workflow",
+        "Added on-chain reward contract component for incentive logic",
+        "Created early full-stack foundation for the protocol"
+      ],
+      "author": "Claude"
+    },
+    {
+      "id": "2026-02-14-8647813",
+      "commit": "864781390aa7fb2cff0fe31ff6de5acc6f50d041",
+      "date": "2026-02-14T11:24:02+00:00",
+      "title": "Initial architecture plan for Sigil fork direction",
+      "type": "docs",
+      "area": [
+        "architecture",
+        "planning"
+      ],
+      "features": [
+        "Documented architecture plan for initial fork strategy",
+        "Defined scope to operate without X API dependency",
+        "Set direction for early implementation phases"
+      ],
+      "reason": "Capture initial system direction before coding and deployment acceleration.",
+      "details": [
+        "Outlined high-level architecture priorities",
+        "Established constraints and integration assumptions",
+        "Provided reference context for subsequent implementation work"
+      ],
+      "author": "Claude"
     }
   ]
 }
