@@ -16,7 +16,7 @@ export interface Method {
     popularity?: number;
 }
 
-export type Step = "method" | "details" | "challenge" | "result";
+export type Step = "method" | "details" | "plugins" | "challenge" | "result";
 
 export interface ChallengeResponse {
     verificationId: string;

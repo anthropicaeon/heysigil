@@ -14,6 +14,7 @@ import { PixelCard } from "@/components/ui/pixel-card";
 import { useOptionalPrivy, useOptionalWallets } from "@/hooks/useOptionalPrivy";
 import { ApiError } from "@/lib/api-client";
 import { getErrorMessage } from "@/lib/errors";
+import { getSigilPluginById } from "@/lib/sigil-plugins";
 import { cn } from "@/lib/utils";
 
 import { RECOMMENDED_METHODS } from "./constants";
@@ -21,6 +22,7 @@ import { type IVerificationService, useVerificationService } from "./hooks/useVe
 import { ChallengeStep } from "./steps/ChallengeStep";
 import { DetailsStep } from "./steps/DetailsStep";
 import { MethodStep } from "./steps/MethodStep";
+import { PluginsStep } from "./steps/PluginsStep";
 import { ResultStep } from "./steps/ResultStep";
 import type { ChallengeResponse, CheckResult, Method, Step } from "./types";
 
@@ -50,12 +52,13 @@ const CHANNELS = [
     { name: "Domain", method: "DNS" },
 ];
 
-const STEP_SEQUENCE: Step[] = ["method", "details", "challenge", "result"];
+const STEP_SEQUENCE: Step[] = ["method", "details", "plugins", "challenge", "result"];
 const FLOW_STAGES = [
     { num: "01", label: "channel" },
     { num: "02", label: "details" },
-    { num: "03", label: "verify" },
-    { num: "04", label: "stamp" },
+    { num: "03", label: "plugins" },
+    { num: "04", label: "verify" },
+    { num: "05", label: "stamp" },
 ] as const;
 
 interface VerifyFlowProps {
@@ -104,6 +107,7 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
     const [selectedMethod, setSelectedMethod] = useState<Method | null>(null);
     const [projectId, setProjectId] = useState("");
     const [walletAddress, setWalletAddress] = useState("");
+    const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null);
     const [challenge, setChallenge] = useState<ChallengeResponse | null>(null);
     const [checkResult, setCheckResult] = useState<CheckResult | null>(null);
     const [loading, setLoading] = useState(false);
@@ -126,7 +130,12 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
         if (nextStep === "details" && !selectedMethod) {
             setSelectedMethod(RECOMMENDED_METHODS[0]);
         }
-        if (nextStep === "details" || nextStep === "challenge" || nextStep === "result") {
+        if (
+            nextStep === "details" ||
+            nextStep === "plugins" ||
+            nextStep === "challenge" ||
+            nextStep === "result"
+        ) {
             if (!projectId) setProjectId("heysigil/example-repo");
             if (!walletAddress) setWalletAddress("0x1234567890123456789012345678901234567890");
         }
@@ -140,6 +149,8 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
 
         setStep(nextStep);
     }, [step, selectedMethod, projectId, walletAddress, challenge, checkResult]);
+
+    const selectedPlugin = getSigilPluginById(selectedPluginId);
 
     useEffect(() => {
         if (process.env.NODE_ENV !== "development") return;
@@ -363,7 +374,22 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                             onProjectIdChange={setProjectId}
                             onWalletAddressChange={setWalletAddress}
                             onBack={() => setStep("method")}
-                            onSubmit={handleCreateChallenge}
+                            onSubmit={() => {
+                                setError("");
+                                setStep("plugins");
+                            }}
+                            onClearError={() => setError("")}
+                        />
+                    )}
+
+                    {step === "plugins" && (
+                        <PluginsStep
+                            selectedPluginId={selectedPluginId}
+                            loading={loading}
+                            error={error}
+                            onSelect={setSelectedPluginId}
+                            onBack={() => setStep("details")}
+                            onContinue={handleCreateChallenge}
                             onClearError={() => setError("")}
                         />
                     )}
@@ -371,9 +397,10 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                     {step === "challenge" && challenge && (
                         <ChallengeStep
                             challenge={challenge}
+                            selectedPluginName={selectedPlugin?.name}
                             loading={loading}
                             error={error}
-                            onBack={() => setStep("details")}
+                            onBack={() => setStep("plugins")}
                             onCheck={handleCheckVerification}
                         />
                     )}
@@ -382,6 +409,7 @@ export default function VerifyFlow({ verificationService }: VerifyFlowProps = {}
                         <ResultStep
                             challenge={challenge}
                             checkResult={checkResult}
+                            selectedPluginName={selectedPlugin?.name}
                             loading={loading}
                             onClaim={handleClaimAttestation}
                         />

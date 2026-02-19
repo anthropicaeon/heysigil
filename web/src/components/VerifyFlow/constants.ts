@@ -97,4 +97,4 @@ export const RECOMMENDED_METHODS = METHODS.filter((m) => m.recommended);
 /** Additional methods collapsed by default */
 export const OTHER_METHODS = METHODS.filter((m) => !m.recommended);
 
-export const STEP_LABELS = ["Method", "Details", "Verify", "Stamp"];
+export const STEP_LABELS = ["Method", "Details", "Plugins", "Verify", "Stamp"];

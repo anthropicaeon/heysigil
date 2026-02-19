@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { PixelCard } from "@/components/ui/pixel-card";
 import { HERO_MODEL_FRAME, HERO_MODEL_VIEWER } from "@/lib/hero-model-frame";
+import { getSigilPluginById, SIGIL_PLUGIN_OPTIONS } from "@/lib/sigil-plugins";
 import { cn } from "@/lib/utils";
 
 const ROTATING_PROMPTS = [
@@ -33,22 +34,6 @@ const HERO_STATS = [
     { value: "EAS", label: "Attestation" },
 ];
 
-// TODO(next-todo): Remove mock presets when quick-launch API is implemented.
-const QUICK_LAUNCH_MOCK_PRESETS = [
-    {
-        id: "agent-template",
-        label: "Agent Template",
-        name: "sigil: agent capsule",
-        ownerSource: "agent://autonomous-bot",
-    },
-    {
-        id: "studio-template",
-        label: "Studio Template",
-        name: "sigil: studio sprint",
-        ownerSource: "github.com/sigil-labs/studio",
-    },
-];
-
 // TODO(next-todo): Replace with backend one-time claim token response from quick-launch endpoint.
 const QUICK_LAUNCH_MOCK_TOKEN_SEED = "SIGIL-QLAIM";
 // TODO(next-todo): When global loader completes on "/", fade loader atmosphere first, then
@@ -61,9 +46,11 @@ export default function SigilHero() {
     const [isQuickLaunchOpen, setIsQuickLaunchOpen] = useState(false);
     const [quickLaunchName, setQuickLaunchName] = useState("");
     const [quickLaunchOwnerSource, setQuickLaunchOwnerSource] = useState("");
+    const [quickLaunchPluginId, setQuickLaunchPluginId] = useState<string | null>(null);
     const [quickLaunchStatus, setQuickLaunchStatus] = useState<QuickLaunchStatus>("idle");
     const [claimToken, setClaimToken] = useState<string | null>(null);
     const [copiedToken, setCopiedToken] = useState(false);
+    const selectedQuickLaunchPlugin = getSigilPluginById(quickLaunchPluginId);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -76,14 +63,6 @@ export default function SigilHero() {
         setQuickLaunchStatus("idle");
         setClaimToken(null);
         setCopiedToken(false);
-    };
-
-    const applyPreset = (presetId: string) => {
-        const preset = QUICK_LAUNCH_MOCK_PRESETS.find((item) => item.id === presetId);
-        if (!preset) return;
-        setQuickLaunchName(preset.name);
-        setQuickLaunchOwnerSource(preset.ownerSource);
-        resetQuickLaunch();
     };
 
     const handleQuickLaunchSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -237,24 +216,90 @@ export default function SigilHero() {
                                 </div>
 
                                 {isQuickLaunchOpen ? (
-                                    <form
-                                        onSubmit={handleQuickLaunchSubmit}
-                                        className="flex flex-1 flex-col bg-background/60 px-6 py-4 lg:px-12"
-                                    >
-                                        <div className="mb-4 flex flex-wrap gap-2">
-                                            {QUICK_LAUNCH_MOCK_PRESETS.map((preset) => (
-                                                <button
-                                                    key={preset.id}
-                                                    type="button"
-                                                    onClick={() => applyPreset(preset.id)}
-                                                    className="border-border bg-sage/25 hover:bg-sage/40 border px-3 py-1.5 text-xs font-medium uppercase tracking-[0.12em] transition-colors"
-                                                >
-                                                    {preset.label}
-                                                </button>
-                                            ))}
+                                    <div className="flex flex-1 flex-col bg-background/60">
+                                        <div className="border-b border-border">
+                                            <div className="border-b border-border px-6 py-2 lg:px-12">
+                                                <p className="text-xs uppercase tracking-[0.12em] text-primary">
+                                                    Plugins (Optional)
+                                                </p>
+                                            </div>
+                                            <div className="border-b border-border">
+                                                {SIGIL_PLUGIN_OPTIONS.map((plugin, index) => {
+                                                    const isSelected = quickLaunchPluginId === plugin.id;
+                                                    const rowBorderClass =
+                                                        index < SIGIL_PLUGIN_OPTIONS.length - 1
+                                                            ? "border-b border-border"
+                                                            : "";
+
+                                                    const content = (
+                                                        <>
+                                                            <div className="mb-1 flex items-center gap-2">
+                                                                <span className="text-sm font-medium text-foreground">
+                                                                    {plugin.name}
+                                                                </span>
+                                                                <Badge variant="outline" className="text-[10px]">
+                                                                    {plugin.subtitle}
+                                                                </Badge>
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {plugin.description}
+                                                            </p>
+                                                        </>
+                                                    );
+
+                                                    if (isSelected) {
+                                                        return (
+                                                            <PixelCard
+                                                                key={plugin.id}
+                                                                variant="lavender"
+                                                                active
+                                                                centerFade
+                                                                noFocus
+                                                                className={cn("bg-lavender/35", rowBorderClass)}
+                                                            >
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setQuickLaunchPluginId((prev) =>
+                                                                            prev === plugin.id ? null : plugin.id,
+                                                                        );
+                                                                        resetQuickLaunch();
+                                                                    }}
+                                                                    className="w-full px-6 py-3 text-left lg:px-12"
+                                                                >
+                                                                    {content}
+                                                                </button>
+                                                            </PixelCard>
+                                                        );
+                                                    }
+
+                                                    return (
+                                                        <button
+                                                            key={plugin.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setQuickLaunchPluginId((prev) =>
+                                                                    prev === plugin.id ? null : plugin.id,
+                                                                );
+                                                                resetQuickLaunch();
+                                                            }}
+                                                            className={cn(
+                                                                "w-full px-6 py-3 text-left transition-colors bg-background/80 hover:bg-lavender/20 lg:px-12",
+                                                                rowBorderClass,
+                                                            )}
+                                                        >
+                                                            {content}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
 
-                                        <div className="grid gap-3 sm:grid-cols-2">
+                                        <form
+                                            onSubmit={handleQuickLaunchSubmit}
+                                            className="flex flex-1 flex-col"
+                                        >
+                                        <div className="border-b border-border px-6 py-4 lg:px-12 grid gap-3 sm:grid-cols-2">
                                             <label className="block">
                                                 <span className="mb-1 block text-xs uppercase tracking-[0.12em] text-muted-foreground">
                                                     Token Name
@@ -287,9 +332,19 @@ export default function SigilHero() {
                                             </label>
                                         </div>
 
-                                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div className="px-6 py-4 lg:px-12 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                             <p className="text-xs text-muted-foreground">
                                                 This mode launches immediately as <span className="font-medium text-foreground">unclaimed</span>.
+                                                {selectedQuickLaunchPlugin ? (
+                                                    <>
+                                                        {" "}
+                                                        Plugin:{" "}
+                                                        <span className="font-medium text-foreground">
+                                                            {selectedQuickLaunchPlugin.name}
+                                                        </span>
+                                                        .
+                                                    </>
+                                                ) : null}
                                             </p>
                                             <Button
                                                 type="submit"
@@ -301,7 +356,7 @@ export default function SigilHero() {
                                         </div>
 
                                         {quickLaunchStatus === "success" && claimToken ? (
-                                            <div className="mt-4 border-border border-t pt-4">
+                                            <div className="border-border border-t px-6 py-4 lg:px-12">
                                                 <p className="text-xs uppercase tracking-[0.12em] text-primary">
                                                     One-Time Claim Token
                                                 </p>
@@ -321,15 +376,24 @@ export default function SigilHero() {
                                                         Save this now. It is shown once and used later to claim ownership.
                                                     </span>
                                                 </div>
+                                                {selectedQuickLaunchPlugin ? (
+                                                    <p className="mt-3 text-xs text-muted-foreground">
+                                                        Plugin queued:{" "}
+                                                        <span className="font-medium text-foreground">
+                                                            {selectedQuickLaunchPlugin.name}
+                                                        </span>
+                                                    </p>
+                                                ) : null}
                                             </div>
                                         ) : (
-                                            <div className="mt-4 flex-1 bg-[linear-gradient(180deg,transparent,hsl(var(--sage)/0.08))]">
+                                            <div className="flex-1 border-t border-border bg-[linear-gradient(180deg,transparent,hsl(var(--sage)/0.08))] px-6 py-4 lg:px-12">
                                                 <div className="text-xs text-muted-foreground">
                                                     Launching here skips verification and creates an unclaimed token.
                                                 </div>
                                             </div>
                                         )}
-                                    </form>
+                                        </form>
+                                    </div>
                                 ) : (
                                     <div className="flex flex-1 flex-col justify-end border-border border-t bg-[linear-gradient(180deg,transparent,hsl(var(--sage)/0.08))] px-6 py-4 lg:px-12">
                                         <div className="text-xs text-muted-foreground">

@@ -1,13 +1,13 @@
 /**
  * ChallengeStep Component
  *
- * Step 3: Display challenge instructions and verify.
+ * Step 4: Display challenge instructions and verify.
  * Border-centric design with proper section headers and divided lists.
  */
 
 "use client";
 
-import { ArrowLeft, Copy, Check } from "lucide-react";
+import { ArrowLeft, Check, Copy } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -17,13 +17,21 @@ import type { ChallengeResponse } from "../types";
 
 interface ChallengeStepProps {
     challenge: ChallengeResponse;
+    selectedPluginName?: string;
     loading: boolean;
     error: string;
     onBack: () => void;
     onCheck: () => void;
 }
 
-export function ChallengeStep({ challenge, loading, error, onBack, onCheck }: ChallengeStepProps) {
+export function ChallengeStep({
+    challenge,
+    selectedPluginName,
+    loading,
+    error,
+    onBack,
+    onCheck,
+}: ChallengeStepProps) {
     const [copied, setCopied] = useState(false);
 
     const copyCode = async () => {
@@ -34,14 +42,12 @@ export function ChallengeStep({ challenge, loading, error, onBack, onCheck }: Ch
 
     return (
         <div className="flex-1 flex flex-col bg-background">
-            {/* Section Header */}
             <div className="px-6 py-3 lg:px-12 border-b border-border bg-secondary/30">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Step 3 — Complete Verification
+                    Step 4 - Complete Verification
                 </span>
             </div>
 
-            {/* Title Section */}
             <div className="px-6 py-6 lg:px-12 border-b border-border">
                 <h2 className="text-lg font-semibold text-foreground lowercase mb-1">
                     follow the instructions
@@ -51,7 +57,6 @@ export function ChallengeStep({ challenge, loading, error, onBack, onCheck }: Ch
                 </p>
             </div>
 
-            {/* Instructions Section */}
             <div className="px-6 py-2 lg:px-12 border-b border-border bg-lavender/30">
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">
                     Instructions
@@ -63,7 +68,6 @@ export function ChallengeStep({ challenge, loading, error, onBack, onCheck }: Ch
                 </p>
             </div>
 
-            {/* Challenge Code Section */}
             <div className="px-6 py-2 lg:px-12 border-b border-border bg-sage/20">
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">
                     Challenge Code
@@ -79,27 +83,38 @@ export function ChallengeStep({ challenge, loading, error, onBack, onCheck }: Ch
                         onClick={copyCode}
                         className={cn(
                             "size-10 flex items-center justify-center border border-border transition-colors",
-                            copied ? "bg-sage/50 text-primary" : "bg-secondary/30 hover:bg-secondary/50 text-muted-foreground"
+                            copied
+                                ? "bg-sage/50 text-primary"
+                                : "bg-secondary/30 hover:bg-secondary/50 text-muted-foreground",
                         )}
                         title="Copy code"
                     >
-                        {copied ? (
-                            <Check className="size-4" />
-                        ) : (
-                            <Copy className="size-4" />
-                        )}
+                        {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                     </button>
                 </div>
             </div>
 
-            {/* Error State */}
+            {selectedPluginName && (
+                <>
+                    <div className="px-6 py-2 lg:px-12 border-b border-border bg-lavender/20">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                            Plugin Enablement
+                        </span>
+                    </div>
+                    <div className="px-6 py-3 lg:px-12 border-b border-border">
+                        <p className="text-sm text-foreground">
+                            Selected plugin: <span className="font-medium">{selectedPluginName}</span>
+                        </p>
+                    </div>
+                </>
+            )}
+
             {error && (
                 <div className="px-6 py-4 lg:px-12 bg-red-50 border-b border-border">
                     <p className="text-sm text-red-700">{error}</p>
                 </div>
             )}
 
-            {/* Actions - fills remaining space */}
             <div className="flex-1 flex flex-col px-6 py-6 lg:px-12 bg-sage/20">
                 <div className="flex-1" />
                 <div className="flex gap-3">

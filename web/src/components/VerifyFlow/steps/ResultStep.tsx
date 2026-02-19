@@ -1,8 +1,7 @@
 /**
  * ResultStep Component
  *
- * Step 4: Display verification result and claim attestation.
- * Border-centric design with proper section headers and success states.
+ * Step 5: Display verification result and claim attestation.
  */
 
 "use client";
@@ -20,11 +19,18 @@ import type { ChallengeResponse, CheckResult } from "../types";
 interface ResultStepProps {
     challenge: ChallengeResponse;
     checkResult: CheckResult;
+    selectedPluginName?: string;
     loading: boolean;
     onClaim: () => void;
 }
 
-export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultStepProps) {
+export function ResultStep({
+    challenge,
+    checkResult,
+    selectedPluginName,
+    loading,
+    onClaim,
+}: ResultStepProps) {
     const [showShareTooltip, setShowShareTooltip] = useState(false);
     const isStamped = Boolean(checkResult.attestationUid);
 
@@ -39,13 +45,14 @@ export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultS
                     url: "https://heysigil.com/verify",
                 });
             } catch {
-                // User cancelled or error
+                // User cancelled or blocked sharing.
             }
-        } else {
-            await navigator.clipboard.writeText(shareText);
-            setShowShareTooltip(true);
-            setTimeout(() => setShowShareTooltip(false), 2000);
+            return;
         }
+
+        await navigator.clipboard.writeText(shareText);
+        setShowShareTooltip(true);
+        setTimeout(() => setShowShareTooltip(false), 2000);
     };
 
     const handleTwitterShare = () => {
@@ -55,24 +62,24 @@ export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultS
 
     return (
         <div className="flex-1 flex flex-col bg-background">
-            {/* Section Header */}
             <div className="px-6 py-3 lg:px-12 border-b border-border bg-secondary/30">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Step 4 — {isStamped ? "Complete" : "Claim Attestation"}
+                    Step 5 - {isStamped ? "Complete" : "Claim Attestation"}
                 </span>
             </div>
 
-            {/* Success Hero */}
             <div className="border-b border-border">
                 <div className="grid lg:grid-cols-[1fr_200px]">
-                    {/* Left - Success Message */}
                     <div className="px-6 py-12 lg:px-12 lg:py-16 lg:border-r border-border">
                         <div className="flex items-center gap-4 mb-6">
                             <div className="size-16 bg-sage/50 border border-border flex items-center justify-center">
                                 <Shield className="size-8 text-primary" />
                             </div>
                             <div>
-                                <Badge variant="outline" className="mb-2 bg-green-50 text-green-700 border-green-200">
+                                <Badge
+                                    variant="outline"
+                                    className="mb-2 bg-green-50 text-green-700 border-green-200"
+                                >
                                     Verified
                                 </Badge>
                                 <h2 className="text-xl font-semibold text-foreground lowercase">
@@ -80,23 +87,24 @@ export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultS
                                 </h2>
                             </div>
                         </div>
-                        <p className="text-muted-foreground font-mono text-sm">
-                            {challenge.projectId}
-                        </p>
+                        <p className="text-muted-foreground font-mono text-sm">{challenge.projectId}</p>
                     </div>
 
-                    {/* Right - Status */}
                     <div className="hidden lg:flex flex-col bg-cream/20">
                         <div className="flex-1 flex items-center justify-center p-6 border-b border-border">
                             <div className="text-center">
-                                <div className={cn(
-                                    "size-12 flex items-center justify-center mx-auto mb-2 border border-border",
-                                    isStamped ? "bg-sage/50" : "bg-lavender/30"
-                                )}>
-                                    <Check className={cn(
-                                        "size-6",
-                                        isStamped ? "text-primary" : "text-muted-foreground"
-                                    )} />
+                                <div
+                                    className={cn(
+                                        "size-12 flex items-center justify-center mx-auto mb-2 border border-border",
+                                        isStamped ? "bg-sage/50" : "bg-lavender/30",
+                                    )}
+                                >
+                                    <Check
+                                        className={cn(
+                                            "size-6",
+                                            isStamped ? "text-primary" : "text-muted-foreground",
+                                        )}
+                                    />
                                 </div>
                                 <p className="text-sm font-medium text-foreground">
                                     {isStamped ? "On-Chain" : "Pending"}
@@ -112,7 +120,6 @@ export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultS
                 </div>
             </div>
 
-            {/* Share Section */}
             <div className="px-6 py-2 lg:px-12 border-b border-border bg-sage/20">
                 <span className="text-xs text-muted-foreground uppercase tracking-wider">
                     Share Your Verification
@@ -142,7 +149,22 @@ export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultS
                 </div>
             </div>
 
-            {/* Stamp CTA - fills remaining space */}
+            {selectedPluginName && (
+                <>
+                    <div className="px-6 py-2 lg:px-12 border-b border-border bg-lavender/20">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                            Plugin Selection
+                        </span>
+                    </div>
+                    <div className="px-6 py-3 lg:px-12 border-b border-border">
+                        <p className="text-sm text-foreground">
+                            Plugin to enable after stamp:{" "}
+                            <span className="font-medium">{selectedPluginName}</span>
+                        </p>
+                    </div>
+                </>
+            )}
+
             {!isStamped && (
                 <div className="flex-1 flex flex-col">
                     <div className="px-6 py-2 lg:px-12 border-b border-border bg-lavender/20">
@@ -174,7 +196,6 @@ export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultS
                 </div>
             )}
 
-            {/* Success state after stamping */}
             {isStamped && (
                 <>
                     <div className="px-6 py-2 lg:px-12 border-b border-border bg-sage/30">
@@ -191,7 +212,6 @@ export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultS
                         </p>
                     </div>
 
-                    {/* Benefits List */}
                     <div className="border-b border-border divide-y divide-border">
                         <div className="px-6 py-3 lg:px-12 flex items-center gap-3">
                             <div className="size-6 bg-sage/50 flex items-center justify-center border border-border shrink-0">
@@ -219,7 +239,6 @@ export function ResultStep({ challenge, checkResult, loading, onClaim }: ResultS
                         </div>
                     </div>
 
-                    {/* CTA - fills remaining space */}
                     <div className="flex-1 flex flex-col px-6 py-6 lg:px-12 bg-sage/20">
                         <div className="flex-1" />
                         <div className="flex gap-3">
