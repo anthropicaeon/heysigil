@@ -1,6 +1,6 @@
 [build]
 installCommand = "bun install"
-buildCommand = "npm install"
+buildCommand = "npm install && npm run build:packages"
 
 [deploy]
 preDeployCommand = "npm run db:migrate:safe"

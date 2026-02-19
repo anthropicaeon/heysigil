@@ -10,6 +10,7 @@ import { wallet } from "./routes/wallet.js";
 import { fees } from "./routes/fees.js";
 import { claimGas } from "./routes/claim-gas.js";
 import { mcp } from "./routes/mcp.js";
+import { mcpTransport } from "./routes/mcp-transport.js";
 import { connect } from "./routes/connect.js";
 import { scan } from "./routes/scan.js";
 import { getEnv } from "../config/env.js";
@@ -238,6 +239,7 @@ export function createApp() {
     app.route("/api/fees", fees);
     app.route("/api/fees", claimGas);
     app.route("/api/mcp", mcp);
+    app.route("/mcp", mcpTransport);
     app.route("/api/connect", connect);
     app.route("/api/attest", scan);
 

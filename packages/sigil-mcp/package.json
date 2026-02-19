@@ -1,6 +1,6 @@
 {
   "name": "@heysigil/sigil-mcp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -8,10 +8,13 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cli": {
+      "import": "./dist/cli.js"
     }
   },
   "bin": {
-    "sigil-mcp": "dist/index.js"
+    "sigil-mcp": "dist/cli.js"
   },
   "files": [
     "dist",

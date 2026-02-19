@@ -1,6 +1,9 @@
 import { spawn } from "node:child_process";
 
-const tests = ["test:core", "test:sdk", "test:mcp"];
+const baseTests = ["test:core", "test:sdk", "test:mcp"];
+const remoteTests = ["test:mcp:remote", "test:mcp:authz", "test:agent:flow"];
+const runRemote = process.env.RUN_REMOTE_MCP_TESTS === "1";
+const tests = runRemote ? [...baseTests, ...remoteTests] : baseTests;
 
 function runScript(name) {
   return new Promise((resolve, reject) => {
@@ -27,4 +30,8 @@ for (const test of tests) {
   await runScript(test);
 }
 
-console.log("PASS all smoke tests");
+if (!runRemote) {
+  console.log("PASS local smoke tests (set RUN_REMOTE_MCP_TESTS=1 to include remote MCP tests)");
+} else {
+  console.log("PASS all smoke tests");
+}

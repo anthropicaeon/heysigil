@@ -2,6 +2,17 @@
 
 All notable changes to `@heysigil/sigil-mcp` are documented in this file.
 
+## [0.1.3] - 2026-02-19
+
+### Added
+
+- Library entrypoint helpers: `createSigilMcpServer` and `resolveAllowedScopes`.
+- Dedicated CLI module export (`dist/cli.js`) with `sigil-mcp` bin wiring.
+
+### Changed
+
+- Updated MCP `initialize` metadata to report `serverInfo.version` as `0.1.3`.
+
 ## [0.1.2] - 2026-02-19
 
 ### Changed

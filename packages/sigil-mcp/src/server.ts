@@ -1,7 +1,7 @@
 import type { ToolDescriptor, JsonRpcRequest, JsonRpcResponse } from "./types.js";
 
 const JSON_RPC_VERSION = "2.0";
-const MCP_SERVER_VERSION = "0.1.2";
+const MCP_SERVER_VERSION = "0.1.3";
 
 export class SigilMcpServer {
     private readonly tools = new Map<string, ToolDescriptor>();

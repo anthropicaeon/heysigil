@@ -7,6 +7,9 @@
     "test:core": "node ./core-smoke.mjs",
     "test:sdk": "node ./sdk-smoke.mjs",
     "test:mcp": "node ./mcp-smoke.mjs",
+    "test:mcp:remote": "node ./mcp-remote-smoke.mjs",
+    "test:mcp:authz": "node ./mcp-remote-authz.mjs",
+    "test:agent:flow": "node ./agent-flow-smoke.mjs",
     "test:all": "node ./run-all.mjs"
   },
   "dependencies": {

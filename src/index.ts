@@ -5,11 +5,13 @@ import { runStartupChecks } from "./config/startup-checks.js";
 import { getFeeIndexer, isFeeIndexerConfigured } from "./services/fee-indexer.js";
 import { getFeeCollector, isFeeCollectorConfigured } from "./services/fee-collector.js";
 import { loggers } from "./utils/logger.js";
+import { initializeMcpRuntime } from "./mcp/runtime.js";
 
 const log = loggers.server;
 
 // Run security checks before accepting requests
 runStartupChecks();
+initializeMcpRuntime();
 
 const env = getEnv();
 const app = createApp();
