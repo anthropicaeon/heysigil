@@ -1,4 +1,4 @@
-CREATE TABLE "projects" (
+CREATE TABLE IF NOT EXISTS "projects" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"project_id" varchar(512) NOT NULL,
 	"name" varchar(256),
@@ -11,7 +11,7 @@ CREATE TABLE "projects" (
 	CONSTRAINT "projects_project_id_unique" UNIQUE("project_id")
 );
 --> statement-breakpoint
-CREATE TABLE "verifications" (
+CREATE TABLE IF NOT EXISTS "verifications" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"method" varchar(32) NOT NULL,
 	"project_id" varchar(512) NOT NULL,

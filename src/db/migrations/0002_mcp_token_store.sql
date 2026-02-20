@@ -1,4 +1,4 @@
-CREATE TABLE "mcp_tokens" (
+CREATE TABLE IF NOT EXISTS "mcp_tokens" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" varchar(256) NOT NULL,
 	"name" varchar(128) NOT NULL,
@@ -11,6 +11,6 @@ CREATE TABLE "mcp_tokens" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX "mcp_tokens_token_prefix_uq" ON "mcp_tokens" USING btree ("token_prefix");
+CREATE UNIQUE INDEX IF NOT EXISTS "mcp_tokens_token_prefix_uq" ON "mcp_tokens" USING btree ("token_prefix");
 --> statement-breakpoint
-CREATE UNIQUE INDEX "mcp_tokens_token_hash_uq" ON "mcp_tokens" USING btree ("token_hash");
+CREATE UNIQUE INDEX IF NOT EXISTS "mcp_tokens_token_hash_uq" ON "mcp_tokens" USING btree ("token_hash");

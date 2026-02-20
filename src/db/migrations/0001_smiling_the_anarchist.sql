@@ -1,4 +1,4 @@
-CREATE TABLE "identities" (
+CREATE TABLE IF NOT EXISTS "identities" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" uuid NOT NULL,
 	"platform" varchar(32) NOT NULL,
@@ -7,7 +7,7 @@ CREATE TABLE "identities" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "users" (
+CREATE TABLE IF NOT EXISTS "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"wallet_address" varchar(42) NOT NULL,
 	"privy_user_id" varchar(256),
@@ -17,7 +17,7 @@ CREATE TABLE "users" (
 	"merged_into" uuid
 );
 --> statement-breakpoint
-CREATE TABLE "wallets" (
+CREATE TABLE IF NOT EXISTS "wallets" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"address" varchar(42) NOT NULL,
 	"encrypted_key" text NOT NULL,
@@ -29,9 +29,14 @@ CREATE TABLE "wallets" (
 	CONSTRAINT "wallets_address_unique" UNIQUE("address")
 );
 --> statement-breakpoint
-ALTER TABLE "projects" ADD COLUMN "description" text;--> statement-breakpoint
-ALTER TABLE "projects" ADD COLUMN "pool_id" varchar(66);--> statement-breakpoint
-ALTER TABLE "projects" ADD COLUMN "deploy_tx_hash" varchar(66);--> statement-breakpoint
-ALTER TABLE "projects" ADD COLUMN "deployed_by" varchar(16);--> statement-breakpoint
-ALTER TABLE "projects" ADD COLUMN "dev_links" jsonb;--> statement-breakpoint
-ALTER TABLE "projects" ADD COLUMN "user_id" uuid;
+DO $$ BEGIN ALTER TABLE "projects" ADD COLUMN "description" text; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+--> statement-breakpoint
+DO $$ BEGIN ALTER TABLE "projects" ADD COLUMN "pool_id" varchar(66); EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+--> statement-breakpoint
+DO $$ BEGIN ALTER TABLE "projects" ADD COLUMN "deploy_tx_hash" varchar(66); EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+--> statement-breakpoint
+DO $$ BEGIN ALTER TABLE "projects" ADD COLUMN "deployed_by" varchar(16); EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+--> statement-breakpoint
+DO $$ BEGIN ALTER TABLE "projects" ADD COLUMN "dev_links" jsonb; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+--> statement-breakpoint
+DO $$ BEGIN ALTER TABLE "projects" ADD COLUMN "user_id" uuid; EXCEPTION WHEN duplicate_column THEN NULL; END $$;
