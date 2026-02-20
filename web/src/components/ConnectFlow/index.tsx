@@ -615,525 +615,525 @@ export default function ConnectFlow({ initialClaimToken }: ConnectFlowProps = {}
 
                         <div className="flex-1 min-h-0 overflow-y-auto">
                             {step === "stack" && (
-                            <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-5">
-                                <div className="grid gap-0 border border-border sm:grid-cols-2">
-                                    {STACKS.map((stack, index) => {
-                                        const isActive = selectedStack === stack.id;
-                                        return (
-                                            <button
-                                                key={stack.id}
-                                                type="button"
-                                                onClick={() => setSelectedStack(stack.id)}
-                                                className={cn(
-                                                    "p-4 text-left border-border transition-colors",
-                                                    index === 0 ? "border-b sm:border-b-0 sm:border-r" : "",
-                                                    isActive
-                                                        ? "bg-lavender/35"
-                                                        : "bg-background hover:bg-sage/15",
-                                                )}
-                                            >
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <p className="text-sm font-medium text-foreground">
-                                                        {stack.label}
+                                <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-5">
+                                    <div className="grid gap-0 border border-border sm:grid-cols-2">
+                                        {STACKS.map((stack, index) => {
+                                            const isActive = selectedStack === stack.id;
+                                            return (
+                                                <button
+                                                    key={stack.id}
+                                                    type="button"
+                                                    onClick={() => setSelectedStack(stack.id)}
+                                                    className={cn(
+                                                        "p-4 text-left border-border transition-colors",
+                                                        index === 0 ? "border-b sm:border-b-0 sm:border-r" : "",
+                                                        isActive
+                                                            ? "bg-lavender/35"
+                                                            : "bg-background hover:bg-sage/15",
+                                                    )}
+                                                >
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <p className="text-sm font-medium text-foreground">
+                                                            {stack.label}
+                                                        </p>
+                                                        <Badge variant="outline" className="text-xs">
+                                                            {stack.runtime}
+                                                        </Badge>
+                                                    </div>
+                                                    <p className="mt-2 text-xs text-muted-foreground">
+                                                        {stack.description}
                                                     </p>
-                                                    <Badge variant="outline" className="text-xs">
-                                                        {stack.runtime}
-                                                    </Badge>
-                                                </div>
-                                                <p className="mt-2 text-xs text-muted-foreground">
-                                                    {stack.description}
-                                                </p>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-
-                                <div className="flex flex-wrap gap-2">
-                                    <Button
-                                        onClick={() => setStep("handshake")}
-                                        disabled={!privy.authenticated}
-                                    >
-                                        continue to handshake
-                                    </Button>
-                                    {!privy.authenticated && (
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => privy.login?.()}
-                                            disabled={!privy.ready}
-                                        >
-                                            sign in with privy
-                                        </Button>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                            {step === "handshake" && (
-                            <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-5">
-                                <p className="text-sm text-muted-foreground">
-                                    Run the initial handshake against your deployed {selectedStackData.label}
-                                    endpoint to bind this runtime to your Privy-authenticated Sigil account.
-                                </p>
-
-                                <div className="border border-border bg-sage/15 px-4 py-4 sm:px-5 space-y-3">
-                                    <p className="text-xs uppercase tracking-[0.12em] text-primary">
-                                        one-click runtime launch
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        Launch SigilBot on Railway from this screen with no manual endpoint entry.
-                                        Runtime token is returned once.
-                                    </p>
-                                    <Button
-                                        type="button"
-                                        onClick={runOneClickRuntimeLaunch}
-                                        disabled={!privy.authenticated || isQuickLaunching}
-                                    >
-                                        {isQuickLaunching ? "launching runtime..." : "launch sigilbot (1 click)"}
-                                    </Button>
-                                </div>
-
-                                <div className="border border-border bg-background px-4 py-4 sm:px-5 space-y-3">
-                                    <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
-                                        quick-launch claim secret
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        If you launched from hero quick-launch, redeem the one-time secret here, then
-                                        update repo/details after claim.
-                                    </p>
-                                    <div className="flex flex-col gap-2 sm:flex-row">
-                                        <Input
-                                            value={launchClaimToken}
-                                            onChange={(event) => setLaunchClaimToken(event.target.value)}
-                                            placeholder="sigil_claim_..."
-                                        />
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            onClick={redeemLaunchClaimToken}
-                                            disabled={!launchClaimToken.trim() || !privy.authenticated}
-                                        >
-                                            claim launch secret
-                                        </Button>
+                                                </button>
+                                            );
+                                        })}
                                     </div>
-                                    {!privy.authenticated && launchClaimToken.trim() && (
-                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                                            <p className="text-xs text-red-700">
-                                                Rejected: please log in first to redeem this shared launch secret.
-                                            </p>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button
+                                            onClick={() => setStep("handshake")}
+                                            disabled={!privy.authenticated}
+                                        >
+                                            continue to handshake
+                                        </Button>
+                                        {!privy.authenticated && (
                                             <Button
-                                                type="button"
                                                 variant="outline"
                                                 onClick={() => privy.login?.()}
                                                 disabled={!privy.ready}
                                             >
                                                 sign in with privy
                                             </Button>
-                                        </div>
-                                    )}
-                                    {claimStatus && (
-                                        <p className="text-xs text-muted-foreground">{claimStatus}</p>
-                                    )}
-                                    {claimedProjectId && (
-                                        <div className="space-y-2 border border-border bg-sage/10 px-3 py-3">
-                                            <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                                                update repo/details
-                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {step === "handshake" && (
+                                <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-5">
+                                    <p className="text-sm text-muted-foreground">
+                                        Run the initial handshake against your deployed {selectedStackData.label}
+                                        endpoint to bind this runtime to your Privy-authenticated Sigil account.
+                                    </p>
+
+                                    <div className="border border-border bg-sage/15 px-4 py-4 sm:px-5 space-y-3">
+                                        <p className="text-xs uppercase tracking-[0.12em] text-primary">
+                                            one-click runtime launch
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Launch SigilBot on Railway from this screen with no manual endpoint entry.
+                                            Runtime token is returned once.
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            onClick={runOneClickRuntimeLaunch}
+                                            disabled={!privy.authenticated || isQuickLaunching}
+                                        >
+                                            {isQuickLaunching ? "launching runtime..." : "launch sigilbot (1 click)"}
+                                        </Button>
+                                    </div>
+
+                                    <div className="border border-border bg-background px-4 py-4 sm:px-5 space-y-3">
+                                        <p className="text-xs uppercase tracking-[0.12em] text-muted-foreground">
+                                            quick-launch claim secret
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            If you launched from hero quick-launch, redeem the one-time secret here, then
+                                            update repo/details after claim.
+                                        </p>
+                                        <div className="flex flex-col gap-2 sm:flex-row">
                                             <Input
-                                                value={claimRepoUrl}
-                                                onChange={(event) => setClaimRepoUrl(event.target.value)}
-                                                placeholder="https://github.com/you/your-repo"
+                                                value={launchClaimToken}
+                                                onChange={(event) => setLaunchClaimToken(event.target.value)}
+                                                placeholder="sigil_claim_..."
                                             />
                                             <Button
                                                 type="button"
                                                 variant="outline"
-                                                onClick={updateClaimedProjectMetadata}
-                                                disabled={!claimRepoUrl.trim()}
+                                                onClick={() => redeemLaunchClaimToken()}
+                                                disabled={!launchClaimToken.trim() || !privy.authenticated}
                                             >
-                                                update claimed repo
+                                                claim launch secret
                                             </Button>
-                                            {claimUpdateStatus && (
-                                                <p className="text-xs text-muted-foreground">{claimUpdateStatus}</p>
-                                            )}
                                         </div>
-                                    )}
-                                </div>
-
-                                <div className="border border-border bg-[linear-gradient(180deg,hsl(var(--lavender)/0.18),hsl(var(--background)/0.96))]">
-                                    <div className="border-border border-b px-4 py-3 sm:px-5">
-                                        <div className="flex items-center justify-between gap-3">
-                                            <div className="flex items-center gap-2">
-                                                <KeyRound className="size-4 text-primary" />
-                                                <p className="text-xs uppercase tracking-[0.14em] text-primary">
-                                                    mcp access token
+                                        {!privy.authenticated && launchClaimToken.trim() && (
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                                <p className="text-xs text-red-700">
+                                                    Rejected: please log in first to redeem this shared launch secret.
                                                 </p>
-                                            </div>
-                                            <Badge variant="outline" className="text-[11px]">
-                                                shown once
-                                            </Badge>
-                                        </div>
-                                        <p className="mt-1 text-xs text-muted-foreground">
-                                            Create a runtime PAT, then add it to your bot env as{" "}
-                                            <code>SIGIL_MCP_TOKEN</code>.
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-4 px-4 py-4 sm:px-5">
-                                        <div className="grid gap-4 sm:grid-cols-2">
-                                            <div className="space-y-2">
-                                                <label
-                                                    htmlFor="connect-token-name"
-                                                    className="text-xs uppercase tracking-wide text-muted-foreground"
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => privy.login?.()}
+                                                    disabled={!privy.ready}
                                                 >
-                                                    token label
-                                                </label>
-                                                <Input
-                                                    id="connect-token-name"
-                                                    value={tokenName}
-                                                    onChange={(event) => setTokenName(event.target.value)}
-                                                    placeholder="auto from runtime stack"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label
-                                                    htmlFor="connect-token-expiry"
-                                                    className="text-xs uppercase tracking-wide text-muted-foreground"
-                                                >
-                                                    expires in days
-                                                </label>
-                                                <Input
-                                                    id="connect-token-expiry"
-                                                    type="number"
-                                                    min={1}
-                                                    max={365}
-                                                    value={tokenExpiresInDays}
-                                                    onChange={(event) =>
-                                                        setTokenExpiresInDays(
-                                                            Math.max(
-                                                                1,
-                                                                Math.min(
-                                                                    365,
-                                                                    Number.parseInt(event.target.value || "30", 10),
-                                                                ),
-                                                            ),
-                                                        )
-                                                    }
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                                                scope preset
-                                            </p>
-                                            <div className="grid gap-0 border border-border sm:grid-cols-2">
-                                                {MCP_SCOPE_PRESETS.map((preset, index) => (
-                                                    <button
-                                                        key={preset.id}
-                                                        type="button"
-                                                        onClick={() => setScopePresetId(preset.id)}
-                                                        className={cn(
-                                                            "border-border px-3 py-3 text-left transition-colors",
-                                                            index === 0 ? "border-b sm:border-b-0 sm:border-r" : "",
-                                                            scopePresetId === preset.id
-                                                                ? "bg-lavender/35"
-                                                                : "bg-background hover:bg-sage/15",
-                                                        )}
-                                                    >
-                                                        <p className="text-xs font-medium text-foreground">
-                                                            {preset.label}
-                                                        </p>
-                                                        <p className="mt-1 text-[11px] text-muted-foreground">
-                                                            {preset.description}
-                                                        </p>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {tokenError && (
-                                            <div className="border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">
-                                                {tokenError}
+                                                    sign in with privy
+                                                </Button>
                                             </div>
                                         )}
+                                        {claimStatus && (
+                                            <p className="text-xs text-muted-foreground">{claimStatus}</p>
+                                        )}
+                                        {claimedProjectId && (
+                                            <div className="space-y-2 border border-border bg-sage/10 px-3 py-3">
+                                                <p className="text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                                                    update repo/details
+                                                </p>
+                                                <Input
+                                                    value={claimRepoUrl}
+                                                    onChange={(event) => setClaimRepoUrl(event.target.value)}
+                                                    placeholder="https://github.com/you/your-repo"
+                                                />
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={updateClaimedProjectMetadata}
+                                                    disabled={!claimRepoUrl.trim()}
+                                                >
+                                                    update claimed repo
+                                                </Button>
+                                                {claimUpdateStatus && (
+                                                    <p className="text-xs text-muted-foreground">{claimUpdateStatus}</p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
 
-                                        {freshPat && (
+                                    <div className="border border-border bg-[linear-gradient(180deg,hsl(var(--lavender)/0.18),hsl(var(--background)/0.96))]">
+                                        <div className="border-border border-b px-4 py-3 sm:px-5">
+                                            <div className="flex items-center justify-between gap-3">
+                                                <div className="flex items-center gap-2">
+                                                    <KeyRound className="size-4 text-primary" />
+                                                    <p className="text-xs uppercase tracking-[0.14em] text-primary">
+                                                        mcp access token
+                                                    </p>
+                                                </div>
+                                                <Badge variant="outline" className="text-[11px]">
+                                                    shown once
+                                                </Badge>
+                                            </div>
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                Create a runtime PAT, then add it to your bot env as{" "}
+                                                <code>SIGIL_MCP_TOKEN</code>.
+                                            </p>
+                                        </div>
+
+                                        <div className="space-y-4 px-4 py-4 sm:px-5">
+                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                <div className="space-y-2">
+                                                    <label
+                                                        htmlFor="connect-token-name"
+                                                        className="text-xs uppercase tracking-wide text-muted-foreground"
+                                                    >
+                                                        token label
+                                                    </label>
+                                                    <Input
+                                                        id="connect-token-name"
+                                                        value={tokenName}
+                                                        onChange={(event) => setTokenName(event.target.value)}
+                                                        placeholder="auto from runtime stack"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label
+                                                        htmlFor="connect-token-expiry"
+                                                        className="text-xs uppercase tracking-wide text-muted-foreground"
+                                                    >
+                                                        expires in days
+                                                    </label>
+                                                    <Input
+                                                        id="connect-token-expiry"
+                                                        type="number"
+                                                        min={1}
+                                                        max={365}
+                                                        value={tokenExpiresInDays}
+                                                        onChange={(event) =>
+                                                            setTokenExpiresInDays(
+                                                                Math.max(
+                                                                    1,
+                                                                    Math.min(
+                                                                        365,
+                                                                        Number.parseInt(event.target.value || "30", 10),
+                                                                    ),
+                                                                ),
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2">
+                                                <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                                                    scope preset
+                                                </p>
+                                                <div className="grid gap-0 border border-border sm:grid-cols-2">
+                                                    {MCP_SCOPE_PRESETS.map((preset, index) => (
+                                                        <button
+                                                            key={preset.id}
+                                                            type="button"
+                                                            onClick={() => setScopePresetId(preset.id)}
+                                                            className={cn(
+                                                                "border-border px-3 py-3 text-left transition-colors",
+                                                                index === 0 ? "border-b sm:border-b-0 sm:border-r" : "",
+                                                                scopePresetId === preset.id
+                                                                    ? "bg-lavender/35"
+                                                                    : "bg-background hover:bg-sage/15",
+                                                            )}
+                                                        >
+                                                            <p className="text-xs font-medium text-foreground">
+                                                                {preset.label}
+                                                            </p>
+                                                            <p className="mt-1 text-[11px] text-muted-foreground">
+                                                                {preset.description}
+                                                            </p>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {tokenError && (
+                                                <div className="border border-red-300 bg-red-50 px-3 py-2 text-xs text-red-800">
+                                                    {tokenError}
+                                                </div>
+                                            )}
+
+                                            {freshPat && (
+                                                <div className="border border-border bg-background">
+                                                    <div className="border-border border-b px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                                                        new token
+                                                    </div>
+                                                    <div className="px-3 py-3">
+                                                        <code className="block break-all text-xs text-foreground">
+                                                            {freshPat}
+                                                        </code>
+                                                        <div className="mt-3 flex flex-wrap gap-2">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={copyFreshPat}
+                                                                className="gap-1.5"
+                                                            >
+                                                                <Copy className="size-3.5" />
+                                                                {patCopied ? "copied" : "copy token"}
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Button
+                                                    type="button"
+                                                    onClick={createMcpTokenForProjects}
+                                                    disabled={!privy.authenticated || isCreatingToken}
+                                                >
+                                                    {isCreatingToken ? "creating token..." : "create runtime pat"}
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    onClick={() => void fetchMcpTokens()}
+                                                    disabled={isLoadingTokens}
+                                                >
+                                                    refresh token list
+                                                </Button>
+                                            </div>
+
                                             <div className="border border-border bg-background">
                                                 <div className="border-border border-b px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                                                    new token
+                                                    active tokens
                                                 </div>
-                                                <div className="px-3 py-3">
-                                                    <code className="block break-all text-xs text-foreground">
-                                                        {freshPat}
-                                                    </code>
-                                                    <div className="mt-3 flex flex-wrap gap-2">
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            onClick={copyFreshPat}
-                                                            className="gap-1.5"
-                                                        >
-                                                            <Copy className="size-3.5" />
-                                                            {patCopied ? "copied" : "copy token"}
-                                                        </Button>
-                                                    </div>
+                                                <div className="divide-y divide-border">
+                                                    {isLoadingTokens && (
+                                                        <div className="px-3 py-3 text-xs text-muted-foreground">
+                                                            loading tokens...
+                                                        </div>
+                                                    )}
+                                                    {!isLoadingTokens && activeMcpTokens.length === 0 && (
+                                                        <div className="px-3 py-3 text-xs text-muted-foreground">
+                                                            no active MCP tokens yet.
+                                                        </div>
+                                                    )}
+                                                    {activeMcpTokens.map((token) => (
+                                                        <div key={token.id} className="px-3 py-3">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <p className="text-xs font-medium text-foreground">
+                                                                    {token.name}
+                                                                </p>
+                                                                <Badge variant="outline" className="text-[10px]">
+                                                                    {token.scopes.length} scopes
+                                                                </Badge>
+                                                            </div>
+                                                            <p className="mt-1 text-[11px] text-muted-foreground">
+                                                                {token.tokenPrefix}
+                                                            </p>
+                                                        </div>
+                                                    ))}
                                                 </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div className="space-y-2">
+                                            <label
+                                                htmlFor="connect-endpoint"
+                                                className="text-xs uppercase tracking-wide text-muted-foreground"
+                                            >
+                                                deployed endpoint
+                                            </label>
+                                            <Input
+                                                id="connect-endpoint"
+                                                value={endpoint}
+                                                onChange={(event) => setEndpoint(event.target.value)}
+                                                placeholder="https://your-bot.up.railway.app"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label
+                                                htmlFor="connect-secret"
+                                                className="text-xs uppercase tracking-wide text-muted-foreground"
+                                            >
+                                                connect secret (optional)
+                                            </label>
+                                            <Input
+                                                id="connect-secret"
+                                                value={secret}
+                                                onChange={(event) => setSecret(event.target.value)}
+                                                placeholder="x-sigil-connect-secret"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        {error && (
+                                            <div className="border border-red-300 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-xs text-red-800 dark:text-red-300">
+                                                {error}
                                             </div>
                                         )}
-
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <Button
-                                                type="button"
-                                                onClick={createMcpTokenForProjects}
-                                                disabled={!privy.authenticated || isCreatingToken}
-                                            >
-                                                {isCreatingToken ? "creating token..." : "create runtime pat"}
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => void fetchMcpTokens()}
-                                                disabled={isLoadingTokens}
-                                            >
-                                                refresh token list
-                                            </Button>
-                                        </div>
-
-                                        <div className="border border-border bg-background">
-                                            <div className="border-border border-b px-3 py-2 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                                                active tokens
-                                            </div>
-                                            <div className="divide-y divide-border">
-                                                {isLoadingTokens && (
-                                                    <div className="px-3 py-3 text-xs text-muted-foreground">
-                                                        loading tokens...
-                                                    </div>
-                                                )}
-                                                {!isLoadingTokens && activeMcpTokens.length === 0 && (
-                                                    <div className="px-3 py-3 text-xs text-muted-foreground">
-                                                        no active MCP tokens yet.
-                                                    </div>
-                                                )}
-                                                {activeMcpTokens.map((token) => (
-                                                    <div key={token.id} className="px-3 py-3">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <p className="text-xs font-medium text-foreground">
-                                                                {token.name}
-                                                            </p>
-                                                            <Badge variant="outline" className="text-[10px]">
-                                                                {token.scopes.length} scopes
-                                                            </Badge>
-                                                        </div>
-                                                        <p className="mt-1 text-[11px] text-muted-foreground">
-                                                            {token.tokenPrefix}
-                                                        </p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <div className="space-y-2">
-                                        <label
-                                            htmlFor="connect-endpoint"
-                                            className="text-xs uppercase tracking-wide text-muted-foreground"
+                                        <Button
+                                            onClick={runHandshake}
+                                            disabled={!privy.authenticated || !endpoint || isChecking}
                                         >
-                                            deployed endpoint
-                                        </label>
-                                        <Input
-                                            id="connect-endpoint"
-                                            value={endpoint}
-                                            onChange={(event) => setEndpoint(event.target.value)}
-                                            placeholder="https://your-bot.up.railway.app"
-                                        />
+                                            {isChecking ? "connecting..." : "run handshake"}
+                                        </Button>
+                                        <Button variant="outline" onClick={() => setStep("stack")}>
+                                            back
+                                        </Button>
                                     </div>
-                                    <div className="space-y-2">
-                                        <label
-                                            htmlFor="connect-secret"
-                                            className="text-xs uppercase tracking-wide text-muted-foreground"
-                                        >
-                                            connect secret (optional)
-                                        </label>
-                                        <Input
-                                            id="connect-secret"
-                                            value={secret}
-                                            onChange={(event) => setSecret(event.target.value)}
-                                            placeholder="x-sigil-connect-secret"
-                                        />
-                                    </div>
-                                </div>
 
-                                <div className="flex flex-wrap gap-2">
-                                    {error && (
-                                        <div className="border border-red-300 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-xs text-red-800 dark:text-red-300">
-                                            {error}
+                                    {isConnected && (
+                                        <div className="border border-border bg-sage/25 px-4 py-3 text-xs text-foreground">
+                                            Handshake complete. Continue to configure prompts, tasks, and schedules.
                                         </div>
                                     )}
-                                    <Button
-                                        onClick={runHandshake}
-                                        disabled={!privy.authenticated || !endpoint || isChecking}
-                                    >
-                                        {isChecking ? "connecting..." : "run handshake"}
-                                    </Button>
-                                    <Button variant="outline" onClick={() => setStep("stack")}>
-                                        back
-                                    </Button>
                                 </div>
-
-                                {isConnected && (
-                                    <div className="border border-border bg-sage/25 px-4 py-3 text-xs text-foreground">
-                                        Handshake complete. Continue to configure prompts, tasks, and schedules.
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                            )}
 
                             {step === "configure" && (
-                            <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-5">
-                                <div className="grid gap-0 border border-border sm:grid-cols-3">
-                                    <div className="border-border border-b sm:border-b-0 sm:border-r px-4 py-4">
-                                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                            <Clock3 className="size-4 text-primary" /> cron
+                                <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-5">
+                                    <div className="grid gap-0 border border-border sm:grid-cols-3">
+                                        <div className="border-border border-b sm:border-b-0 sm:border-r px-4 py-4">
+                                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                                <Clock3 className="size-4 text-primary" /> cron
+                                            </div>
+                                            <p className="mt-1 text-xs text-muted-foreground">3 active schedules</p>
                                         </div>
-                                        <p className="mt-1 text-xs text-muted-foreground">3 active schedules</p>
-                                    </div>
-                                    <div className="border-border border-b sm:border-b-0 sm:border-r px-4 py-4">
-                                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                            <ListChecks className="size-4 text-primary" /> tasks
+                                        <div className="border-border border-b sm:border-b-0 sm:border-r px-4 py-4">
+                                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                                <ListChecks className="size-4 text-primary" /> tasks
+                                            </div>
+                                            <p className="mt-1 text-xs text-muted-foreground">7 tracked todos</p>
                                         </div>
-                                        <p className="mt-1 text-xs text-muted-foreground">7 tracked todos</p>
-                                    </div>
-                                    <div className="px-4 py-4">
-                                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                            <Sparkles className="size-4 text-primary" /> prompts
+                                        <div className="px-4 py-4">
+                                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                                <Sparkles className="size-4 text-primary" /> prompts
+                                            </div>
+                                            <p className="mt-1 text-xs text-muted-foreground">3 stage templates</p>
                                         </div>
-                                        <p className="mt-1 text-xs text-muted-foreground">3 stage templates</p>
                                     </div>
-                                </div>
 
-                                <div className="space-y-2">
-                                    <label
-                                        htmlFor="connect-planner-prompt"
-                                        className="text-xs uppercase tracking-wide text-muted-foreground"
-                                    >
-                                        planner stage prompt
-                                    </label>
-                                    <Textarea
-                                        id="connect-planner-prompt"
-                                        value={notes}
-                                        onChange={(event) => setNotes(event.target.value)}
-                                        className="min-h-[120px]"
-                                    />
-                                </div>
+                                    <div className="space-y-2">
+                                        <label
+                                            htmlFor="connect-planner-prompt"
+                                            className="text-xs uppercase tracking-wide text-muted-foreground"
+                                        >
+                                            planner stage prompt
+                                        </label>
+                                        <Textarea
+                                            id="connect-planner-prompt"
+                                            value={notes}
+                                            onChange={(event) => setNotes(event.target.value)}
+                                            className="min-h-[120px]"
+                                        />
+                                    </div>
 
-                                <div className="flex flex-wrap gap-2">
-                                    <Button onClick={() => setStep("run")}>continue</Button>
-                                    <Button variant="outline" onClick={() => setStep("handshake")}>
-                                        back
-                                    </Button>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button onClick={() => setStep("run")}>continue</Button>
+                                        <Button variant="outline" onClick={() => setStep("handshake")}>
+                                            back
+                                        </Button>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
                             {step === "run" && (
-                            <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-5">
-                                <p className="text-sm text-muted-foreground">
-                                    Reuse the same chat orchestration already running on `/chat` so runtime
-                                    execution stays consistent with Sigil app behavior.
-                                </p>
+                                <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-5">
+                                    <p className="text-sm text-muted-foreground">
+                                        Reuse the same chat orchestration already running on `/chat` so runtime
+                                        execution stays consistent with Sigil app behavior.
+                                    </p>
 
-                                <div className="grid gap-0 border border-border sm:grid-cols-2">
-                                    <Link
-                                        href="/chat"
-                                        className="border-border border-b p-4 transition-colors hover:bg-sage/15 sm:border-b-0 sm:border-r"
-                                    >
-                                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                            <MessageSquareText className="size-4 text-primary" /> open chat
-                                        </div>
-                                        <p className="mt-2 text-xs text-muted-foreground">
-                                            test prompts and inspect tool traces.
-                                        </p>
-                                    </Link>
-                                    <Link
-                                        href="/dashboard"
-                                        className="p-4 transition-colors hover:bg-sage/15"
-                                    >
-                                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                                            <Bot className="size-4 text-primary" /> open dashboard
-                                        </div>
-                                        <p className="mt-2 text-xs text-muted-foreground">
-                                            monitor launch and wallet-linked progress.
-                                        </p>
-                                    </Link>
-                                </div>
+                                    <div className="grid gap-0 border border-border sm:grid-cols-2">
+                                        <Link
+                                            href="/chat"
+                                            className="border-border border-b p-4 transition-colors hover:bg-sage/15 sm:border-b-0 sm:border-r"
+                                        >
+                                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                                <MessageSquareText className="size-4 text-primary" /> open chat
+                                            </div>
+                                            <p className="mt-2 text-xs text-muted-foreground">
+                                                test prompts and inspect tool traces.
+                                            </p>
+                                        </Link>
+                                        <Link
+                                            href="/dashboard"
+                                            className="p-4 transition-colors hover:bg-sage/15"
+                                        >
+                                            <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                                                <Bot className="size-4 text-primary" /> open dashboard
+                                            </div>
+                                            <p className="mt-2 text-xs text-muted-foreground">
+                                                monitor launch and wallet-linked progress.
+                                            </p>
+                                        </Link>
+                                    </div>
 
-                                <div className="flex flex-wrap gap-2">
-                                    <Button onClick={() => setStep("manage")}>continue</Button>
-                                    <Button variant="outline" onClick={() => setStep("configure")}>
-                                        back
-                                    </Button>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button onClick={() => setStep("manage")}>continue</Button>
+                                        <Button variant="outline" onClick={() => setStep("configure")}>
+                                            back
+                                        </Button>
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
                             {step === "manage" && (
-                            <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-4">
-                                <div className="space-y-2">
-                                    {connectedBots.length === 0 && (
-                                        <p className="text-sm text-muted-foreground py-4">
-                                            No bots connected yet. Start by running a handshake.
-                                        </p>
-                                    )}
-                                    {connectedBots.map((bot) => (
-                                        <div
-                                            key={bot.id}
-                                            className="border border-border bg-background px-4 py-3"
-                                        >
-                                            <div className="flex items-center justify-between gap-2">
-                                                <div>
-                                                    <p className="text-sm font-medium text-foreground">
-                                                        {bot.stack} ({bot.id.slice(0, 8)})
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">{bot.endpoint}</p>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className={cn(
-                                                            bot.status === "connected" && "bg-sage/30",
-                                                            bot.status === "disconnected" && "bg-lavender/35",
-                                                        )}
-                                                    >
-                                                        {bot.status}
-                                                    </Badge>
-                                                    {bot.status === "connected" && (
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="text-xs h-6"
-                                                            onClick={() => disconnectBot(bot.id)}
-                                                        >
-                                                            disconnect
-                                                        </Button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <p className="mt-2 text-[11px] text-muted-foreground">
-                                                connected {bot.updatedAt}
+                                <div className="px-6 py-6 lg:px-12 lg:py-8 space-y-4">
+                                    <div className="space-y-2">
+                                        {connectedBots.length === 0 && (
+                                            <p className="text-sm text-muted-foreground py-4">
+                                                No bots connected yet. Start by running a handshake.
                                             </p>
-                                        </div>
-                                    ))}
-                                </div>
+                                        )}
+                                        {connectedBots.map((bot) => (
+                                            <div
+                                                key={bot.id}
+                                                className="border border-border bg-background px-4 py-3"
+                                            >
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <div>
+                                                        <p className="text-sm font-medium text-foreground">
+                                                            {bot.stack} ({bot.id.slice(0, 8)})
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground">{bot.endpoint}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Badge
+                                                            variant="outline"
+                                                            className={cn(
+                                                                bot.status === "connected" && "bg-sage/30",
+                                                                bot.status === "disconnected" && "bg-lavender/35",
+                                                            )}
+                                                        >
+                                                            {bot.status}
+                                                        </Badge>
+                                                        {bot.status === "connected" && (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="text-xs h-6"
+                                                                onClick={() => disconnectBot(bot.id)}
+                                                            >
+                                                                disconnect
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <p className="mt-2 text-[11px] text-muted-foreground">
+                                                    connected {bot.updatedAt}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
 
-                                <div className="flex flex-wrap gap-2">
-                                    <Button variant="outline" onClick={() => setStep("run")}>
-                                        back
-                                    </Button>
-                                    <Button onClick={() => setStep("handshake")}>connect another bot</Button>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button variant="outline" onClick={() => setStep("run")}>
+                                            back
+                                        </Button>
+                                        <Button onClick={() => setStep("handshake")}>connect another bot</Button>
+                                    </div>
                                 </div>
-                            </div>
                             )}
                         </div>
                     </div>
