@@ -240,11 +240,26 @@ contract SigilMigratorTest is Test {
         migrator.pause();
     }
 
-    function test_transferOwnership() public {
+    function test_transferOwnership_twoStep() public {
+        // Step 1: current owner starts transfer
         migrator.transferOwnership(alice);
-        assertEq(migrator.owner(), alice);
 
-        // Old owner can no longer call admin functions
+        // Owner hasn't changed yet
+        assertEq(migrator.owner(), owner);
+        assertEq(migrator.pendingOwner(), alice);
+
+        // Old owner can still call admin functions
+        migrator.pause();
+        migrator.unpause();
+
+        // Step 2: pending owner accepts
+        vm.prank(alice);
+        migrator.acceptOwnership();
+
+        assertEq(migrator.owner(), alice);
+        assertEq(migrator.pendingOwner(), address(0));
+
+        // Old owner can no longer call admin
         vm.expectRevert(SigilMigrator.OnlyOwner.selector);
         migrator.pause();
 
@@ -252,6 +267,15 @@ contract SigilMigratorTest is Test {
         vm.prank(alice);
         migrator.pause();
         assertTrue(migrator.paused());
+    }
+
+    function test_acceptOwnership_notPending() public {
+        migrator.transferOwnership(alice);
+
+        // Bob tries to accept — should revert
+        vm.prank(bob);
+        vm.expectRevert(SigilMigrator.NotPendingOwner.selector);
+        migrator.acceptOwnership();
     }
 
     // ─── View ────────────────────────────────────────────

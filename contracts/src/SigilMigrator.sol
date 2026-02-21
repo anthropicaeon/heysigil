@@ -12,7 +12,9 @@ contract SigilMigrator {
     address public immutable v1Token;
     address public immutable v2Token;
     address public owner;
+    address public pendingOwner;
     bool public paused;
+    bool private _locked;
 
     /// @notice Max V2 claimable per address (set from snapshot)
     mapping(address => uint256) public allocation;
@@ -28,6 +30,7 @@ contract SigilMigrator {
     event V2Withdrawn(uint256 amount, address indexed to);
     event Paused();
     event Unpaused();
+    event OwnershipTransferStarted(address indexed currentOwner, address indexed pendingOwner);
     event OwnerTransferred(address indexed oldOwner, address indexed newOwner);
 
     // ─── Errors ──────────────────────────────────────────
@@ -40,6 +43,8 @@ contract SigilMigrator {
     error ExceedsAllocation();
     error TransferFailed();
     error LengthMismatch();
+    error Reentrancy();
+    error NotPendingOwner();
 
     // ─── Constructor ─────────────────────────────────────
 
@@ -62,11 +67,18 @@ contract SigilMigrator {
         _;
     }
 
+    modifier nonReentrant() {
+        if (_locked) revert Reentrancy();
+        _locked = true;
+        _;
+        _locked = false;
+    }
+
     // ─── Migration ───────────────────────────────────────
 
     /// @notice Migrate V1 tokens to V2. Caller must have approved this contract for V1.
     /// @param amount Number of tokens to migrate (1:1 swap)
-    function migrate(uint256 amount) external whenNotPaused {
+    function migrate(uint256 amount) external whenNotPaused nonReentrant {
         if (amount == 0) revert ZeroAmount();
 
         uint256 remaining = allocation[msg.sender] - claimed[msg.sender];
@@ -160,12 +172,21 @@ contract SigilMigrator {
         emit Unpaused();
     }
 
-    // ─── Admin: Ownership ────────────────────────────────
+    // ─── Admin: Ownership (2-step) ───────────────────────
 
+    /// @notice Start ownership transfer. New owner must call acceptOwnership().
     function transferOwnership(address newOwner) external onlyOwner {
         if (newOwner == address(0)) revert ZeroAddress();
-        emit OwnerTransferred(owner, newOwner);
-        owner = newOwner;
+        pendingOwner = newOwner;
+        emit OwnershipTransferStarted(owner, newOwner);
+    }
+
+    /// @notice Accept ownership transfer. Must be called by the pending owner.
+    function acceptOwnership() external {
+        if (msg.sender != pendingOwner) revert NotPendingOwner();
+        emit OwnerTransferred(owner, msg.sender);
+        owner = msg.sender;
+        pendingOwner = address(0);
     }
 
     // ─── Views ───────────────────────────────────────────
