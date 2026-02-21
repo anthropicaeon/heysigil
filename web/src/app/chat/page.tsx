@@ -389,9 +389,11 @@ export default function ChatPage() {
 
                 setStatus("streaming");
 
+                // V3 launches mint 6 LP positions + seed swap — allow up to 120s
                 const res = await fetch(`${API_BASE}/api/chat`, {
                     method: "POST",
                     headers,
+                    signal: AbortSignal.timeout(120_000),
                     body: JSON.stringify({
                         message,
                         sessionId,
@@ -478,14 +480,17 @@ export default function ChatPage() {
                         ],
                     };
                 }
-            } catch {
+            } catch (err) {
+                const isTimeout = err instanceof DOMException && err.name === "TimeoutError";
                 pendingResponseRef.current = {
                     id: (Date.now() + 1).toString(),
                     role: "assistant",
                     parts: [
                         {
                             type: "text",
-                            text: `Connection error. Is the backend running at ${API_BASE}?`,
+                            text: isTimeout
+                                ? "The request timed out — token deployment can take up to 60 seconds on Base. Try again or check recent transactions."
+                                : `Connection error. Is the backend running at ${API_BASE}?`,
                         },
                     ],
                 };
@@ -856,9 +861,8 @@ export default function ChatPage() {
                         )}
 
                         <div
-                            className={`shrink-0 border-border border-t transition-colors ${
-                                status !== "ready" ? "bg-lavender/20" : "bg-background/90"
-                            }`}
+                            className={`shrink-0 border-border border-t transition-colors ${status !== "ready" ? "bg-lavender/20" : "bg-background/90"
+                                }`}
                         >
                             <PromptInput onSubmit={handleSubmit} className="border-t-0">
                                 <PromptInputTextarea
@@ -868,10 +872,10 @@ export default function ChatPage() {
                                         sidebarTab === "agents"
                                             ? "Agents stream is read-only..."
                                             : status === "ready"
-                                              ? "Ask Sigil anything..."
-                                              : status === "submitted"
-                                                ? "Connecting to Sigil..."
-                                                : "Sigil is thinking..."
+                                                ? "Ask Sigil anything..."
+                                                : status === "submitted"
+                                                    ? "Connecting to Sigil..."
+                                                    : "Sigil is thinking..."
                                     }
                                     disabled={status !== "ready" || sidebarTab === "agents"}
                                 />
@@ -895,7 +899,7 @@ export default function ChatPage() {
                                 <PortfolioSidebar
                                     sessionId={sessionId}
                                     collapsed={false}
-                                    onToggle={() => {}}
+                                    onToggle={() => { }}
                                     showCollapseToggle={false}
                                     className="h-full"
                                 />
@@ -983,18 +987,16 @@ export default function ChatPage() {
                                                                 </p>
                                                             </div>
                                                             <span
-                                                                className={`inline-flex items-center gap-1 px-2 py-1 border text-[10px] uppercase tracking-[0.12em] ${
-                                                                    agent.presence === "online"
+                                                                className={`inline-flex items-center gap-1 px-2 py-1 border text-[10px] uppercase tracking-[0.12em] ${agent.presence === "online"
                                                                         ? "border-sage/70 bg-sage/35 text-foreground"
                                                                         : "border-border bg-background text-muted-foreground"
-                                                                }`}
+                                                                    }`}
                                                             >
                                                                 <span
-                                                                    className={`size-1.5 ${
-                                                                        agent.presence === "online"
+                                                                    className={`size-1.5 ${agent.presence === "online"
                                                                             ? "bg-green-500"
                                                                             : "bg-muted-foreground/60"
-                                                                    }`}
+                                                                        }`}
                                                                 />
                                                                 {agent.presence}
                                                             </span>

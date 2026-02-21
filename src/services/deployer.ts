@@ -162,12 +162,27 @@ export async function deployToken(
         log.debug("No USDC — pool will launch without seed swap (may need manual activation)");
     }
 
+    // Estimate gas first to fail fast on contract reverts
+    // (instead of waiting 30-60s for the TX to fail on-chain)
+    try {
+        await factory.launch.estimateGas(params.name, params.symbol, params.projectId, devAddress);
+    } catch (estimateErr) {
+        const msg = estimateErr instanceof Error ? estimateErr.message : String(estimateErr);
+        if (msg.includes("CALL_EXCEPTION") || msg.includes("revert")) {
+            throw new Error(
+                `V3 factory would revert — possible duplicate pool or invalid params: ${msg.slice(0, 200)}`,
+            );
+        }
+        // Non-revert estimation errors (e.g. RPC issues) — proceed anyway
+        log.warn({ error: msg.slice(0, 200) }, "Gas estimation failed, proceeding with launch");
+    }
+
     // Call factory.launch()
     const tx = await factory.launch(params.name, params.symbol, params.projectId, devAddress);
 
     log.debug({ txHash: tx.hash }, "Transaction submitted");
 
-    // Wait for confirmation
+    // Wait for confirmation (V3 mints 6 LP positions — can take 15-45s)
     const receipt = await tx.wait(1);
 
     // Parse the TokenLaunched event to get token address and poolId

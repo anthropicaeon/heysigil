@@ -10,7 +10,11 @@
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 import { getBody, getParams, getQuery } from "../helpers/request.js";
 import { createSession, getSession, processMessage } from "../../agent/engine.js";
-import { chatRateLimit, rateLimit, sessionEnumerationRateLimit } from "../../middleware/rate-limit.js";
+import {
+    chatRateLimit,
+    rateLimit,
+    sessionEnumerationRateLimit,
+} from "../../middleware/rate-limit.js";
 import { getAuthType, getUserId, privyAuthOptional } from "../../middleware/auth.js";
 import {
     ErrorResponseSchema,
@@ -161,9 +165,17 @@ chat.openapi(
 
         try {
             const privyUserId = getUserId(c) || undefined;
-            const response = await processMessage(sid, body.message, body.walletAddress, {
-                privyUserId,
-            });
+
+            // V3 launches mint 6 LP positions — give up to 110s before responding
+            const CHAT_TIMEOUT_MS = 110_000;
+            const response = await Promise.race([
+                processMessage(sid, body.message, body.walletAddress, {
+                    privyUserId,
+                }),
+                new Promise<never>((_, reject) =>
+                    setTimeout(() => reject(new Error("__CHAT_TIMEOUT__")), CHAT_TIMEOUT_MS),
+                ),
+            ]);
 
             try {
                 await appendStoredChatMessage({
@@ -203,7 +215,18 @@ chat.openapi(
                 response,
             });
         } catch (err) {
-            return c.json({ error: getErrorMessage(err, "Agent error") }, 500);
+            const msg = getErrorMessage(err, "Agent error");
+            if (msg.includes("__CHAT_TIMEOUT__")) {
+                return c.json(
+                    {
+                        sessionId: sid,
+                        response:
+                            "⏱️ The request timed out — token deployment on Base can take up to 60 seconds with V3 multi-position LP. Check your recent transactions or try again.",
+                    },
+                    200,
+                );
+            }
+            return c.json({ error: msg }, 500);
         }
     }),
 );

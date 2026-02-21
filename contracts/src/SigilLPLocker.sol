@@ -18,6 +18,8 @@ interface INonfungiblePositionManager {
         payable
         returns (uint256 amount0, uint256 amount1);
 
+    function ownerOf(uint256 tokenId) external view returns (address);
+
     function positions(uint256 tokenId)
         external
         view
@@ -292,8 +294,11 @@ contract SigilLPLocker {
         if (msg.sender != owner) revert OnlyOwner();
         if (positions[tokenId].locked) revert AlreadyLocked();
 
-        // Read token0/token1 from the NFT position (also implicitly verifies it exists)
+        if (positionManager.ownerOf(tokenId) != address(this)) revert("NFT_NOT_OWNED");
+
         (, , address token0, address token1, , , , , , , , ) = positionManager.positions(tokenId);
+
+        if (token0 != usdc && token1 != usdc) revert("NOT_USDC_PAIR");
 
         positions[tokenId] = LockedPosition({
             poolId: poolId,

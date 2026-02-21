@@ -8,6 +8,7 @@ import {SigilToken} from "./SigilToken.sol";
 
 interface IUniswapV3Factory {
     function createPool(address tokenA, address tokenB, uint24 fee) external returns (address pool);
+    function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address pool);
 }
 
 interface IUniswapV3Pool {
@@ -19,6 +20,9 @@ interface IUniswapV3Pool {
         uint160 sqrtPriceLimitX96,
         bytes calldata data
     ) external returns (int256 amount0, int256 amount1);
+
+    function token0() external view returns (address);
+    function token1() external view returns (address);
 }
 
 interface INonfungiblePositionManager {
@@ -206,7 +210,7 @@ contract SigilFactoryV3 {
                 zeroForOne,
                 int256(seedAmount),
                 sqrtPriceLimit,
-                abi.encode(usdc) // callback data
+                abi.encode(pool, token0, token1) // callback data: bind to THIS pool + tokens
             );
         }
 
@@ -391,10 +395,23 @@ contract SigilFactoryV3 {
         int256 amount1Delta,
         bytes calldata data
     ) external {
-        // Pay whichever token the pool requests
-        address tokenToPay = abi.decode(data, (address));
-        uint256 amountToPay = amount0Delta > 0 ? uint256(amount0Delta) : uint256(amount1Delta);
-        IERC20(tokenToPay).transfer(msg.sender, amountToPay);
+        // Decode and bind this callback to the expected pool/tokens
+        (address pool, address token0, address token1) = abi.decode(data, (address, address, address));
+
+        // 1) Ensure the caller is exactly that pool
+        require(msg.sender == pool, "INVALID_CALLER");
+
+        // 2) Ensure that pool is the canonical pool from the factory (prevents spoofed pools)
+        require(v3Factory.getPool(token0, token1, POOL_FEE) == pool, "INVALID_POOL");
+
+        // 3) Pay exactly what the pool requests, using REAL token0/token1 (not attacker-chosen)
+        if (amount0Delta > 0) {
+            IERC20(token0).transfer(msg.sender, uint256(amount0Delta));
+        } else if (amount1Delta > 0) {
+            IERC20(token1).transfer(msg.sender, uint256(amount1Delta));
+        } else {
+            revert("NO_PAYMENT_DUE");
+        }
     }
 
     // Factory needs to be able to receive NFTs
