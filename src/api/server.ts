@@ -13,6 +13,7 @@ import { mcp } from "./routes/mcp.js";
 import { mcpTransport } from "./routes/mcp-transport.js";
 import { connect } from "./routes/connect.js";
 import { scan } from "./routes/scan.js";
+import { migration } from "./routes/migration.js";
 import { getEnv } from "../config/env.js";
 import { DatabaseUnavailableError } from "../db/client.js";
 import { privyAuthOptional } from "../middleware/auth.js";
@@ -242,6 +243,7 @@ export function createApp() {
     app.route("/mcp", mcpTransport);
     app.route("/api/connect", connect);
     app.route("/api/attest", scan);
+    app.route("/api/migration", migration);
 
     // ─── Methods Endpoint ───────────────────────────────────
 

@@ -36,6 +36,13 @@
       "when": 1771574400000,
       "tag": "0004_quick_launch_and_connect_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1771703153582,
+      "tag": "0005_old_frank_castle",
+      "breakpoints": true
     }
   ]
 }

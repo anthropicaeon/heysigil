@@ -6,6 +6,7 @@ import { getFeeIndexer, isFeeIndexerConfigured } from "./services/fee-indexer.js
 import { getFeeCollector, isFeeCollectorConfigured } from "./services/fee-collector.js";
 import { loggers } from "./utils/logger.js";
 import { initializeMcpRuntime } from "./mcp/runtime.js";
+import { getMigrationRelayer, isMigrationRelayerConfigured } from "./services/migration-relayer.js";
 
 const log = loggers.server;
 
@@ -66,4 +67,20 @@ if (isFeeCollectorConfigured()) {
     process.on("SIGTERM", stopCollector);
 } else {
     log.info("Fee collector disabled (SIGIL_LP_LOCKER_ADDRESS not set)");
+}
+
+// Start migration relayer if configured (watches for V1 token deposits)
+if (isMigrationRelayerConfigured()) {
+    const migrationRelayer = getMigrationRelayer();
+    migrationRelayer.start().catch((err) => {
+        log.error({ err }, "Failed to start migration relayer");
+    });
+    log.info("Migration relayer started (watches for V1 deposits)");
+
+    // Graceful shutdown
+    const stopRelayer = () => migrationRelayer.stop();
+    process.on("SIGINT", stopRelayer);
+    process.on("SIGTERM", stopRelayer);
+} else {
+    log.info("Migration relayer disabled (MIGRATION_RELAYER_ADDRESS not set)");
 }

@@ -438,3 +438,43 @@ export const chatMessageVotes = pgTable(
         index("chat_message_votes_message_idx").on(table.messageId),
     ],
 );
+
+// ─── V1 → V2 Migration Relays ──────────────────────────
+
+/**
+ * Tracks backend-relayed V1 → V2 token swaps.
+ * When a user sends V1 to the relayer hot wallet, the backend
+ * either sends V2 back or returns V1 if not whitelisted.
+ */
+export const migrationRelays = pgTable(
+    "migration_relays",
+    {
+        id: uuid("id").primaryKey().defaultRandom(),
+        /** Sender wallet address */
+        senderAddress: varchar("sender_address", { length: 42 }).notNull(),
+        /** V1 amount received (raw wei string) */
+        v1Amount: text("v1_amount").notNull(),
+        /** V2 amount sent back (raw wei string, null if returned) */
+        v2AmountSent: text("v2_amount_sent"),
+        /** Whether V1 was returned to sender */
+        v1Returned: integer("v1_returned").notNull().default(0),
+        /** Inbound tx hash (V1 transfer to relayer) */
+        txHashIn: varchar("tx_hash_in", { length: 66 }).notNull(),
+        /** Outbound tx hash (V2 send or V1 return) */
+        txHashOut: varchar("tx_hash_out", { length: 66 }),
+        /** Block number of inbound transfer */
+        blockNumber: integer("block_number").notNull(),
+        /** Status: pending, sent, returned, failed */
+        status: varchar("status", { length: 16 }).notNull().default("pending"),
+        /** Reason if returned: not_whitelisted, over_allocation */
+        reason: varchar("reason", { length: 32 }),
+        /** Error message if failed */
+        error: text("error"),
+        createdAt: timestamp("created_at").notNull().defaultNow(),
+        processedAt: timestamp("processed_at"),
+    },
+    (table) => [
+        uniqueIndex("migration_relays_tx_hash_in_uq").on(table.txHashIn),
+        index("migration_relays_sender_idx").on(table.senderAddress),
+    ],
+);

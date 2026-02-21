@@ -1,19 +1,18 @@
 "use client";
 
-import { ArrowRight, AlertTriangle, CheckCircle, Loader2, RefreshCw, ExternalLink } from "lucide-react";
-import { useState, useMemo } from "react";
-import { parseEther, formatEther, type Address } from "viem";
+import { AlertTriangle, CheckCircle, Loader2, RefreshCw, ExternalLink, Copy, Check } from "lucide-react";
+import { useState, useCallback } from "react";
+import type { Address } from "viem";
 
 import { Button } from "@/components/ui/button";
 import { useOptionalPrivy, useOptionalWallets } from "@/hooks/useOptionalPrivy";
-import { useMigratorRead } from "@/hooks/useMigratorRead";
-import { useMigratorWrite } from "@/hooks/useMigratorWrite";
+import { useMigrationStatus } from "@/hooks/useMigrationStatus";
 import { MIGRATOR_ADDRESS, V1_TOKEN_ADDRESS, V2_TOKEN_ADDRESS } from "@/lib/contracts/migrator";
-import { publicClient } from "@/lib/contracts/migrator";
 
 // ─── Constants ──────────────────────────────────────────
 
 const ZERO = BigInt(0);
+const RELAYER_ADDRESS_FALLBACK = process.env.NEXT_PUBLIC_MIGRATION_RELAYER_ADDRESS ?? "";
 
 // ─── Page ───────────────────────────────────────────────
 
@@ -22,60 +21,18 @@ export default function MigratePage() {
     const { wallets } = useOptionalWallets();
     const walletAddress = wallets[0]?.address as Address | undefined;
 
-    const data = useMigratorRead(walletAddress ?? null);
-    const writer = useMigratorWrite();
+    const data = useMigrationStatus(walletAddress ?? null);
+    const [copied, setCopied] = useState(false);
 
-    const [inputValue, setInputValue] = useState("");
-    const [awaitingTx, setAwaitingTx] = useState(false);
+    const relayerAddress = data.relayerAddress || RELAYER_ADDRESS_FALLBACK;
+    const isFullyMigrated = data.allocation > ZERO && data.remaining === ZERO;
 
-    // Parse input amount
-    const inputAmount = useMemo(() => {
-        try {
-            if (!inputValue || inputValue === "0") return ZERO;
-            return parseEther(inputValue);
-        } catch {
-            return ZERO;
-        }
-    }, [inputValue]);
-
-    // Determine what the user needs to do
-    const needsApproval = inputAmount > ZERO && data.v1Allowance < inputAmount;
-    const canMigrate = inputAmount > ZERO && inputAmount <= data.claimable && inputAmount <= data.v1Balance;
-    const isFullyMigrated = data.allocation > ZERO && data.claimable === ZERO;
-
-    // Set max amount (min of claimable and v1Balance)
-    const handleMax = () => {
-        const maxAmount = data.claimable < data.v1Balance ? data.claimable : data.v1Balance;
-        if (maxAmount > ZERO) {
-            setInputValue(formatEther(maxAmount));
-        }
-    };
-
-    // Approve V1 tokens
-    const handleApprove = async () => {
-        if (!inputAmount) return;
-        setAwaitingTx(true);
-        const hash = await writer.approve(inputAmount);
-        if (hash) {
-            // Wait for tx confirmation
-            await publicClient.waitForTransactionReceipt({ hash });
-            data.refetch();
-        }
-        setAwaitingTx(false);
-    };
-
-    // Migrate tokens
-    const handleMigrate = async () => {
-        if (!inputAmount) return;
-        setAwaitingTx(true);
-        const hash = await writer.migrate(inputAmount);
-        if (hash) {
-            await publicClient.waitForTransactionReceipt({ hash });
-            data.refetch();
-            setInputValue("");
-        }
-        setAwaitingTx(false);
-    };
+    const handleCopy = useCallback(() => {
+        if (!relayerAddress) return;
+        navigator.clipboard.writeText(relayerAddress);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    }, [relayerAddress]);
 
     const shortenAddress = (addr: string) =>
         `${addr.slice(0, 6)}...${addr.slice(-4)}`;
@@ -94,7 +51,8 @@ export default function MigratePage() {
                             v1 → v2 migration
                         </h1>
                         <p className="text-muted-foreground">
-                            Swap your V1 HeySigil tokens for V2 SIGIL. 1:1 ratio, no fees. Connect your wallet to check your allocation and migrate.
+                            Swap your V1 HeySigil tokens for V2 SIGIL. 1:1 ratio, no fees.
+                            Send your V1 tokens to the address below and receive V2 automatically.
                         </p>
                     </div>
                 </div>
@@ -116,18 +74,86 @@ export default function MigratePage() {
                     </div>
                 </div>
 
-                {/* ─── Wallet Band ──────────────────────────── */}
-                {!authenticated || !walletAddress ? (
-                    <div className="px-6 py-12 lg:px-12 border-border border-b bg-background">
-                        <div className="max-w-md mx-auto text-center">
-                            <div className="size-16 bg-primary/10 flex items-center justify-center mx-auto mb-6">
-                                <ArrowRight className="size-7 text-primary" />
+                {/* ─── Send To Address ─────────────────────── */}
+                <div className="px-6 py-4 lg:px-12 border-border border-b bg-secondary/30">
+                    <h2 className="text-lg font-semibold text-foreground lowercase">
+                        send v1 tokens here
+                    </h2>
+                </div>
+
+                <div className="px-6 py-8 lg:px-12 border-border border-b bg-background">
+                    <div className="max-w-lg">
+                        <p className="text-sm text-muted-foreground mb-4">
+                            Send your V1 HeySigil tokens to this address. Our relayer will automatically
+                            send V2 SIGIL back to your wallet within ~30 seconds.
+                        </p>
+
+                        {/* Relayer address box */}
+                        {relayerAddress ? (
+                            <div className="border border-border bg-secondary/20 p-4 mb-4">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                                            Migration Address
+                                        </p>
+                                        <p className="text-sm font-mono font-medium text-foreground break-all">
+                                            {relayerAddress}
+                                        </p>
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleCopy}
+                                        className="shrink-0"
+                                    >
+                                        {copied ? (
+                                            <><Check className="size-3.5" /> Copied</>
+                                        ) : (
+                                            <><Copy className="size-3.5" /> Copy</>
+                                        )}
+                                    </Button>
+                                </div>
                             </div>
+                        ) : (
+                            <div className="border border-border bg-destructive/5 p-4 mb-4">
+                                <p className="text-sm text-destructive">
+                                    Migration relayer address not configured.
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Steps */}
+                        <div className="space-y-3 text-sm">
+                            <div className="flex gap-3">
+                                <div className="size-6 bg-primary/10 flex items-center justify-center shrink-0 text-xs font-semibold text-primary">1</div>
+                                <p className="text-muted-foreground">Send V1 HeySigil tokens to the address above from your wallet</p>
+                            </div>
+                            <div className="flex gap-3">
+                                <div className="size-6 bg-primary/10 flex items-center justify-center shrink-0 text-xs font-semibold text-primary">2</div>
+                                <p className="text-muted-foreground">Our relayer checks your snapshot allocation automatically</p>
+                            </div>
+                            <div className="flex gap-3">
+                                <div className="size-6 bg-primary/10 flex items-center justify-center shrink-0 text-xs font-semibold text-primary">3</div>
+                                <p className="text-muted-foreground">V2 SIGIL sent to your wallet automatically</p>
+                            </div>
+                        </div>
+
+                        <div className="mt-4 px-4 py-3 bg-lavender/30 border border-lavender text-sm text-foreground">
+                            <strong>Not whitelisted?</strong> If your address isn&apos;t in the V1 snapshot,
+                            your tokens are returned automatically. No risk.
+                        </div>
+                    </div>
+                </div>
+
+                {/* ─── Wallet / Status ────────────────────── */}
+                {!authenticated || !walletAddress ? (
+                    <div className="px-6 py-8 lg:px-12 border-border border-b bg-background">
+                        <div className="max-w-md mx-auto text-center">
                             <h2 className="text-lg font-semibold text-foreground mb-3 lowercase">
-                                connect your wallet
+                                check your allocation
                             </h2>
                             <p className="text-muted-foreground text-sm mb-6">
-                                Connect the wallet that holds your V1 HeySigil tokens to check your migration allocation.
+                                Connect your wallet to see your V1 allocation and migration status.
                             </p>
                             <Button size="lg" onClick={() => login?.()}>
                                 Connect Wallet
@@ -149,8 +175,28 @@ export default function MigratePage() {
                             </Button>
                         </div>
 
-                        {/* ─── No Allocation State ──────────────── */}
-                        {!data.loading && data.allocation === ZERO && (
+                        {/* ─── Error State ───────────────────── */}
+                        {!data.loading && data.error && (
+                            <div className="px-6 py-8 lg:px-12 border-border border-b bg-background">
+                                <div className="max-w-md mx-auto text-center">
+                                    <div className="size-16 bg-rose/50 flex items-center justify-center mx-auto mb-6">
+                                        <AlertTriangle className="size-7 text-destructive" />
+                                    </div>
+                                    <h2 className="text-lg font-semibold text-foreground mb-3 lowercase">
+                                        error loading migration data
+                                    </h2>
+                                    <p className="text-muted-foreground text-sm mb-4 break-all">
+                                        {data.error}
+                                    </p>
+                                    <Button variant="outline" size="sm" onClick={data.refetch}>
+                                        <RefreshCw className="size-3.5 mr-2" /> Retry
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ─── No Allocation State ────────────── */}
+                        {!data.loading && !data.error && data.allocation === ZERO && (
                             <div className="px-6 py-12 lg:px-12 border-border border-b bg-background">
                                 <div className="max-w-md mx-auto text-center">
                                     <div className="size-16 bg-rose/50 flex items-center justify-center mx-auto mb-6">
@@ -160,13 +206,14 @@ export default function MigratePage() {
                                         no allocation found
                                     </h2>
                                     <p className="text-muted-foreground text-sm">
-                                        This wallet ({shortenAddress(walletAddress)}) was not included in the V1 snapshot. Only wallets that held V1 HeySigil tokens at the time of the snapshot are eligible.
+                                        This wallet ({shortenAddress(walletAddress)}) was not included in the V1 snapshot.
+                                        If you send V1 tokens to the migration address, they will be returned automatically.
                                     </p>
                                 </div>
                             </div>
                         )}
 
-                        {/* ─── Fully Migrated State ──────────────── */}
+                        {/* ─── Fully Migrated State ────────────── */}
                         {!data.loading && isFullyMigrated && (
                             <div className="px-6 py-12 lg:px-12 border-border border-b bg-background">
                                 <div className="max-w-md mx-auto text-center">
@@ -177,13 +224,13 @@ export default function MigratePage() {
                                         migration complete
                                     </h2>
                                     <p className="text-muted-foreground text-sm">
-                                        You have migrated all {data.allocationFormatted} tokens. Your V2 SIGIL balance is {data.v2BalanceFormatted}.
+                                        You have migrated all {data.allocationFormatted} tokens.
                                     </p>
                                 </div>
                             </div>
                         )}
 
-                        {/* ─── Loading State ───────────────────── */}
+                        {/* ─── Loading State ──────────────────── */}
                         {data.loading && (
                             <div className="px-6 py-12 lg:px-12 border-border border-b bg-background flex items-center justify-center">
                                 <Loader2 className="size-6 text-primary animate-spin" />
@@ -191,15 +238,13 @@ export default function MigratePage() {
                             </div>
                         )}
 
-                        {/* ─── Allocation + Action Panel ────────── */}
-                        {!data.loading && data.allocation > ZERO && data.claimable > ZERO && (
+                        {/* ─── Allocation Panel ──────────────── */}
+                        {!data.loading && !data.error && data.allocation > ZERO && (
                             <>
-                                {/* Allocation section header */}
                                 <div className="px-6 py-4 lg:px-12 border-border border-b bg-secondary/30">
                                     <h2 className="text-lg font-semibold text-foreground lowercase">your allocation</h2>
                                 </div>
 
-                                {/* Stats grid */}
                                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 border-border border-b">
                                     <div className="px-6 py-5 border-border border-b sm:border-b-0 sm:border-r">
                                         <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Allocation</p>
@@ -209,17 +254,17 @@ export default function MigratePage() {
                                     <div className="px-6 py-5 border-border border-b sm:border-b-0 lg:border-r">
                                         <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Claimed</p>
                                         <p className="text-xl font-semibold text-foreground">{data.claimedFormatted}</p>
-                                        <p className="text-xs text-muted-foreground">Already migrated</p>
+                                        <p className="text-xs text-muted-foreground">Via contract</p>
                                     </div>
                                     <div className="px-6 py-5 border-border border-b sm:border-r sm:border-b-0">
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Remaining</p>
-                                        <p className="text-xl font-semibold text-primary">{data.claimableFormatted}</p>
-                                        <p className="text-xs text-muted-foreground">Still claimable</p>
+                                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Relayed</p>
+                                        <p className="text-xl font-semibold text-foreground">{data.relayedFormatted}</p>
+                                        <p className="text-xs text-muted-foreground">Via relayer</p>
                                     </div>
                                     <div className="px-6 py-5">
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">V1 Balance</p>
-                                        <p className="text-xl font-semibold text-foreground">{data.v1BalanceFormatted}</p>
-                                        <p className="text-xs text-muted-foreground">In your wallet</p>
+                                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Remaining</p>
+                                        <p className="text-xl font-semibold text-primary">{data.remainingFormatted}</p>
+                                        <p className="text-xs text-muted-foreground">Still available</p>
                                     </div>
                                 </div>
 
@@ -229,7 +274,7 @@ export default function MigratePage() {
                                         <span className="text-xs text-muted-foreground">Migration progress</span>
                                         <span className="text-xs font-medium text-foreground">
                                             {data.allocation > ZERO
-                                                ? `${((Number(data.claimed) / Number(data.allocation)) * 100).toFixed(1)}%`
+                                                ? `${((Number(data.allocation - data.remaining) / Number(data.allocation)) * 100).toFixed(1)}%`
                                                 : "0%"}
                                         </span>
                                     </div>
@@ -238,139 +283,64 @@ export default function MigratePage() {
                                             className="h-full bg-primary transition-all duration-500"
                                             style={{
                                                 width: data.allocation > ZERO
-                                                    ? `${(Number(data.claimed) / Number(data.allocation)) * 100}%`
+                                                    ? `${(Number(data.allocation - data.remaining) / Number(data.allocation)) * 100}%`
                                                     : "0%",
                                             }}
                                         />
                                     </div>
                                 </div>
-
-                                {/* Migrate section header */}
-                                <div className="px-6 py-4 lg:px-12 border-border border-b bg-secondary/30">
-                                    <h2 className="text-lg font-semibold text-foreground lowercase">migrate tokens</h2>
-                                </div>
-
-                                {/* Input + Action area */}
-                                <div className="px-6 py-8 lg:px-12 border-border border-b bg-background">
-                                    <div className="max-w-lg">
-                                        {/* Amount input */}
-                                        <div className="mb-6">
-                                            <label className="text-sm font-medium text-foreground mb-2 block">
-                                                Amount to migrate
-                                            </label>
-                                            <div className="flex gap-2">
-                                                <input
-                                                    type="text"
-                                                    inputMode="decimal"
-                                                    placeholder="0.00"
-                                                    value={inputValue}
-                                                    onChange={(e) => setInputValue(e.target.value)}
-                                                    className="flex-1 h-12 px-4 border border-border bg-background text-foreground text-lg font-medium focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-                                                    disabled={data.paused || awaitingTx}
-                                                />
-                                                <Button
-                                                    variant="outline"
-                                                    size="lg"
-                                                    onClick={handleMax}
-                                                    disabled={data.paused || awaitingTx}
-                                                >
-                                                    Max
-                                                </Button>
-                                            </div>
-                                            {inputAmount > data.claimable && inputAmount > ZERO && (
-                                                <p className="text-xs text-destructive mt-2">
-                                                    Amount exceeds your remaining allocation of {data.claimableFormatted}
-                                                </p>
-                                            )}
-                                            {inputAmount > data.v1Balance && inputAmount > ZERO && inputAmount <= data.claimable && (
-                                                <p className="text-xs text-destructive mt-2">
-                                                    Amount exceeds your V1 balance of {data.v1BalanceFormatted}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        {/* Action buttons */}
-                                        <div className="flex flex-col gap-3">
-                                            {needsApproval && canMigrate && (
-                                                <Button
-                                                    size="lg"
-                                                    variant="outline"
-                                                    onClick={handleApprove}
-                                                    disabled={awaitingTx || data.paused}
-                                                    className="w-full"
-                                                >
-                                                    {awaitingTx && writer.state.step === "approving" ? (
-                                                        <>
-                                                            <Loader2 className="size-4 animate-spin" />
-                                                            Approving V1 tokens...
-                                                        </>
-                                                    ) : (
-                                                        <>Step 1: Approve V1 tokens</>
-                                                    )}
-                                                </Button>
-                                            )}
-
-                                            <Button
-                                                size="lg"
-                                                onClick={handleMigrate}
-                                                disabled={!canMigrate || needsApproval || awaitingTx || data.paused}
-                                                className="w-full"
-                                            >
-                                                {awaitingTx && writer.state.step === "migrating" ? (
-                                                    <>
-                                                        <Loader2 className="size-4 animate-spin" />
-                                                        Migrating...
-                                                    </>
-                                                ) : needsApproval ? (
-                                                    <>Step 2: Migrate to V2</>
-                                                ) : (
-                                                    <>
-                                                        Migrate to V2
-                                                        <ArrowRight className="size-4" />
-                                                    </>
-                                                )}
-                                            </Button>
-                                        </div>
-
-                                        {/* Error */}
-                                        {writer.state.error && (
-                                            <div className="mt-4 px-4 py-3 bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-                                                {writer.state.error}
-                                            </div>
-                                        )}
-
-                                        {/* Success */}
-                                        {writer.state.step === "done" && writer.state.txHash && (
-                                            <div className="mt-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 text-sm flex items-center gap-2">
-                                                <CheckCircle className="size-4" />
-                                                Migration successful!{" "}
-                                                <a
-                                                    href={`https://basescan.org/tx/${writer.state.txHash}`}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="underline font-medium inline-flex items-center gap-1"
-                                                >
-                                                    View on Basescan <ExternalLink className="size-3" />
-                                                </a>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
                             </>
                         )}
 
-                        {/* ─── V2 Balance Band ──────────────────── */}
-                        {!data.loading && data.v2Balance > ZERO && (
-                            <div className="px-6 py-5 lg:px-12 border-border border-b bg-lavender/50 flex items-center gap-4">
-                                <div className="size-10 bg-primary/10 flex items-center justify-center">
-                                    <CheckCircle className="size-5 text-primary" />
+                        {/* ─── Relay History ──────────────────── */}
+                        {!data.loading && data.history.length > 0 && (
+                            <>
+                                <div className="px-6 py-4 lg:px-12 border-border border-b bg-secondary/30">
+                                    <h2 className="text-lg font-semibold text-foreground lowercase">relay history</h2>
                                 </div>
-                                <div className="flex-1">
-                                    <p className="font-medium text-foreground">V2 SIGIL Balance</p>
-                                    <p className="text-xs text-muted-foreground">Your current V2 holdings</p>
+
+                                <div className="divide-y divide-border">
+                                    {data.history.map((entry) => (
+                                        <div key={entry.txIn} className="px-6 py-4 lg:px-12 bg-background flex items-center justify-between gap-4">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    {entry.status === "sent" && (
+                                                        <div className="size-2 bg-green-500" />
+                                                    )}
+                                                    {entry.status === "returned" && (
+                                                        <div className="size-2 bg-amber-500" />
+                                                    )}
+                                                    {entry.status === "failed" && (
+                                                        <div className="size-2 bg-destructive" />
+                                                    )}
+                                                    {entry.status === "pending" && (
+                                                        <div className="size-2 bg-muted-foreground animate-pulse" />
+                                                    )}
+                                                    <span className="text-sm font-medium text-foreground capitalize">
+                                                        {entry.status}
+                                                    </span>
+                                                    {entry.reason && (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            ({entry.reason.replace(/_/g, " ")})
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <a
+                                                    href={`https://basescan.org/tx/${entry.txIn}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xs text-primary hover:underline inline-flex items-center gap-1"
+                                                >
+                                                    {shortenAddress(entry.txIn)} <ExternalLink className="size-3" />
+                                                </a>
+                                            </div>
+                                            <span className="text-sm font-medium text-foreground shrink-0">
+                                                {entry.amount}
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
-                                <span className="text-lg font-semibold text-foreground">{data.v2BalanceFormatted}</span>
-                            </div>
+                            </>
                         )}
                     </>
                 )}
@@ -389,15 +359,22 @@ export default function MigratePage() {
                         </p>
                     </div>
                     <div className="px-6 py-5 lg:px-12 bg-background">
-                        <h3 className="font-medium text-foreground mb-1">What happens to my V1 tokens?</h3>
+                        <h3 className="font-medium text-foreground mb-1">How does it work?</h3>
                         <p className="text-sm text-muted-foreground">
-                            Your V1 tokens are deposited into the migration contract when you swap. They cannot be reclaimed — the swap is permanent.
+                            Send V1 tokens to the migration address. Our backend checks your allocation
+                            and sends V2 back automatically. If you&apos;re not whitelisted, your V1 tokens are returned.
                         </p>
                     </div>
                     <div className="px-6 py-5 lg:px-12 bg-background">
                         <h3 className="font-medium text-foreground mb-1">Can I migrate partially?</h3>
                         <p className="text-sm text-muted-foreground">
-                            Yes. You can migrate any amount up to your remaining allocation. You can come back and migrate more at any time.
+                            Yes. You can migrate any amount up to your remaining allocation. Come back and migrate more at any time.
+                        </p>
+                    </div>
+                    <div className="px-6 py-5 lg:px-12 bg-background">
+                        <h3 className="font-medium text-foreground mb-1">What happens to my V1 tokens?</h3>
+                        <p className="text-sm text-muted-foreground">
+                            Your V1 tokens are deposited into the migration address. The swap is permanent.
                         </p>
                     </div>
                 </div>
@@ -409,10 +386,11 @@ export default function MigratePage() {
 
                 <div className="divide-y divide-border">
                     {[
+                        { label: "Migration Relayer", address: relayerAddress },
                         { label: "SigilMigrator", address: MIGRATOR_ADDRESS },
                         { label: "V1 HeySigil", address: V1_TOKEN_ADDRESS },
                         { label: "V2 SIGIL", address: V2_TOKEN_ADDRESS },
-                    ].map(({ label, address }) => (
+                    ].filter(({ address }) => !!address).map(({ label, address }) => (
                         <div key={label} className="px-6 py-4 lg:px-12 bg-background flex items-center justify-between">
                             <span className="text-sm text-muted-foreground">{label}</span>
                             <a

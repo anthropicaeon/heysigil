@@ -21,3 +21,9 @@ bun.lock
 /.backups
 nul
 /.npm-cache
+
+# Sensitive scripts and data (never push)
+data/
+scripts/snapshot-*.mjs
+scripts/fund-migrator.mjs
+contracts/broadcast/

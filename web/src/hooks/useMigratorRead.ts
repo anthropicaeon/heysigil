@@ -78,72 +78,91 @@ export function useMigratorRead(userAddress: Address | null): MigratorReadData {
         setLoading(true);
         setError(null);
 
-        try {
-            const [
-                allocationRaw,
-                claimedRaw,
-                claimableRaw,
-                pausedRaw,
-                v1BalRaw,
-                v1AllowRaw,
-                v2BalRaw,
-            ] = await Promise.all([
-                publicClient.readContract({
-                    address: MIGRATOR_ADDRESS,
-                    abi: MIGRATOR_ABI,
-                    functionName: "allocation",
-                    args: [userAddress],
-                }),
-                publicClient.readContract({
-                    address: MIGRATOR_ADDRESS,
-                    abi: MIGRATOR_ABI,
-                    functionName: "claimed",
-                    args: [userAddress],
-                }),
-                publicClient.readContract({
-                    address: MIGRATOR_ADDRESS,
-                    abi: MIGRATOR_ABI,
-                    functionName: "claimable",
-                    args: [userAddress],
-                }),
-                publicClient.readContract({
-                    address: MIGRATOR_ADDRESS,
-                    abi: MIGRATOR_ABI,
-                    functionName: "paused",
-                }),
-                publicClient.readContract({
-                    address: V1_TOKEN_ADDRESS,
-                    abi: ERC20_ABI,
-                    functionName: "balanceOf",
-                    args: [userAddress],
-                }),
-                publicClient.readContract({
-                    address: V1_TOKEN_ADDRESS,
-                    abi: ERC20_ABI,
-                    functionName: "allowance",
-                    args: [userAddress, MIGRATOR_ADDRESS],
-                }),
-                publicClient.readContract({
-                    address: V2_TOKEN_ADDRESS,
-                    abi: ERC20_ABI,
-                    functionName: "balanceOf",
-                    args: [userAddress],
-                }),
-            ]);
+        console.log("[useMigratorRead] Fetching for:", userAddress);
+        console.log("[useMigratorRead] MIGRATOR_ADDRESS:", MIGRATOR_ADDRESS);
+        console.log("[useMigratorRead] V1_TOKEN_ADDRESS:", V1_TOKEN_ADDRESS);
+        console.log("[useMigratorRead] V2_TOKEN_ADDRESS:", V2_TOKEN_ADDRESS);
 
-            setAllocation(allocationRaw);
-            setClaimed(claimedRaw);
-            setClaimable(claimableRaw);
-            setPaused(pausedRaw);
-            setV1Balance(v1BalRaw);
-            setV1Allowance(v1AllowRaw);
-            setV2Balance(v2BalRaw);
-        } catch (err) {
-            console.error("[useMigratorRead] Error:", err);
-            setError(err instanceof Error ? err.message : "Failed to fetch migration data");
-        } finally {
-            setLoading(false);
+        // Read each value individually so one failure doesn't wipe out the rest
+        const errors: string[] = [];
+
+        try {
+            const val = await publicClient.readContract({
+                address: MIGRATOR_ADDRESS, abi: MIGRATOR_ABI,
+                functionName: "allocation", args: [userAddress],
+            });
+            console.log("[useMigratorRead] allocation:", val);
+            setAllocation(val);
+        } catch (e) {
+            errors.push(`allocation: ${e instanceof Error ? e.message : String(e)}`);
         }
+
+        try {
+            const val = await publicClient.readContract({
+                address: MIGRATOR_ADDRESS, abi: MIGRATOR_ABI,
+                functionName: "claimed", args: [userAddress],
+            });
+            setClaimed(val);
+        } catch (e) {
+            errors.push(`claimed: ${e instanceof Error ? e.message : String(e)}`);
+        }
+
+        try {
+            const val = await publicClient.readContract({
+                address: MIGRATOR_ADDRESS, abi: MIGRATOR_ABI,
+                functionName: "claimable", args: [userAddress],
+            });
+            setClaimable(val);
+        } catch (e) {
+            errors.push(`claimable: ${e instanceof Error ? e.message : String(e)}`);
+        }
+
+        try {
+            const val = await publicClient.readContract({
+                address: MIGRATOR_ADDRESS, abi: MIGRATOR_ABI,
+                functionName: "paused",
+            });
+            setPaused(val);
+        } catch (e) {
+            errors.push(`paused: ${e instanceof Error ? e.message : String(e)}`);
+        }
+
+        try {
+            const val = await publicClient.readContract({
+                address: V1_TOKEN_ADDRESS, abi: ERC20_ABI,
+                functionName: "balanceOf", args: [userAddress],
+            });
+            setV1Balance(val);
+        } catch (e) {
+            errors.push(`v1Balance: ${e instanceof Error ? e.message : String(e)}`);
+        }
+
+        try {
+            const val = await publicClient.readContract({
+                address: V1_TOKEN_ADDRESS, abi: ERC20_ABI,
+                functionName: "allowance", args: [userAddress, MIGRATOR_ADDRESS],
+            });
+            setV1Allowance(val);
+        } catch (e) {
+            errors.push(`v1Allowance: ${e instanceof Error ? e.message : String(e)}`);
+        }
+
+        try {
+            const val = await publicClient.readContract({
+                address: V2_TOKEN_ADDRESS, abi: ERC20_ABI,
+                functionName: "balanceOf", args: [userAddress],
+            });
+            setV2Balance(val);
+        } catch (e) {
+            errors.push(`v2Balance: ${e instanceof Error ? e.message : String(e)}`);
+        }
+
+        if (errors.length > 0) {
+            console.error("[useMigratorRead] Errors:", errors);
+            setError(errors.join("; "));
+        }
+
+        setLoading(false);
     }, [userAddress]);
 
     useEffect(() => {

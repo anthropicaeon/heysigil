@@ -27,6 +27,13 @@ const envSchema = z.object({
     SIGIL_FACTORY_ADDRESS: z.string().default(""),
     SIGIL_FEE_VAULT_ADDRESS: z.string().default(""),
     SIGIL_LP_LOCKER_ADDRESS: z.string().default(""),
+
+    // V1 → V2 Migration Relayer
+    MIGRATION_RELAYER_ADDRESS: z.string().default(""),
+    MIGRATION_RELAYER_PRIVATE_KEY: z.string().default(""),
+    V1_TOKEN_ADDRESS: z.string().default(""),
+    V2_TOKEN_ADDRESS: z.string().default(""),
+    MIGRATOR_ADDRESS: z.string().default(""),
     BASE_RPC_URL: z.string().default("https://mainnet.base.org"),
 
     // Privy (authentication)
