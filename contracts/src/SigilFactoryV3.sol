@@ -55,9 +55,13 @@ interface ISigilLPLocker {
 ///         1. Anyone calls launch() with token metadata and the verified dev address
 ///         2. Factory deploys SigilToken with fixed supply
 ///         3. Factory creates V3 pool (TOKEN/USDC, 1% fee tier)
-///         4. Factory mints a full-range LP position via NonfungiblePositionManager
-///         5. Factory transfers the LP NFT to SigilLPLocker (permanently locked)
+///         4. Factory mints 6 concentrated LP positions via NonfungiblePositionManager
+///         5. Factory transfers all LP NFTs to SigilLPLocker (permanently locked)
 ///         6. Every swap generates 1% LP fee → Locker collects → 80% dev, 20% protocol
+///
+///         LP Distribution (6 positions):
+///         - Positions 0–4: 80% of supply across $15K → $250K MCAP
+///         - Position 5:    20% of supply from $250K → ∞ (full upside)
 contract SigilFactoryV3 {
     // ─── Constants ───────────────────────────────────────
 
@@ -81,10 +85,8 @@ contract SigilFactoryV3 {
     int24 public constant MIN_TICK = -887200; // Aligned to 200
     int24 public constant MAX_TICK = 887200;  // Aligned to 200
 
-    /// @notice Tick bounds for 15k mcap starting price
-    ///         price = $0.00000015/token → tick ≈ -433600 (token0) / +433400 (token1)
-    int24 public constant MCAP_TICK_TOKEN0 = -433600;  // tickLower when token is token0
-    int24 public constant MCAP_TICK_TOKEN1 = 433400;   // tickUpper when token is token1
+    /// @notice Number of concentrated LP positions
+    uint256 public constant NUM_POSITIONS = 6;
 
     // ─── State ───────────────────────────────────────────
 
@@ -106,7 +108,7 @@ contract SigilFactoryV3 {
         string projectId;
         bytes32 poolId;
         address pool;
-        uint256 lpTokenId;
+        uint256[] lpTokenIds;
         uint256 launchedAt;
         address launchedBy;
     }
@@ -173,40 +175,13 @@ contract SigilFactoryV3 {
         // 5. Approve the position manager to spend tokens
         IERC20(token).approve(address(positionManager), DEFAULT_SUPPLY);
 
-        // 6. Mint single-sided liquidity (bounded range starting at 15k mcap price)
-        //    We provide all tokens and 0 USDC — the token is on one side of current price
-        (uint256 amount0Desired, uint256 amount1Desired) = tokenIsToken0
-            ? (DEFAULT_SUPPLY, uint256(0))
-            : (uint256(0), DEFAULT_SUPPLY);
-
-        (int24 tickLower, int24 tickUpper) = _getTickRange(tokenIsToken0);
-
-        (uint256 tokenId, , , ) = positionManager.mint(
-            INonfungiblePositionManager.MintParams({
-                token0: token0,
-                token1: token1,
-                fee: POOL_FEE,
-                tickLower: tickLower,
-                tickUpper: tickUpper,
-                amount0Desired: amount0Desired,
-                amount1Desired: amount1Desired,
-                amount0Min: 0,
-                amount1Min: 0,
-                recipient: address(this),
-                deadline: block.timestamp
-            })
-        );
-
-        // 7. Generate a pool ID (keccak of pool address for consistency)
+        // 6. Generate a pool ID (keccak of pool address for consistency)
         poolId = keccak256(abi.encodePacked(pool));
 
-        // 8. Lock the LP NFT — transfer to locker
-        positionManager.transferFrom(
-            address(this),
-            address(lpLocker),
-            tokenId
+        // 7. Mint 6 concentrated LP positions and lock each in the locker
+        uint256[] memory tokenIds = _mintAndLockPositions(
+            token0, token1, tokenIsToken0, poolId, dev
         );
-        lpLocker.lockPosition(tokenId, poolId, dev);
 
         // 9. Seed swap — pull USDC from deployer and swap to activate liquidity
         //    This pushes the price from out-of-range into the LP tick range,
@@ -235,14 +210,14 @@ contract SigilFactoryV3 {
             );
         }
 
-        // 10. Store launch info
+        // 9. Store launch info
         launches[token] = LaunchInfo({
             token: token,
             dev: dev,
             projectId: projectId,
             poolId: poolId,
             pool: pool,
-            lpTokenId: tokenId,
+            lpTokenIds: tokenIds,
             launchedAt: block.timestamp,
             launchedBy: msg.sender
         });
@@ -295,17 +270,116 @@ contract SigilFactoryV3 {
         }
     }
 
-    /// @dev Get tick range for LP position based on token sort order.
-    ///      Uses bounded range starting at 15k mcap price.
-    function _getTickRange(bool tokenIsToken0) internal pure returns (int24 tickLower, int24 tickUpper) {
+    /// @dev Mint 6 concentrated LP positions and lock each in the locker.
+    ///      Returns array of NFT token IDs.
+    ///
+    ///      Position layout (80% supply in 0–4, 20% in 5):
+    ///      | Pos | MCAP Range           | Supply  |
+    ///      |-----|---------------------|---------|
+    ///      |  0  | $15.0K → $26.4K     | 21.50B  |
+    ///      |  1  | $26.4K → $46.3K     | 18.22B  |
+    ///      |  2  | $46.3K → $81.4K     | 15.44B  |
+    ///      |  3  | $81.4K → $143.0K    | 13.09B  |
+    ///      |  4  | $143.0K → $251.3K   | 11.09B  |
+    ///      |  5  | $251.3K → ∞         | 20.66B  |
+    function _mintAndLockPositions(
+        address token0,
+        address token1,
+        bool tokenIsToken0,
+        bytes32 poolId,
+        address dev
+    ) internal returns (uint256[] memory tokenIds) {
+        tokenIds = new uint256[](NUM_POSITIONS);
+
+        for (uint256 i; i < NUM_POSITIONS; ++i) {
+            (int24 tickLower, int24 tickUpper, uint256 tokenAmount) =
+                _getPositionConfig(i, tokenIsToken0);
+
+            (uint256 amount0Desired, uint256 amount1Desired) = tokenIsToken0
+                ? (tokenAmount, uint256(0))
+                : (uint256(0), tokenAmount);
+
+            (tokenIds[i], , , ) = positionManager.mint(
+                INonfungiblePositionManager.MintParams({
+                    token0: token0,
+                    token1: token1,
+                    fee: POOL_FEE,
+                    tickLower: tickLower,
+                    tickUpper: tickUpper,
+                    amount0Desired: amount0Desired,
+                    amount1Desired: amount1Desired,
+                    amount0Min: 0,
+                    amount1Min: 0,
+                    recipient: address(this),
+                    deadline: block.timestamp
+                })
+            );
+
+            // Transfer NFT to locker and register
+            positionManager.transferFrom(address(this), address(lpLocker), tokenIds[i]);
+            lpLocker.lockPosition(tokenIds[i], poolId, dev);
+        }
+    }
+
+    /// @dev Get tick range and token amount for a specific position index.
+    ///
+    ///      Tick boundaries are derived from MCAP targets at 100B supply:
+    ///        MCAP → price_per_token → tick = ln(price_raw) / ln(1.0001)
+    ///      Aligned to TICK_SPACING = 200.
+    ///
+    ///      When tokenIsToken0 (sigil < USDC address):
+    ///        - Higher MCAP → less negative tick (price increases)
+    ///        - Position range moves from negative tick towards MAX_TICK
+    ///
+    ///      When tokenIsToken1 (sigil > USDC address):
+    ///        - Higher MCAP → less positive tick (buying pushes tick down)
+    ///        - Position range moves from positive tick towards MIN_TICK
+    function _getPositionConfig(uint256 index, bool tokenIsToken0)
+        internal
+        pure
+        returns (int24 tickLower, int24 tickUpper, uint256 tokenAmount)
+    {
+        // ─── Token amounts per position ────────────────────
+        // Sum = 100,000,000,000 ether = DEFAULT_SUPPLY
+        if (index == 0) tokenAmount = 21_500_000_000 ether;
+        else if (index == 1) tokenAmount = 18_220_000_000 ether;
+        else if (index == 2) tokenAmount = 15_440_000_000 ether;
+        else if (index == 3) tokenAmount = 13_090_000_000 ether;
+        else if (index == 4) tokenAmount = 11_090_000_000 ether;
+        else tokenAmount = 20_660_000_000 ether; // Residual to position 5
+
+        // ─── Tick boundaries ───────────────────────────────
+        // MCAP ticks (tokenIsToken0 case):
+        //   $15.0K  → -433600  (existing start price)
+        //   $26.4K  → -428000
+        //   $46.3K  → -422200
+        //   $81.4K  → -416600
+        //   $143.0K → -411000
+        //   $251.3K → -405400
+        //   ∞       → +887200 (MAX_TICK)
         if (tokenIsToken0) {
-            // token0 = Sigil → range from mcap price to max
-            tickLower = MCAP_TICK_TOKEN0;  // -433600
-            tickUpper = MAX_TICK;           // +887200
+            if (index == 0)      { tickLower = -433600; tickUpper = -428000; }
+            else if (index == 1) { tickLower = -428000; tickUpper = -422200; }
+            else if (index == 2) { tickLower = -422200; tickUpper = -416600; }
+            else if (index == 3) { tickLower = -416600; tickUpper = -411000; }
+            else if (index == 4) { tickLower = -411000; tickUpper = -405400; }
+            else                 { tickLower = -405400; tickUpper = MAX_TICK; }
         } else {
-            // token1 = Sigil → range from min to mcap price
-            tickLower = MIN_TICK;            // -887200
-            tickUpper = MCAP_TICK_TOKEN1;   // +433400
+            // Mirrored: higher MCAP → lower tick
+            // MCAP ticks (tokenIsToken1 case):
+            //   $15.0K  → +433400  (existing start price)
+            //   $26.4K  → +427800
+            //   $46.3K  → +422000
+            //   $81.4K  → +416400
+            //   $143.0K → +410800
+            //   $251.3K → +405200
+            //   ∞       → -887200 (MIN_TICK)
+            if (index == 0)      { tickLower = 427800;  tickUpper = 433400;  }
+            else if (index == 1) { tickLower = 422000;  tickUpper = 427800;  }
+            else if (index == 2) { tickLower = 416400;  tickUpper = 422000;  }
+            else if (index == 3) { tickLower = 410800;  tickUpper = 416400;  }
+            else if (index == 4) { tickLower = 405200;  tickUpper = 410800;  }
+            else                 { tickLower = MIN_TICK; tickUpper = 405200; }
         }
     }
 

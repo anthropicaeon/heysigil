@@ -60,8 +60,8 @@ const FEE_VAULT_ABI = [
     // Deposits
     "function depositFees(bytes32, address, address, uint256, uint256)",
 
-    // Dev assignment
-    "function assignDev(bytes32, address)",
+    // Dev assignment (idempotent assign/reassign)
+    "function setDevForPool(bytes32, address)",
 
     // Expiry
     "function sweepExpiredFees(bytes32)",
@@ -325,7 +325,7 @@ describe("E2E: Fee Flow", () => {
             );
 
             // Assign dev (simulating verification callback)
-            const tx = await feeVault.assignDev(poolId, dev.address);
+            const tx = await feeVault.setDevForPool(poolId, dev.address);
             await tx.wait();
 
             // Verify dev received escrowed funds
@@ -341,7 +341,7 @@ describe("E2E: Fee Flow", () => {
             expect(isAssigned).toBe(true);
         });
 
-        test("prevents double assignment", async () => {
+        test("setDevForPool is idempotent (safe to call twice)", async () => {
             if (!feeVault) {
                 console.log("⚠️  Contracts not deployed — skipping");
                 expect(true).toBe(true);
@@ -360,15 +360,25 @@ describe("E2E: Fee Flow", () => {
                 devAmount,
                 protocolAmount
             );
-            await feeVault.assignDev(poolId, dev.address);
+            await feeVault.setDevForPool(poolId, dev.address);
 
-            // Try to assign again
-            try {
-                await feeVault.assignDev(poolId, user.address);
-                expect(true).toBe(false); // Should not reach here
-            } catch (err) {
-                expect(String(err)).toContain("PoolAlreadyAssigned");
-            }
+            // Verify dev received escrowed fees
+            const devBalance = await feeVault.devFees(
+                dev.address,
+                await mockToken.getAddress()
+            );
+            expect(devBalance).toBeGreaterThan(0n);
+
+            // Second call should be a safe noop (no revert)
+            const tx = await feeVault.setDevForPool(poolId, dev.address);
+            await tx.wait();
+
+            // Balance unchanged — no double-credit
+            const devBalanceAfter = await feeVault.devFees(
+                dev.address,
+                await mockToken.getAddress()
+            );
+            expect(devBalanceAfter).toBe(devBalance);
         });
     });
 

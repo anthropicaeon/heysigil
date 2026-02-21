@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import {SigilHook} from "../src/SigilHook.sol";
 import {SigilFeeVault} from "../src/SigilFeeVault.sol";
 import {SigilFactory} from "../src/SigilFactory.sol";
-import {PoolReward} from "../src/PoolReward.sol";
+
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 
@@ -44,9 +44,7 @@ contract DeploySigilSepolia is Script {
         address deployer = msg.sender;
         address protocolTreasury = deployer; // Use deployer as treasury on testnet
 
-        // EAS config for PoolReward
-        address trustedAttester = vm.envOr("TRUSTED_ATTESTER", deployer);
-        bytes32 schemaUid = vm.envOr("EAS_SCHEMA_UID", bytes32(0));
+
 
         console.log("Deployer:", deployer);
         console.log("Target chain: Base Sepolia");
@@ -88,15 +86,7 @@ contract DeploySigilSepolia is Script {
         );
         console.log("SigilFactory deployed at:", address(factory));
 
-        // ─── 4. Deploy PoolReward ───────────────────────
-        PoolReward poolReward = new PoolReward(
-            EAS_SEPOLIA,
-            trustedAttester,
-            schemaUid
-        );
-        console.log("PoolReward deployed at:", address(poolReward));
-
-        // ─── 5. Wire everything together ────────────────
+        // ─── 4. Wire everything together ────────────────
         feeVault.setHook(address(hook));
         console.log("FeeVault wired to hook");
 
@@ -109,12 +99,10 @@ contract DeploySigilSepolia is Script {
         console.log("FeeVault:     ", address(feeVault));
         console.log("Hook:         ", address(hook));
         console.log("Factory:      ", address(factory));
-        console.log("PoolReward:   ", address(poolReward));
         console.log("PoolManager:  ", POOL_MANAGER_SEPOLIA);
         console.log("USDC:         ", USDC_SEPOLIA);
         console.log("EAS:          ", EAS_SEPOLIA);
         console.log("Treasury:     ", protocolTreasury);
-        console.log("Attester:     ", trustedAttester);
         console.log("");
         console.log("NOTE: Hook address is NOT mined - pool creation will fail");
         console.log("      if PoolManager enforces address-based permissions.");

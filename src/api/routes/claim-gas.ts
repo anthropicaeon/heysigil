@@ -58,50 +58,6 @@ const GAS_AMOUNT = ethers.parseEther("0.0002");
 // ─── Fee vault ABI (minimal — just claim functions) ─────
 
 const CLAIM_ABI = ["function claimDevFees(address token)", "function claimAllDevFees()"];
-const ESCROW_VIEW_ABI = [
-    "function getUnclaimedFeeBalances(bytes32 poolId) view returns (address[] tokens, uint256[] balances, uint256 depositedAt, bool expired, bool assigned)",
-];
-const REASSIGN_DEV_SELECTOR = ethers.id("reassignDev(bytes32,address)").slice(2, 10).toLowerCase();
-const reassignSupportCache = new Map<string, boolean>();
-
-async function supportsReassignDev(vaultAddress: string, provider: ethers.Provider): Promise<boolean> {
-    const key = vaultAddress.toLowerCase();
-    const cached = reassignSupportCache.get(key);
-    if (cached !== undefined) return cached;
-
-    const code = await provider.getCode(vaultAddress);
-    const supported = !!code && code !== "0x" && code.toLowerCase().includes(REASSIGN_DEV_SELECTOR);
-    reassignSupportCache.set(key, supported);
-    return supported;
-}
-
-async function hasEscrowForOwnedPools(input: {
-    vaultAddress: string;
-    walletAddress: string;
-    provider: ethers.Provider;
-}): Promise<boolean> {
-    const db = getDb();
-    const projects = await db
-        .select({ poolId: schema.projects.poolId })
-        .from(schema.projects)
-        .where(sql`LOWER(${schema.projects.ownerWallet}) = ${input.walletAddress.toLowerCase()}`);
-
-    if (projects.length === 0) return false;
-
-    const vault = new ethers.Contract(input.vaultAddress, ESCROW_VIEW_ABI, input.provider);
-    for (const project of projects) {
-        if (!project.poolId) continue;
-        try {
-            const [, balances] = await vault.getUnclaimedFeeBalances(project.poolId);
-            if ((balances as bigint[]).some((amount) => amount > 0n)) {
-                return true;
-            }
-        } catch {
-            // Ignore unreadable pools and continue.
-        }
-    }
-    return false;
-}
 
 // ─── POST /api/fees/claim-gas ───────────────────────────
 
@@ -190,8 +146,7 @@ claimGas.post(
 
         const env = getEnv();
         const feeVaultAddress = env.SIGIL_FEE_VAULT_ADDRESS;
-        const feeVaultAddressV1 = env.SIGIL_FEE_VAULT_ADDRESS_V1;
-        if (!feeVaultAddress && !feeVaultAddressV1) {
+        if (!feeVaultAddress) {
             return c.json({ error: "Fee vault not configured" }, 503);
         }
 
@@ -228,80 +183,31 @@ claimGas.post(
                 // No body is fine — defaults to claimAll
             }
 
-            // Try claiming from both V2 and V1 vaults
-            const vaults = [feeVaultAddress, feeVaultAddressV1].filter(Boolean) as string[];
-            const txHashes: string[] = [];
-
-            for (const vaultAddr of vaults) {
-                const feeVault = new ethers.Contract(vaultAddr, CLAIM_ABI, signer);
-                try {
-                    let tx: ethers.TransactionResponse;
-                    if (body.token) {
-                        tx = await feeVault.claimDevFees(body.token);
-                    } else {
-                        tx = await feeVault.claimAllDevFees();
-                    }
-                    log.info(
-                        { wallet: signer.address, vault: vaultAddr, txHash: tx.hash },
-                        "Claiming dev fees",
-                    );
-                    await tx.wait();
-                    txHashes.push(tx.hash);
-                } catch (err) {
-                    // NothingToClaim is expected for vaults with no fees — skip silently
-                    const msg = err instanceof Error ? err.message : String(err);
-                    if (!msg.includes("NothingToClaim") && !msg.includes("revert")) {
-                        log.warn({ vault: vaultAddr, error: msg }, "Claim attempt failed");
-                    }
-                }
+            const feeVault = new ethers.Contract(feeVaultAddress, CLAIM_ABI, signer);
+            let tx: ethers.TransactionResponse;
+            if (body.token) {
+                tx = await feeVault.claimDevFees(body.token);
+            } else {
+                tx = await feeVault.claimAllDevFees();
             }
-
-            if (txHashes.length === 0) {
-                let hint: string | undefined;
-                if (feeVaultAddressV1) {
-                    const legacySupportsReassign = await supportsReassignDev(
-                        feeVaultAddressV1,
-                        provider,
-                    ).catch(() => true);
-                    if (!legacySupportsReassign) {
-                        const hasLegacyEscrow = await hasEscrowForOwnedPools({
-                            vaultAddress: feeVaultAddressV1,
-                            walletAddress: signer.address,
-                            provider,
-                        }).catch(() => false);
-                        if (hasLegacyEscrow) {
-                            hint =
-                                "Legacy fee vault detected: this vault does not support reassignDev. " +
-                                "Escrowed fees can remain stuck after initial assignment. " +
-                                "Please migrate/upgrade to V2 fee vault routing and retry.";
-                            log.warn(
-                                { wallet: signer.address, vault: feeVaultAddressV1 },
-                                "Legacy vault limitation detected during claim",
-                            );
-                        }
-                    }
-                }
-                return c.json(
-                    hint
-                        ? {
-                              error: "No claimable fees found in any vault",
-                              hint,
-                          }
-                        : { error: "No claimable fees found in any vault" },
-                    400,
-                );
-            }
+            log.info(
+                { wallet: signer.address, vault: feeVaultAddress, txHash: tx.hash },
+                "Claiming dev fees",
+            );
+            await tx.wait();
 
             return c.json({
                 success: true,
-                txHash: txHashes[0],
-                txHashes,
+                txHash: tx.hash,
                 walletAddress: signer.address,
                 message: "Fees claimed successfully",
             });
         } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            if (message.includes("NothingToClaim") || message.includes("revert")) {
+                return c.json({ error: "No claimable fees found" }, 400);
+            }
             log.error({ error: err, wallet: signer.address }, "Fee claim failed");
-            const message = err instanceof Error ? err.message : "Claim transaction failed";
             return c.json({ error: message }, 500);
         }
     }),

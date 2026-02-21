@@ -75,7 +75,7 @@ export const poolStatusHandler: ActionHandler = async (params) => {
     const parsed = rawLink ? parseLink(rawLink) : null;
     const projectId = parsed?.projectId || rawLink;
 
-    // TODO: Query the PoolReward contract on-chain
+    // TODO: Query pool status via SigilFeeVault on-chain
     return {
         success: true,
         message: `Checking pool status for "${projectId}"...\n\nPool contract query coming soon.`,
@@ -104,7 +104,7 @@ function getVerifyInstructions(parsed: ParsedLink, method: string): string {
                 "   Add a `.well-known/pool-claim.txt` file to your repo with your verification code.",
                 "   We'll check the file contents match.",
                 "",
-                'Provide your wallet address to generate a verification challenge, or visit the **Stamp** page to begin.',
+                "Provide your wallet address to generate a verification challenge, or visit the **Stamp** page to begin.",
             );
             break;
 

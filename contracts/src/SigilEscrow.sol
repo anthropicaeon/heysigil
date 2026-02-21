@@ -5,20 +5,22 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ISigilEscrow} from "./interfaces/ISigilEscrow.sol";
 
 /// @title SigilEscrow
-/// @notice Token escrow with DAO governance for milestone-based token unlocks.
+/// @notice Multi-token escrow with DAO governance for milestone-based unlocks.
 ///
-///         Each Sigil-launched token gets its own escrow instance. Native token
-///         fees from swaps accumulate here. The developer proposes milestones
-///         (product updates, feature releases) and the community votes to
-///         approve/reject them.
+///         A single global escrow instance that accepts ANY ERC-20 token and
+///         tracks balances per-token. Native token fees from all Sigil-launched
+///         pools accumulate here via the LPLocker's _routeTokenFees().
 ///
-///         After completion, the dev submits proof and the community votes on
-///         whether the milestone was actually delivered. If the community
-///         unfairly disputes a legitimate completion, the protocol can override.
+///         Each proposal is scoped to a specific token. Voting weight is based
+///         on the voter's balance of THAT token — TOKEN_A holders vote on
+///         TOKEN_A proposals, TOKEN_B holders vote on TOKEN_B proposals.
+///
+///         The developer proposes milestones (product updates, feature releases)
+///         and the community votes to approve/reject them.
 ///
 ///         Lifecycle:
-///           1. Dev/holder creates proposal → Voting (5 days)
-///           2. Community votes YES/NO (with optional comments)
+///           1. Dev/holder creates proposal for a specific token → Voting (5 days)
+///           2. Community votes YES/NO (weighted by token balance)
 ///           3. If approved → Dev works on milestone
 ///           4. Dev submits proof → CompletionVoting (3 days)
 ///           5. Community votes on completion
@@ -31,7 +33,7 @@ contract SigilEscrow is ISigilEscrow {
     uint256 public constant PROPOSAL_THRESHOLD_BPS = 5;
     uint256 public constant BPS_DENOMINATOR = 10_000;
 
-    /// @notice 4% of circulating supply must vote for quorum
+    /// @notice 4% of total supply must vote for quorum
     uint256 public constant QUORUM_BPS = 400;
 
     /// @notice Voting duration: 5 days for initial, 3 days for completion
@@ -40,22 +42,24 @@ contract SigilEscrow is ISigilEscrow {
 
     // ─── State ───────────────────────────────────────────
 
-    IERC20 public immutable token;
-    uint256 public immutable totalSupply;
     address public devWallet;
     address public protocol;
-    uint256 public escrowBalance;
     uint256 public proposalCount;
+
+    /// @notice Per-token escrow balances: token → amount
+    mapping(address => uint256) public escrowBalances;
 
     // ─── Proposal Storage (split to avoid stack-too-deep) ─
 
     /// @notice Core proposal data
     struct ProposalCore {
         address proposer;
+        address token;
         uint256 tokenAmount;
         uint256 targetDate;
         ProposalStatus status;
         uint256 snapshotBlock;
+        uint256 snapshotTotalSupply;
     }
 
     /// @notice Voting data for a proposal
@@ -94,59 +98,77 @@ contract SigilEscrow is ISigilEscrow {
 
     // ─── Constructor ─────────────────────────────────────
 
-    constructor(address _token, address _devWallet, address _protocol) {
-        if (_token == address(0) || _devWallet == address(0) || _protocol == address(0)) {
+    constructor(address _devWallet, address _protocol) {
+        if (_devWallet == address(0) || _protocol == address(0)) {
             revert ZeroAddress();
         }
-        token = IERC20(_token);
-        totalSupply = IERC20(_token).totalSupply();
         devWallet = _devWallet;
         protocol = _protocol;
     }
 
     // ─── Deposit ─────────────────────────────────────────
 
-    function deposit(uint256 amount) external {
+    /// @notice Deposit tokens into escrow via transferFrom.
+    /// @param token The ERC-20 token to deposit
+    /// @param amount The amount to deposit
+    function deposit(address token, uint256 amount) external {
         if (amount == 0) revert InvalidAmount();
-        token.transferFrom(msg.sender, address(this), amount);
-        escrowBalance += amount;
-        emit TokensDeposited(msg.sender, amount);
+        if (token == address(0)) revert ZeroAddress();
+        IERC20(token).transferFrom(msg.sender, address(this), amount);
+        escrowBalances[token] += amount;
+        emit TokensDeposited(token, msg.sender, amount);
     }
 
-    /// @notice Sync balance for direct transfers (e.g., from hook)
-    function syncBalance() external {
-        uint256 actual = token.balanceOf(address(this));
-        if (actual > escrowBalance) {
-            uint256 diff = actual - escrowBalance;
-            escrowBalance = actual;
-            emit TokensDeposited(address(0), diff);
+    /// @notice Sync balance for direct transfers (e.g., from LPLocker's _routeTokenFees)
+    /// @param token The ERC-20 token to sync
+    function syncBalance(address token) external {
+        if (token == address(0)) revert ZeroAddress();
+        uint256 actual = IERC20(token).balanceOf(address(this));
+        uint256 tracked = escrowBalances[token];
+        if (actual > tracked) {
+            uint256 diff = actual - tracked;
+            escrowBalances[token] = actual;
+            emit TokensDeposited(token, address(0), diff);
         }
     }
 
     // ─── Proposal Creation ───────────────────────────────
 
+    /// @notice Create a milestone proposal for a specific token's escrow balance.
+    /// @param token The ERC-20 token to propose unlocking
+    /// @param title Human-readable title
+    /// @param description Detailed description of the milestone
+    /// @param tokenAmount How many tokens to release on completion
+    /// @param targetDate Expected completion date
     function createProposal(
+        address token,
         string calldata title,
         string calldata description,
         uint256 tokenAmount,
         uint256 targetDate
     ) external returns (uint256 proposalId) {
+        if (token == address(0)) revert ZeroAddress();
+
+        uint256 supply = IERC20(token).totalSupply();
+
         // Dev can always propose; others need 0.05% of supply
         if (msg.sender != devWallet) {
-            uint256 threshold = totalSupply * PROPOSAL_THRESHOLD_BPS / BPS_DENOMINATOR;
-            if (token.balanceOf(msg.sender) < threshold) revert BelowThreshold();
+            uint256 threshold = supply * PROPOSAL_THRESHOLD_BPS / BPS_DENOMINATOR;
+            if (IERC20(token).balanceOf(msg.sender) < threshold) revert BelowThreshold();
         }
-        if (tokenAmount == 0 || tokenAmount > escrowBalance) revert InvalidAmount();
+        if (tokenAmount == 0 || tokenAmount > escrowBalances[token]) revert InvalidAmount();
         if (targetDate <= block.timestamp) revert InvalidTargetDate();
 
         proposalId = ++proposalCount;
 
         proposalCores[proposalId] = ProposalCore({
             proposer: msg.sender,
+            token: token,
             tokenAmount: tokenAmount,
             targetDate: targetDate,
             status: ProposalStatus.Voting,
-            snapshotBlock: block.number
+            snapshotBlock: block.number,
+            snapshotTotalSupply: supply
         });
 
         proposalVotes[proposalId].votingDeadline = block.timestamp + VOTING_PERIOD;
@@ -154,7 +176,7 @@ contract SigilEscrow is ISigilEscrow {
         proposalDescriptions[proposalId] = description;
 
         emit ProposalCreated(
-            proposalId, msg.sender, title, tokenAmount,
+            proposalId, msg.sender, token, title, tokenAmount,
             targetDate, block.timestamp + VOTING_PERIOD
         );
     }
@@ -180,7 +202,8 @@ contract SigilEscrow is ISigilEscrow {
         if (block.timestamp >= v.votingDeadline) revert VotingEnded();
         if (hasVoted[proposalId][msg.sender]) revert AlreadyVoted();
 
-        weight = token.balanceOf(msg.sender);
+        // Voting weight = voter's balance of the proposal's target token
+        weight = IERC20(core.token).balanceOf(msg.sender);
         if (weight == 0) revert BelowThreshold();
 
         hasVoted[proposalId][msg.sender] = true;
@@ -204,7 +227,7 @@ contract SigilEscrow is ISigilEscrow {
         if (block.timestamp < v.votingDeadline) revert VotingNotEnded();
 
         uint256 totalVotesCast = v.yesVotes + v.noVotes;
-        uint256 quorum = totalSupply * QUORUM_BPS / BPS_DENOMINATOR;
+        uint256 quorum = core.snapshotTotalSupply * QUORUM_BPS / BPS_DENOMINATOR;
 
         if (totalVotesCast < quorum) {
             core.status = ProposalStatus.Expired;
@@ -257,7 +280,8 @@ contract SigilEscrow is ISigilEscrow {
         if (block.timestamp >= v.completionDeadline) revert VotingEnded();
         if (hasVotedCompletion[proposalId][msg.sender]) revert AlreadyVoted();
 
-        weight = token.balanceOf(msg.sender);
+        // Voting weight = voter's balance of the proposal's target token
+        weight = IERC20(core.token).balanceOf(msg.sender);
         if (weight == 0) revert BelowThreshold();
 
         hasVotedCompletion[proposalId][msg.sender] = true;
@@ -281,11 +305,11 @@ contract SigilEscrow is ISigilEscrow {
         if (block.timestamp < v.completionDeadline) revert VotingNotEnded();
 
         uint256 totalVotesCast = v.completionYes + v.completionNo;
-        uint256 quorum = totalSupply * QUORUM_BPS / BPS_DENOMINATOR;
+        uint256 quorum = core.snapshotTotalSupply * QUORUM_BPS / BPS_DENOMINATOR;
 
         if (totalVotesCast >= quorum && v.completionYes > v.completionNo) {
             core.status = ProposalStatus.Completed;
-            _releaseTokens(core.tokenAmount);
+            _releaseTokens(core.token, core.tokenAmount);
             emit ProposalCompleted(proposalId, core.tokenAmount);
         } else {
             core.status = ProposalStatus.Disputed;
@@ -301,16 +325,16 @@ contract SigilEscrow is ISigilEscrow {
         if (core.status != ProposalStatus.Disputed) revert OnlyCompletionOverride();
 
         core.status = ProposalStatus.Overridden;
-        _releaseTokens(core.tokenAmount);
+        _releaseTokens(core.token, core.tokenAmount);
         emit ProtocolOverride(proposalId, core.tokenAmount);
     }
 
     // ─── Internal ────────────────────────────────────────
 
-    function _releaseTokens(uint256 amount) internal {
-        if (amount > escrowBalance) revert InsufficientEscrowBalance();
-        escrowBalance -= amount;
-        token.transfer(devWallet, amount);
+    function _releaseTokens(address token, uint256 amount) internal {
+        if (amount > escrowBalances[token]) revert InsufficientEscrowBalance();
+        escrowBalances[token] -= amount;
+        IERC20(token).transfer(devWallet, amount);
     }
 
     // ─── Admin ───────────────────────────────────────────
@@ -331,13 +355,15 @@ contract SigilEscrow is ISigilEscrow {
 
     function getProposalCore(uint256 proposalId) external view returns (
         address proposer,
+        address token,
         uint256 tokenAmount,
         uint256 targetDate,
         ProposalStatus status,
-        uint256 snapshotBlock
+        uint256 snapshotBlock,
+        uint256 snapshotTotalSupply
     ) {
         ProposalCore storage c = proposalCores[proposalId];
-        return (c.proposer, c.tokenAmount, c.targetDate, c.status, c.snapshotBlock);
+        return (c.proposer, c.token, c.tokenAmount, c.targetDate, c.status, c.snapshotBlock, c.snapshotTotalSupply);
     }
 
     function getProposalVotes(uint256 proposalId) external view returns (
@@ -360,11 +386,18 @@ contract SigilEscrow is ISigilEscrow {
         return (proposalTitles[proposalId], proposalDescriptions[proposalId], proposalProofs[proposalId]);
     }
 
-    function proposalThreshold() external view returns (uint256) {
-        return totalSupply * PROPOSAL_THRESHOLD_BPS / BPS_DENOMINATOR;
+    /// @notice Get the escrow balance for a specific token
+    function getEscrowBalance(address token) external view returns (uint256) {
+        return escrowBalances[token];
     }
 
-    function quorumThreshold() external view returns (uint256) {
-        return totalSupply * QUORUM_BPS / BPS_DENOMINATOR;
+    /// @notice Proposal threshold for a specific token
+    function proposalThreshold(address token) external view returns (uint256) {
+        return IERC20(token).totalSupply() * PROPOSAL_THRESHOLD_BPS / BPS_DENOMINATOR;
+    }
+
+    /// @notice Quorum threshold for a specific token
+    function quorumThreshold(address token) external view returns (uint256) {
+        return IERC20(token).totalSupply() * QUORUM_BPS / BPS_DENOMINATOR;
     }
 }

@@ -35,7 +35,6 @@ const contracts = [
     { name: "SigilFactoryV3.sol", loc: 352, description: "Token deployment factory" },
     { name: "SigilHook.sol", loc: 350, description: "Uniswap V4 swap hook" },
     { name: "SigilToken.sol", loc: 57, description: "Minimal ERC-20 implementation" },
-    { name: "PoolReward.sol", loc: 194, description: "EAS-based reward claims" },
 ];
 
 const severityBackgrounds = {

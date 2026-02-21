@@ -25,9 +25,10 @@ import { formatTokens } from "../utils";
 interface GovernanceHeaderProps {
     proposals: Proposal[];
     escrowBalance: string;
+    tokenAddress?: string;
 }
 
-export function GovernanceHeader({ proposals, escrowBalance }: GovernanceHeaderProps) {
+export function GovernanceHeader({ proposals, escrowBalance, tokenAddress }: GovernanceHeaderProps) {
     const activeVotes = proposals.filter((p) => p.status === "Voting").length;
     const completed = proposals.filter((p) =>
         ["Completed", "Overridden"].includes(p.status),
@@ -40,7 +41,7 @@ export function GovernanceHeader({ proposals, escrowBalance }: GovernanceHeaderP
         {
             label: "In Escrow",
             value: formatTokens(escrowBalance),
-            subtext: "USDC locked",
+            subtext: "tokens in escrow",
             icon: Hourglass,
         },
         {
@@ -100,6 +101,11 @@ export function GovernanceHeader({ proposals, escrowBalance }: GovernanceHeaderP
                             Propose milestones, vote on unlocks, and shape the future of this project.
                             Developers earn tokens by delivering on their promises.
                         </p>
+                        {tokenAddress && (
+                            <p className="text-xs text-muted-foreground/60 font-mono mt-2">
+                                Token: {tokenAddress.slice(0, 6)}...{tokenAddress.slice(-4)}
+                            </p>
+                        )}
                     </div>
                 </div>
             </PixelCard>

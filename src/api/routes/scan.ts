@@ -269,11 +269,11 @@ scan.post(
                 }
             });
 
-            // 6. Trigger assignDev if project has a poolId (async, best-effort)
+            // 6. Trigger fee routing if project has a poolId (async, best-effort)
             tryAssignDev(projectId, `${owner}/${repo}`, walletAddress).catch((err) => {
                 log.warn(
                     { err: getErrorMessage(err), projectId },
-                    "Scan: assignDev failed (non-blocking)",
+                    "Scan: fee routing failed (non-blocking)",
                 );
             });
 
@@ -296,10 +296,10 @@ scan.post(
     }),
 );
 
-// ─── assignDev Helper ───────────────────────────────────
+// ─── Fee Routing Helper ─────────────────────────────────
 
 /**
- * After a successful scan, try to call assignDev() on the FeeVault
+ * After a successful scan, try to call setDevForPool() on the FeeVault
  * to move escrowed fees to the dev's claimable balance.
  */
 async function tryAssignDev(
@@ -325,7 +325,7 @@ async function tryAssignDev(
         .limit(1);
 
     if (!project?.poolId) {
-        log.info({ prefixedId }, "Scan: no poolId found, skipping assignDev");
+        log.info({ prefixedId }, "Scan: no poolId found, skipping fee routing");
         return;
     }
 
@@ -340,8 +340,6 @@ async function tryAssignDev(
             projectId: prefixedId,
             poolId: `${project.poolId.slice(0, 18)}...`,
             walletAddress,
-            hookRoutingUpdated: result.hookRoutingUpdated,
-            hookRoutingBlockedByPoolAssigned: result.hookRoutingBlockedByPoolAssigned,
             lockerRoutingUpdated: result.lockerRoutingUpdated,
             escrowAction: result.escrowAction,
         },

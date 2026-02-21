@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import {SigilHook} from "../src/SigilHook.sol";
 import {SigilFeeVault} from "../src/SigilFeeVault.sol";
 import {SigilFactory} from "../src/SigilFactory.sol";
-import {PoolReward} from "../src/PoolReward.sol";
+
 import {IPoolManager} from "@uniswap/v4-core/src/interfaces/IPoolManager.sol";
 import {Hooks} from "@uniswap/v4-core/src/libraries/Hooks.sol";
 import {HookMiner} from "./HookMiner.sol";
@@ -23,11 +23,10 @@ contract DeploySigil is Script {
         address deployer = msg.sender;
         address treasury = vm.envOr("PROTOCOL_TREASURY", deployer);
         address attester = vm.envOr("TRUSTED_ATTESTER", deployer);
-        bytes32 schemaUid = vm.envOr("EAS_SCHEMA_UID", bytes32(0));
         address escrow = vm.envOr("TOKEN_ESCROW", deployer);
 
+
         require(treasury != address(0), "treasury");
-        require(schemaUid != bytes32(0), "EAS_SCHEMA_UID required");
 
         console.log("=== Sigil Production Deploy ===");
         console.log("Deployer:", deployer);
@@ -78,11 +77,7 @@ contract DeploySigil is Script {
         require(address(factory) == predictedFactory, "factory addr mismatch");
         console.log("Factory:", address(factory));
 
-        // 5. Deploy PoolReward
-        PoolReward poolReward = new PoolReward(EAS, attester, schemaUid);
-        console.log("PoolReward:", address(poolReward));
-
-        // 6. Wire
+        // 5. Wire
         feeVault.setHook(hookAddr);
         console.log("Wired FeeVault -> Hook");
 

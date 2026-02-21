@@ -72,6 +72,9 @@ contract SigilFeeVault {
     /// @notice Whether a pool has been assigned to a dev
     mapping(bytes32 => bool) public poolAssigned;
 
+    /// @notice Current assigned dev per pool (address(0) = unassigned)
+    mapping(bytes32 => address) public poolDev;
+
     // ─── Events ──────────────────────────────────────────
 
     event FeesDeposited(
@@ -91,6 +94,11 @@ contract SigilFeeVault {
         address indexed dev,
         uint256 tokensTransferred
     );
+    event DevReassigned(
+        bytes32 indexed poolId,
+        address indexed oldDev,
+        address indexed newDev
+    );
     event FeesExpired(
         bytes32 indexed poolId,
         address indexed token,
@@ -109,7 +117,7 @@ contract SigilFeeVault {
     error ZeroAddress();
     error NothingToClaim();
     error TransferFailed();
-    error PoolAlreadyAssigned();
+
     error NotExpiredYet();
     error NoUnclaimedFees();
 
@@ -192,78 +200,52 @@ contract SigilFeeVault {
 
     // ─── Dev Assignment (after verification) ─────────────
 
-    /// @notice Assign a verified dev to an unclaimed pool's escrowed fees.
-    function assignDev(bytes32 poolId, address dev) external onlyOwner {
+    /// @notice Assign or re-assign a dev to a pool's escrowed fees. Idempotent.
+    ///         Moves ALL current unclaimed fees for this pool to the dev's balance.
+    ///         Can be called any number of times — safe if no unclaimed fees exist.
+    ///         Handles both initial assignment and dev reassignment.
+    function setDevForPool(bytes32 poolId, address dev) external onlyOwner {
         if (dev == address(0)) revert ZeroAddress();
 
         bytes32 poolKey = poolId;
-        if (poolAssigned[poolKey]) revert PoolAlreadyAssigned();
+        address oldDev = poolDev[poolKey];
 
-        address[] storage tokens = unclaimedFeeTokens[poolKey];
-        uint256 len = tokens.length;
-        if (len == 0) revert NoUnclaimedFees();
-
-        uint256 totalTransferred = 0;
-
-        // Move all escrowed fees to the dev's balance
-        for (uint256 i; i < len; ++i) {
-            address token = tokens[i];
-            uint256 amount = unclaimedFees[poolKey][token];
-            if (amount > 0) {
-                unclaimedFees[poolKey][token] = 0;
-                devFees[dev][token] += amount;
-                totalDevFeesEarned[dev][token] += amount;
-                totalTransferred += amount;
-
-                if (!_devHasToken[dev][token]) {
-                    _devHasToken[dev][token] = true;
-                    devFeeTokens[dev].push(token);
-                }
-            }
-        }
-
-        poolAssigned[poolKey] = true;
-
-        emit DevAssigned(poolId, dev, totalTransferred);
-    }
-
-    /// @notice Re-assign escrowed fees that accumulated AFTER the initial assignDev.
-    ///         Uses the same logic as assignDev but skips PoolAlreadyAssigned check.
-    ///         This handles the edge case where fees are deposited with dev=address(0)
-    ///         after the pool was already assigned (e.g. LP Locker dev wasn't updated).
-    function reassignDev(bytes32 poolId, address dev) external onlyOwner {
-        if (dev == address(0)) revert ZeroAddress();
-
-        bytes32 poolKey = poolId;
-
-        address[] storage tokens = unclaimedFeeTokens[poolKey];
-        uint256 len = tokens.length;
-        if (len == 0) revert NoUnclaimedFees();
-
-        uint256 totalTransferred = 0;
-
-        for (uint256 i; i < len; ++i) {
-            address token = tokens[i];
-            uint256 amount = unclaimedFees[poolKey][token];
-            if (amount > 0) {
-                unclaimedFees[poolKey][token] = 0;
-                devFees[dev][token] += amount;
-                totalDevFeesEarned[dev][token] += amount;
-                totalTransferred += amount;
-
-                if (!_devHasToken[dev][token]) {
-                    _devHasToken[dev][token] = true;
-                    devFeeTokens[dev].push(token);
-                }
-            }
-        }
-
-        // Mark as assigned if not already
+        // Track current dev for this pool
+        poolDev[poolKey] = dev;
         if (!poolAssigned[poolKey]) {
             poolAssigned[poolKey] = true;
         }
 
-        emit DevAssigned(poolId, dev, totalTransferred);
+        // Emit reassignment event if dev changed
+        if (oldDev != address(0) && oldDev != dev) {
+            emit DevReassigned(poolId, oldDev, dev);
+        }
+
+        // Sweep any unclaimed/escrowed fees to the new dev
+        address[] storage tokens = unclaimedFeeTokens[poolKey];
+        uint256 len = tokens.length;
+        uint256 totalTransferred = 0;
+
+        for (uint256 i; i < len; ++i) {
+            address token = tokens[i];
+            uint256 amount = unclaimedFees[poolKey][token];
+            if (amount > 0) {
+                unclaimedFees[poolKey][token] = 0;
+                devFees[dev][token] += amount;
+                totalDevFeesEarned[dev][token] += amount;
+                totalTransferred += amount;
+
+                if (!_devHasToken[dev][token]) {
+                    _devHasToken[dev][token] = true;
+                    devFeeTokens[dev].push(token);
+                }
+            }
+        }
+
+        // Only emit if fees were actually moved
+        if (totalTransferred > 0) {
+            emit DevAssigned(poolId, dev, totalTransferred);
+        }
     }
 
     // ─── Expiry Sweep ────────────────────────────────────
@@ -277,7 +259,7 @@ contract SigilFeeVault {
         uint256 depositedAt = unclaimedDepositedAt[poolKey];
         if (depositedAt == 0) revert NoUnclaimedFees();
         if (block.timestamp < depositedAt + EXPIRY_PERIOD) revert NotExpiredYet();
-        if (poolAssigned[poolKey]) revert PoolAlreadyAssigned();
+        if (poolDev[poolKey] != address(0)) revert("SIGIL: POOL_HAS_DEV");
 
         address[] storage tokens = unclaimedFeeTokens[poolKey];
         uint256 len = tokens.length;

@@ -1,11 +1,18 @@
+"use client";
+
 import {
     AlertTriangle,
     ArrowRight,
     CheckCircle,
     Code,
     Coins,
+    Copy,
+    FileText,
+    GitBranch,
     MessageSquare,
     Rocket,
+    Search,
+    Share2,
     Shield,
     Signal,
     Target,
@@ -13,12 +20,25 @@ import {
     Zap,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { PixelCard } from "@/components/ui/pixel-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { apiClient, ApiError } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
+
+// ─── Data ───────────────────────────────────────────────
+
+const CHANNELS = [
+    { name: "GitHub", method: "OAuth", verified: true },
+    { name: "X", method: "zkTLS", verified: true },
+    { name: "Facebook", method: "OAuth", verified: true },
+    { name: "Instagram", method: "OAuth", verified: true },
+    { name: "Domain", method: "DNS", verified: true },
+];
 
 const problems = [
     {
@@ -67,6 +87,27 @@ const solutions = [
         title: "EAS Attestations",
         description: "Onchain proof of builder legitimacy. Machine-readable. Permanent. Portable.",
         badge: "permanent",
+    },
+];
+
+const scannerSteps = [
+    {
+        num: "01",
+        title: "Add a .sigil file",
+        desc: "Create a .sigil file in your repo root with your wallet address.",
+        icon: FileText,
+    },
+    {
+        num: "02",
+        title: "Trigger the scanner",
+        desc: "POST /api/attest/scan with your owner/repo. We fetch and verify the file.",
+        icon: Search,
+    },
+    {
+        num: "03",
+        title: "Fees route to you",
+        desc: "Your wallet gets an EAS attestation and USDC fees start routing automatically.",
+        icon: Coins,
     },
 ];
 
@@ -161,54 +202,372 @@ const isKnown = required.every((scope) => SIGIL_SCOPES.includes(scope));`,
     },
 ];
 
+// ─── Component ──────────────────────────────────────────
+
+type QuickLaunchStatus = "idle" | "launching" | "success";
+
 export default function DevelopersPage() {
+    const [quickLaunchStatus, setQuickLaunchStatus] = useState<QuickLaunchStatus>("idle");
+    const [claimToken, setClaimToken] = useState<string | null>(null);
+    const [quickLaunchRepoUrl, setQuickLaunchRepoUrl] = useState("");
+    const [quickLaunchName, setQuickLaunchName] = useState("");
+    const [quickLaunchSymbol, setQuickLaunchSymbol] = useState("");
+    const [quickLaunchDescription, setQuickLaunchDescription] = useState("");
+    const [copiedToken, setCopiedToken] = useState(false);
+    const [copiedShareUrl, setCopiedShareUrl] = useState(false);
+    const [quickLaunchError, setQuickLaunchError] = useState<string | null>(null);
+    const [isQuickLaunchOpen, setIsQuickLaunchOpen] = useState(false);
+    const [copiedFileContent, setCopiedFileContent] = useState(false);
+
+    const handleQuickLaunch = async ({ requireRepoInput = false }: { requireRepoInput?: boolean } = {}) => {
+        const repoUrl = quickLaunchRepoUrl.trim();
+        if (requireRepoInput && !repoUrl) {
+            setQuickLaunchError("Repo URL is required for guided quick launch.");
+            return;
+        }
+
+        if (quickLaunchStatus === "launching") return;
+        setQuickLaunchStatus("launching");
+        setClaimToken(null);
+        setCopiedToken(false);
+        setCopiedShareUrl(false);
+        setQuickLaunchError(null);
+
+        try {
+            const response = await apiClient.launch.quick(
+                requireRepoInput
+                    ? {
+                        repoUrl,
+                        name: quickLaunchName.trim() || undefined,
+                        symbol: quickLaunchSymbol.trim() || undefined,
+                        description: quickLaunchDescription.trim() || undefined,
+                    }
+                    : undefined,
+            );
+            setClaimToken(response.claimToken);
+            setQuickLaunchStatus("success");
+        } catch (error) {
+            setQuickLaunchStatus("idle");
+            if (error instanceof ApiError && error.status === 429) {
+                setQuickLaunchError(
+                    "Quick launch is limited to one deployment per IP. Use your saved one-time claim secret.",
+                );
+                return;
+            }
+            setQuickLaunchError(error instanceof Error ? error.message : "Quick launch failed");
+        }
+    };
+
+    const copyClaimToken = async () => {
+        if (!claimToken) return;
+        await navigator.clipboard.writeText(claimToken);
+        setCopiedToken(true);
+        window.setTimeout(() => setCopiedToken(false), 1200);
+    };
+
+    const shareClaimToken = async () => {
+        if (!claimToken) return;
+        const shareUrl = `${window.location.origin}/connect/${encodeURIComponent(claimToken)}`;
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: "Sigil Quick Launch Claim Link",
+                    text: "Redeem this quick-launch secret after signing in with Privy.",
+                    url: shareUrl,
+                });
+                return;
+            } catch {
+                // fallback
+            }
+        }
+        await navigator.clipboard.writeText(shareUrl);
+        setCopiedShareUrl(true);
+        window.setTimeout(() => setCopiedShareUrl(false), 1400);
+    };
+
+    const copySigilFileContent = async () => {
+        await navigator.clipboard.writeText("wallet: 0xYOUR_WALLET_ADDRESS");
+        setCopiedFileContent(true);
+        window.setTimeout(() => setCopiedFileContent(false), 1200);
+    };
+
     return (
         <section className="min-h-screen bg-background relative overflow-hidden px-2.5 lg:px-0">
             <div className="border-border relative container border-l border-r min-h-screen px-0 bg-cream flex flex-col">
-                {/* Hero with PixelCard */}
+
+                {/* ═══ Band 1: Channels Bar ═══ */}
+                <div className="flex flex-col sm:flex-row bg-sage/10 border-border border-b">
+                    <div className="hidden sm:flex items-center px-4 lg:px-6 border-border border-r bg-sage/20">
+                        <span className="text-xs text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                            Channels
+                        </span>
+                    </div>
+                    {CHANNELS.map((channel) => (
+                        <div
+                            key={channel.name}
+                            className={cn(
+                                "flex-1 px-4 py-3 lg:px-6 lg:py-4 flex items-center justify-center gap-2",
+                                "border-border border-b sm:border-b-0 sm:border-r sm:last:border-r-0",
+                                "hover:bg-sage/20 transition-colors",
+                            )}
+                        >
+                            <CheckCircle className="size-3.5 text-primary" />
+                            <span className="text-sm font-medium text-foreground">
+                                {channel.name}
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                                {channel.method}
+                            </Badge>
+                        </div>
+                    ))}
+                </div>
+
+                {/* ═══ Band 2: Quick Launch Hero ═══ */}
                 <PixelCard
-                    variant="sage"
+                    variant="lavender"
                     active
                     centerFade
                     noFocus
-                    className="border-border border-b bg-sage/30"
+                    className="border-border border-b bg-lavender/30"
                 >
-                    <div className="px-6 py-16 lg:px-12 lg:py-24">
-                        <div className="max-w-3xl mx-auto text-center">
-                            <div className="inline-flex items-center gap-2 px-4 py-2 bg-sage/50 border border-border mb-6">
-                                <Rocket className="size-4 text-muted-foreground" />
-                                <span className="text-sm font-medium text-foreground uppercase tracking-wider">
-                                    for builders
-                                </span>
-                            </div>
-                            <h1 className="text-4xl lg:text-5xl font-semibold text-foreground mb-6 lowercase leading-tight">
-                                get verified. get funded.
-                                <br />
-                                keep shipping.
-                            </h1>
-                            <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-                                The sigil is proof you&apos;re real. The code is proof you shipped. No
-                                community management. No content calendar. No platform risk.
+                    <div className="px-6 py-12 lg:px-12 lg:py-16">
+                        <div className="flex items-center gap-2 mb-6">
+                            <Rocket className="size-4 text-primary" />
+                            <p className="text-primary text-sm font-medium uppercase tracking-wider">
+                                quick launch
                             </p>
-                            <div className="flex flex-col sm:flex-row justify-center gap-4">
-                                <Link href="/verify">
-                                    <Button size="lg" className="w-full sm:w-auto gap-2">
-                                        Stamp Your Sigil
-                                        <ArrowRight className="size-4" />
-                                    </Button>
-                                </Link>
-                                <Link href="/chat">
-                                    <Button variant="outline" size="lg" className="w-full sm:w-auto gap-2">
-                                        <MessageSquare className="size-4" />
-                                        Talk to Sigil
-                                    </Button>
-                                </Link>
-                            </div>
                         </div>
+
+                        <h1 className="text-3xl lg:text-4xl xl:text-5xl font-semibold text-foreground mb-4 lowercase leading-tight">
+                            launch a token in 60 seconds.
+                        </h1>
+                        <p className="text-lg text-muted-foreground mb-8 max-w-2xl">
+                            Deploy an unclaimed token on Base with one click. Claim ownership
+                            later with a one-time secret. No wallet connection required to launch.
+                        </p>
+
+                        <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                            <Button
+                                type="button"
+                                size="lg"
+                                onClick={() => void handleQuickLaunch()}
+                                disabled={quickLaunchStatus === "launching"}
+                                className="w-full sm:w-auto gap-2"
+                            >
+                                <Zap className="size-4" />
+                                {quickLaunchStatus === "launching"
+                                    ? "Launching..."
+                                    : "1 Click Launch"}
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="lg"
+                                onClick={() => setIsQuickLaunchOpen((prev) => !prev)}
+                                className="w-full sm:w-auto border-primary/35 bg-lavender/85 hover:bg-lavender/92"
+                            >
+                                {isQuickLaunchOpen ? "Hide Options" : "Guided Launch"}
+                            </Button>
+                        </div>
+
+                        {/* Quick Launch Form (expandable) */}
+                        {isQuickLaunchOpen && (
+                            <div className="border border-border bg-background/80">
+                                <div className="border-border border-b px-6 py-3">
+                                    <p className="text-xs uppercase tracking-[0.12em] text-primary">
+                                        guided quick launch
+                                    </p>
+                                </div>
+                                <div className="px-6 py-5">
+                                    <div className="grid gap-2 sm:grid-cols-2 mb-3">
+                                        <Input
+                                            value={quickLaunchRepoUrl}
+                                            onChange={(e) => setQuickLaunchRepoUrl(e.target.value)}
+                                            placeholder="https://github.com/owner/repo"
+                                            className="sm:col-span-2"
+                                        />
+                                        <Input
+                                            value={quickLaunchName}
+                                            onChange={(e) => setQuickLaunchName(e.target.value)}
+                                            placeholder="Token name (optional)"
+                                        />
+                                        <Input
+                                            value={quickLaunchSymbol}
+                                            onChange={(e) => setQuickLaunchSymbol(e.target.value)}
+                                            placeholder="Token symbol (optional)"
+                                        />
+                                        <Input
+                                            value={quickLaunchDescription}
+                                            onChange={(e) => setQuickLaunchDescription(e.target.value)}
+                                            placeholder="Description (optional)"
+                                            className="sm:col-span-2"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mb-3">
+                                        Guided quick launch uses your repo metadata and still launches{" "}
+                                        <span className="font-medium text-foreground">unclaimed</span>.
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        onClick={() => void handleQuickLaunch({ requireRepoInput: true })}
+                                        disabled={quickLaunchStatus === "launching"}
+                                    >
+                                        {quickLaunchStatus === "launching" ? "Launching..." : "Launch with Repo"}
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Error */}
+                        {quickLaunchError && (
+                            <div className="mt-4 border border-border bg-rose/20 px-6 py-3">
+                                <p className="text-xs text-red-700">{quickLaunchError}</p>
+                            </div>
+                        )}
+
+                        {/* Success - Claim Token */}
+                        {quickLaunchStatus === "success" && claimToken && (
+                            <div className="mt-4 border border-border bg-sage/20">
+                                <div className="border-border border-b px-6 py-3">
+                                    <p className="text-xs uppercase tracking-[0.12em] text-primary">
+                                        one-time claim token
+                                    </p>
+                                </div>
+                                <div className="px-6 py-5">
+                                    <p className="font-mono text-sm text-foreground break-all mb-4">
+                                        {claimToken}
+                                    </p>
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => void copyClaimToken()}
+                                        >
+                                            <Copy className="mr-2 size-3.5" />
+                                            {copiedToken ? "Copied" : "Copy Token"}
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => void shareClaimToken()}
+                                        >
+                                            <Share2 className="mr-2 size-3.5" />
+                                            {copiedShareUrl ? "Link Copied" : "Share Link"}
+                                        </Button>
+                                        <span className="text-xs text-muted-foreground">
+                                            Save this now. It is shown once and used to claim ownership.
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </PixelCard>
 
-                {/* Problem Section */}
+                {/* ═══ Band 3: Scanner Guide ═══ */}
+                <div className="border-border border-b">
+                    <div className="px-6 py-5 lg:px-12 border-border border-b bg-sage/20">
+                        <div className="flex items-center gap-3">
+                            <div className="size-10 bg-sage/40 border border-border flex items-center justify-center">
+                                <GitBranch className="size-5 text-muted-foreground" />
+                            </div>
+                            <div>
+                                <p className="text-primary text-sm font-medium uppercase tracking-wider">
+                                    .sigil scanner
+                                </p>
+                                <h2 className="text-lg font-semibold text-foreground lowercase">
+                                    claim ownership with a single file.
+                                </h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Scanner Steps */}
+                    <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-border bg-background">
+                        {scannerSteps.map((step) => (
+                            <div
+                                key={step.num}
+                                className="flex-1 px-6 py-6 lg:px-8"
+                            >
+                                <div className="flex sm:flex-col items-start gap-4 sm:text-center sm:items-center">
+                                    <div className="size-12 bg-sage/30 border border-border flex items-center justify-center font-bold text-sm shrink-0 text-foreground">
+                                        {step.num}
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-foreground mb-1">
+                                            {step.title}
+                                        </h3>
+                                        <p className="text-muted-foreground text-sm">{step.desc}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* File Format + API */}
+                    <div className="grid lg:grid-cols-2 border-border border-t">
+                        {/* .sigil file format */}
+                        <div className="border-border border-b lg:border-b-0 lg:border-r px-6 py-6 lg:px-8">
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-xs font-mono uppercase tracking-wider text-primary">
+                                    .sigil file format
+                                </p>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 text-xs"
+                                    onClick={() => void copySigilFileContent()}
+                                >
+                                    <Copy className="mr-1.5 size-3" />
+                                    {copiedFileContent ? "Copied" : "Copy"}
+                                </Button>
+                            </div>
+                            <div className="border border-border bg-foreground/[0.03]">
+                                <div className="border-border border-b px-4 py-2">
+                                    <p className="text-[11px] font-mono text-muted-foreground">
+                                        your-repo/.sigil
+                                    </p>
+                                </div>
+                                <pre className="px-4 py-3 text-sm font-mono text-foreground">
+                                    wallet: 0xYOUR_WALLET_ADDRESS</pre>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-3">
+                                Place this file in your repository root. The scanner reads the wallet address
+                                and creates an onchain attestation linking you to the project.
+                            </p>
+                        </div>
+
+                        {/* API Endpoint */}
+                        <div className="px-6 py-6 lg:px-8">
+                            <p className="text-xs font-mono uppercase tracking-wider text-primary mb-3">
+                                scanner api
+                            </p>
+                            <div className="border border-border bg-foreground/[0.03]">
+                                <div className="border-border border-b px-4 py-2 flex items-center gap-2">
+                                    <Badge variant="outline" className="text-[10px] font-mono">
+                                        POST
+                                    </Badge>
+                                    <p className="text-[11px] font-mono text-muted-foreground">
+                                        /api/attest/scan
+                                    </p>
+                                </div>
+                                <pre className="px-4 py-3 text-sm font-mono text-foreground whitespace-pre">{`{
+  "repo": "owner/repo"
+}`}</pre>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-3">
+                                The scanner fetches your <span className="font-mono text-foreground">.sigil</span> file,
+                                verifies the wallet address format, creates an EAS attestation, and triggers
+                                fee routing to your wallet automatically.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ═══ Band 4: Problem Section ═══ */}
                 <div className="border-border border-b">
                     <div className="px-6 py-5 lg:px-12 border-border border-b bg-rose/20">
                         <div className="flex items-center gap-3">
@@ -245,7 +604,7 @@ export default function DevelopersPage() {
                     </div>
                 </div>
 
-                {/* Solution Section */}
+                {/* ═══ Band 5: Solution Section ═══ */}
                 <div className="border-border border-b bg-background">
                     <div className="px-6 py-5 lg:px-12 border-border border-b bg-sage/20">
                         <div className="flex items-center gap-3">
@@ -262,7 +621,6 @@ export default function DevelopersPage() {
                             </div>
                         </div>
                     </div>
-                    {/* Solutions Grid */}
                     <div className="grid grid-cols-1 lg:grid-cols-2">
                         {solutions.map((solution, index) => (
                             <div
@@ -296,7 +654,7 @@ export default function DevelopersPage() {
                     </div>
                 </div>
 
-                {/* How it Works */}
+                {/* ═══ Band 6: How it Works ═══ */}
                 <div className="border-border border-b">
                     <div className="px-6 py-5 lg:px-12 border-border border-b bg-lavender/20">
                         <div className="flex items-center gap-3">
@@ -335,6 +693,7 @@ export default function DevelopersPage() {
                     </div>
                 </div>
 
+                {/* ═══ Band 7: Package Guide ═══ */}
                 <div className="border-border border-b bg-background">
                     <div className="px-6 py-5 lg:px-12 border-border border-b bg-cream/40">
                         <div className="flex items-center gap-3">
@@ -422,9 +781,8 @@ export default function DevelopersPage() {
                     </Tabs>
                 </div>
 
-                {/* CTA - Matching Homepage */}
+                {/* ═══ Band 8: CTA ═══ */}
                 <div className="flex-1 relative container border-primary-foreground/20 px-0 bg-primary flex flex-col">
-                    {/* Section Header */}
                     <div className="px-6 py-3 lg:px-12 border-b border-primary-foreground/20">
                         <span className="text-xs text-primary-foreground/70 uppercase tracking-wider">
                             Get Started
@@ -439,7 +797,6 @@ export default function DevelopersPage() {
                             noFocus
                         >
                             <div className="flex flex-col h-full">
-                                {/* Card Header */}
                                 <div className="px-6 py-4 lg:px-8 border-b border-primary-foreground/20 flex items-center gap-3">
                                     <div className="size-10 bg-background/20 flex items-center justify-center">
                                         <Shield className="size-5 text-primary-foreground" />
@@ -448,8 +805,6 @@ export default function DevelopersPage() {
                                         Verification
                                     </span>
                                 </div>
-
-                                {/* Card Content */}
                                 <div className="flex-1 px-6 py-10 lg:px-12 lg:py-12">
                                     <h2 className="text-primary-foreground text-2xl lg:text-3xl font-semibold mb-4 lowercase">
                                         claim your sigil.
@@ -479,7 +834,6 @@ export default function DevelopersPage() {
                             noFocus
                         >
                             <div className="flex flex-col h-full">
-                                {/* Card Header */}
                                 <div className="px-6 py-4 lg:px-8 border-b border-primary-foreground/20 flex items-center gap-3">
                                     <div className="size-10 bg-background/20 flex items-center justify-center">
                                         <MessageSquare className="size-5 text-primary-foreground" />
@@ -488,8 +842,6 @@ export default function DevelopersPage() {
                                         AI Assistant
                                     </span>
                                 </div>
-
-                                {/* Card Content */}
                                 <div className="flex-1 px-6 py-10 lg:px-12 lg:py-12">
                                     <h2 className="text-primary-foreground text-2xl lg:text-3xl font-semibold mb-4 lowercase">
                                         talk to sigil.

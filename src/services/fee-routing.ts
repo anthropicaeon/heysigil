@@ -1,28 +1,17 @@
 import { ethers } from "ethers";
 import { getEnv } from "../config/env.js";
 import { loggers } from "../utils/logger.js";
+import { getDb, schema, DatabaseUnavailableError } from "../db/client.js";
 
 const log = loggers.server;
 
-const ASSIGN_ABI = [
-    "function assignDev(bytes32 poolId, address dev) external",
-    "function reassignDev(bytes32 poolId, address dev) external",
-];
-
-const FACTORY_HOOK_ABI = ["function hook() view returns (address)"];
-
-const HOOK_ABI = [
-    "function updatePoolDev(bytes32 poolId, address newDev) external",
-    "function getPoolInfo(bytes32 poolId) view returns (bool registered, address dev, bool tokenIsToken0)",
-];
+const SET_DEV_ABI = ["function setDevForPool(bytes32 poolId, address dev) external"];
 
 const FACTORY_V3_LAUNCH_ABI = [
-    "function getLaunchInfo(address token) view returns (tuple(address token, address dev, string projectId, bytes32 poolId, address pool, uint256 lpTokenId, uint256 launchedAt, address launchedBy))",
+    "function getLaunchInfo(address token) view returns (tuple(address token, address dev, string projectId, bytes32 poolId, address pool, uint256[] lpTokenIds, uint256 launchedAt, address launchedBy))",
 ];
 
 const LOCKER_ABI = ["function updateDev(uint256 tokenId, address newDev) external"];
-const REASSIGN_DEV_SELECTOR = ethers.id("reassignDev(bytes32,address)").slice(2, 10).toLowerCase();
-const vaultReassignSupportCache = new Map<string, boolean>();
 
 function getErrorMessage(err: unknown): string {
     return err instanceof Error ? err.message : String(err);
@@ -32,112 +21,11 @@ function isPoolId(value: string): boolean {
     return /^0x[0-9a-fA-F]{64}$/.test(value);
 }
 
-function hasPoolAlreadyAssignedError(msg: string): boolean {
-    return msg.includes("PoolAlreadyAssigned");
-}
-
-function hasNoUnclaimedFeesError(msg: string): boolean {
-    return msg.includes("NoUnclaimedFees");
-}
-
-function isHookRegisteredResult(
-    value: unknown,
-): value is { registered?: boolean } | [boolean, string, boolean] {
-    return Array.isArray(value) || (!!value && typeof value === "object");
-}
-
-async function supportsReassignDev(provider: ethers.Provider, vaultAddress: string): Promise<boolean> {
-    const key = vaultAddress.toLowerCase();
-    const cached = vaultReassignSupportCache.get(key);
-    if (cached !== undefined) return cached;
-
-    const code = await provider.getCode(vaultAddress);
-    const supported = !!code && code !== "0x" && code.toLowerCase().includes(REASSIGN_DEV_SELECTOR);
-    vaultReassignSupportCache.set(key, supported);
-    return supported;
-}
-
 async function getAdminWallet(): Promise<ethers.Wallet | null> {
     const env = getEnv();
     if (!env.DEPLOYER_PRIVATE_KEY) return null;
     const provider = new ethers.JsonRpcProvider(env.BASE_RPC_URL || "https://mainnet.base.org");
     return new ethers.Wallet(env.DEPLOYER_PRIVATE_KEY, provider);
-}
-
-async function tryResolveHookAddress(provider: ethers.Provider): Promise<string | null> {
-    const env = getEnv();
-    if (!env.SIGIL_FACTORY_ADDRESS) return null;
-
-    try {
-        const factory = new ethers.Contract(env.SIGIL_FACTORY_ADDRESS, FACTORY_HOOK_ABI, provider);
-        const hookAddress = await factory.hook();
-        return typeof hookAddress === "string" && ethers.isAddress(hookAddress)
-            ? hookAddress
-            : null;
-    } catch {
-        return null;
-    }
-}
-
-async function trySyncV4HookDev(
-    wallet: ethers.Wallet,
-    poolId: string,
-    walletAddress: string,
-    projectId: string,
-): Promise<{ updated: boolean; blockedByPoolAssigned: boolean }> {
-    const provider = wallet.provider;
-    if (!provider) {
-        return { updated: false, blockedByPoolAssigned: false };
-    }
-
-    const hookAddress = await tryResolveHookAddress(provider);
-    if (!hookAddress || hookAddress === ethers.ZeroAddress) {
-        return { updated: false, blockedByPoolAssigned: false };
-    }
-
-    const hook = new ethers.Contract(hookAddress, HOOK_ABI, wallet);
-
-    try {
-        const poolInfo = await hook.getPoolInfo(poolId).catch(() => null);
-        if (isHookRegisteredResult(poolInfo)) {
-            const registered = Array.isArray(poolInfo)
-                ? poolInfo[0]
-                : (poolInfo.registered ?? false);
-            if (!registered) {
-                return { updated: false, blockedByPoolAssigned: false };
-            }
-        }
-    } catch {
-        // Best-effort precheck only.
-    }
-
-    try {
-        const tx = await hook.updatePoolDev(poolId, walletAddress);
-        await tx.wait(1);
-        log.info(
-            {
-                projectId,
-                poolId: `${poolId.slice(0, 18)}...`,
-                hookAddress,
-                walletAddress,
-                txHash: tx.hash,
-            },
-            "Updated V4 hook dev routing",
-        );
-        return { updated: true, blockedByPoolAssigned: false };
-    } catch (err) {
-        const msg = getErrorMessage(err);
-        if (hasPoolAlreadyAssignedError(msg)) {
-            // SigilHook.updatePoolDev internally calls assignDev when oldDev == address(0).
-            // If pool was already assigned, this blocks hook-side routing update.
-            return { updated: false, blockedByPoolAssigned: true };
-        }
-        log.warn(
-            { projectId, poolId: `${poolId.slice(0, 18)}...`, hookAddress, error: msg },
-            "Failed to update V4 hook dev routing",
-        );
-        return { updated: false, blockedByPoolAssigned: false };
-    }
 }
 
 async function trySyncV3LockerDev(
@@ -166,128 +54,97 @@ async function trySyncV3LockerDev(
     const launchPoolId =
         (launchInfo as { poolId?: unknown })?.poolId ??
         (Array.isArray(launchInfo) ? launchInfo[3] : null);
-    const lpTokenIdRaw =
-        (launchInfo as { lpTokenId?: unknown })?.lpTokenId ??
-        (Array.isArray(launchInfo) ? launchInfo[5] : null);
 
     if (typeof launchPoolId !== "string" || launchPoolId.toLowerCase() !== poolId.toLowerCase()) {
         return false;
     }
 
-    const lpTokenId = typeof lpTokenIdRaw === "bigint" ? lpTokenIdRaw : BigInt(lpTokenIdRaw || 0);
-    if (lpTokenId === 0n) return false;
+    // Support both old single lpTokenId and new lpTokenIds array
+    const lpTokenIdsRaw =
+        (launchInfo as { lpTokenIds?: unknown })?.lpTokenIds ??
+        (launchInfo as { lpTokenId?: unknown })?.lpTokenId ??
+        (Array.isArray(launchInfo) ? launchInfo[5] : null);
 
-    try {
-        const locker = new ethers.Contract(env.SIGIL_LP_LOCKER_ADDRESS, LOCKER_ABI, wallet);
-        const tx = await locker.updateDev(lpTokenId, walletAddress);
-        await tx.wait(1);
-        log.info(
-            {
-                projectId,
-                poolId: `${poolId.slice(0, 18)}...`,
-                lpTokenId: lpTokenId.toString(),
-                walletAddress,
-                txHash: tx.hash,
-            },
-            "Updated V3 locker dev routing",
-        );
-        return true;
-    } catch (err) {
-        log.warn(
-            {
-                projectId,
-                poolId: `${poolId.slice(0, 18)}...`,
-                lpTokenId: lpTokenId.toString(),
-                error: getErrorMessage(err),
-            },
-            "Failed to update V3 locker dev routing",
-        );
-        return false;
+    // Normalize to array
+    let lpTokenIds: bigint[];
+    if (Array.isArray(lpTokenIdsRaw)) {
+        lpTokenIds = lpTokenIdsRaw
+            .map((v: unknown) => (typeof v === "bigint" ? v : BigInt(String(v ?? 0))))
+            .filter((id: bigint) => id !== 0n);
+    } else {
+        const single =
+            typeof lpTokenIdsRaw === "bigint" ? lpTokenIdsRaw : BigInt(String(lpTokenIdsRaw ?? 0));
+        lpTokenIds = single !== 0n ? [single] : [];
     }
-}
 
-async function assignOrReassignEscrow(
-    wallet: ethers.Wallet,
-    poolId: string,
-    walletAddress: string,
-    projectId: string,
-): Promise<"assigned" | "reassigned" | "noop"> {
-    const env = getEnv();
-    const vaultAddresses = [env.SIGIL_FEE_VAULT_ADDRESS, env.SIGIL_FEE_VAULT_ADDRESS_V1].filter(
-        Boolean,
-    ) as string[];
+    if (lpTokenIds.length === 0) return false;
 
-    if (vaultAddresses.length === 0) return "noop";
-    const provider = wallet.provider;
-    if (!provider) return "noop";
+    const locker = new ethers.Contract(env.SIGIL_LP_LOCKER_ADDRESS, LOCKER_ABI, wallet);
+    let anyUpdated = false;
 
-    let lastUnexpected: unknown = null;
-    for (const vaultAddress of vaultAddresses) {
-        const vault = new ethers.Contract(vaultAddress, ASSIGN_ABI, wallet);
-
+    for (const lpTokenId of lpTokenIds) {
         try {
-            const tx = await vault.assignDev(poolId, walletAddress);
+            const tx = await locker.updateDev(lpTokenId, walletAddress);
             await tx.wait(1);
             log.info(
                 {
                     projectId,
                     poolId: `${poolId.slice(0, 18)}...`,
-                    vaultAddress,
+                    lpTokenId: lpTokenId.toString(),
                     walletAddress,
                     txHash: tx.hash,
                 },
-                "Escrow assigned to dev",
+                "Updated V3 locker dev routing",
             );
-            return "assigned";
-        } catch (assignErr) {
-            const assignMsg = getErrorMessage(assignErr);
-            if (!hasPoolAlreadyAssignedError(assignMsg) && !hasNoUnclaimedFeesError(assignMsg)) {
-                lastUnexpected = assignErr;
-                continue;
-            }
-
-            if (hasPoolAlreadyAssignedError(assignMsg)) {
-                const canReassign = await supportsReassignDev(provider, vaultAddress);
-                if (!canReassign) {
-                    log.warn(
-                        {
-                            projectId,
-                            poolId: `${poolId.slice(0, 18)}...`,
-                            vaultAddress,
-                        },
-                        "Legacy vault detected: reassignDev not supported; post-assignment escrow cannot be recovered on this vault",
-                    );
-                    continue;
-                }
-
-                try {
-                    const tx = await vault.reassignDev(poolId, walletAddress);
-                    await tx.wait(1);
-                    log.info(
-                        {
-                            projectId,
-                            poolId: `${poolId.slice(0, 18)}...`,
-                            vaultAddress,
-                            walletAddress,
-                            txHash: tx.hash,
-                        },
-                        "Escrow re-assigned to dev after prior assignment",
-                    );
-                    return "reassigned";
-                } catch (reassignErr) {
-                    const reassignMsg = getErrorMessage(reassignErr);
-                    if (!hasNoUnclaimedFeesError(reassignMsg)) {
-                        lastUnexpected = reassignErr;
-                    }
-                }
-            }
+            anyUpdated = true;
+        } catch (err) {
+            log.warn(
+                {
+                    projectId,
+                    poolId: `${poolId.slice(0, 18)}...`,
+                    lpTokenId: lpTokenId.toString(),
+                    error: getErrorMessage(err),
+                },
+                "Failed to update V3 locker dev routing for position",
+            );
         }
     }
 
-    if (lastUnexpected) {
-        throw lastUnexpected;
+    return anyUpdated;
+}
+
+async function assignEscrowToDev(
+    wallet: ethers.Wallet,
+    poolId: string,
+    walletAddress: string,
+    projectId: string,
+): Promise<"assigned" | "noop"> {
+    const env = getEnv();
+    const vaultAddress = env.SIGIL_FEE_VAULT_ADDRESS;
+    if (!vaultAddress) return "noop";
+
+    const vault = new ethers.Contract(vaultAddress, SET_DEV_ABI, wallet);
+
+    try {
+        const tx = await vault.setDevForPool(poolId, walletAddress);
+        await tx.wait(1);
+        log.info(
+            {
+                projectId,
+                poolId: `${poolId.slice(0, 18)}...`,
+                walletAddress,
+                txHash: tx.hash,
+            },
+            "Escrow assigned to dev (idempotent)",
+        );
+        return "assigned";
+    } catch (err) {
+        log.warn(
+            { projectId, poolId: `${poolId.slice(0, 18)}...`, error: getErrorMessage(err) },
+            "setDevForPool failed",
+        );
+        return "noop";
     }
-    return "noop";
 }
 
 export interface EnsureDevFeeRoutingInput {
@@ -298,15 +155,13 @@ export interface EnsureDevFeeRoutingInput {
 }
 
 export interface EnsureDevFeeRoutingResult {
-    hookRoutingUpdated: boolean;
-    hookRoutingBlockedByPoolAssigned: boolean;
     lockerRoutingUpdated: boolean;
-    escrowAction: "assigned" | "reassigned" | "noop";
+    escrowAction: "assigned" | "noop";
 }
 
 /**
- * Sync upstream routing sources (V4 Hook / V3 Locker) and then recover escrowed fees.
- * This closes the loop where escrow could continue reappearing after an initial assignment.
+ * Sync V3 Locker dev routing and then recover escrowed fees via the vault.
+ * This is the single entry point for all dev fee routing operations.
  */
 export async function ensureDevFeeRoutingAndEscrowRelease(
     input: EnsureDevFeeRoutingInput,
@@ -325,19 +180,10 @@ export async function ensureDevFeeRoutingAndEscrowRelease(
             "Fee routing skipped: DEPLOYER_PRIVATE_KEY not configured",
         );
         return {
-            hookRoutingUpdated: false,
-            hookRoutingBlockedByPoolAssigned: false,
             lockerRoutingUpdated: false,
             escrowAction: "noop",
         };
     }
-
-    const hookSync = await trySyncV4HookDev(
-        wallet,
-        input.poolId,
-        input.walletAddress,
-        input.projectId,
-    );
 
     const lockerRoutingUpdated = await trySyncV3LockerDev(
         wallet,
@@ -347,7 +193,7 @@ export async function ensureDevFeeRoutingAndEscrowRelease(
         input.projectId,
     );
 
-    const escrowAction = await assignOrReassignEscrow(
+    const escrowAction = await assignEscrowToDev(
         wallet,
         input.poolId,
         input.walletAddress,
@@ -355,9 +201,79 @@ export async function ensureDevFeeRoutingAndEscrowRelease(
     );
 
     return {
-        hookRoutingUpdated: hookSync.updated,
-        hookRoutingBlockedByPoolAssigned: hookSync.blockedByPoolAssigned,
         lockerRoutingUpdated,
         escrowAction,
     };
+}
+
+// ─── Startup Backfill ───────────────────────────────────
+
+/**
+ * Startup backfill: assign dev wallets for verified projects with escrowed fees.
+ * Run once at server boot — separate from the fee collection loop.
+ */
+export async function runDevAssignmentBackfill(): Promise<void> {
+    try {
+        const db = getDb();
+        const projects = await db
+            .select({
+                projectId: schema.projects.projectId,
+                poolId: schema.projects.poolId,
+                poolTokenAddress: schema.projects.poolTokenAddress,
+                name: schema.projects.name,
+                ownerWallet: schema.projects.ownerWallet,
+            })
+            .from(schema.projects);
+
+        let assigned = 0;
+        let skipped = 0;
+
+        for (const project of projects) {
+            if (!project.poolId || !project.ownerWallet) {
+                skipped++;
+                continue;
+            }
+
+            try {
+                await new Promise((r) => setTimeout(r, 2000));
+                const result = await ensureDevFeeRoutingAndEscrowRelease({
+                    poolId: project.poolId,
+                    walletAddress: project.ownerWallet,
+                    projectId: project.projectId,
+                    poolTokenAddress: project.poolTokenAddress,
+                });
+
+                if (result.escrowAction === "assigned") {
+                    assigned++;
+                } else {
+                    skipped++;
+                }
+
+                log.info(
+                    {
+                        project: project.name,
+                        poolId: project.poolId.slice(0, 18) + "...",
+                        dev: project.ownerWallet,
+                        lockerRoutingUpdated: result.lockerRoutingUpdated,
+                        escrowAction: result.escrowAction,
+                    },
+                    "Backfill completed for project",
+                );
+            } catch (err) {
+                const msg = err instanceof Error ? err.message : String(err);
+                log.warn(
+                    { project: project.name, err: msg.slice(0, 300) },
+                    "Backfill: assignment failed",
+                );
+            }
+        }
+
+        if (assigned > 0) {
+            log.info({ assigned, skipped }, "Dev assignment backfill complete");
+        }
+    } catch (err) {
+        if (err instanceof DatabaseUnavailableError) return;
+        const msg = err instanceof Error ? err.message : String(err);
+        log.warn({ err: msg }, "Dev assignment backfill failed");
+    }
 }

@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
-import {PoolId} from "@uniswap/v4-core/src/types/PoolId.sol";
-
 /// @title ISigilEscrow
-/// @notice Interface for the Sigil token escrow + DAO governance contract.
-///         Each launched token gets its own escrow instance.
+/// @notice Interface for the Sigil multi-token escrow + DAO governance contract.
+///         A single global escrow instance accepts any ERC-20 and tracks
+///         balances per-token. Proposals are scoped to a specific token.
 interface ISigilEscrow {
     // ─── Enums ───────────────────────────────────────────
 
@@ -25,6 +24,7 @@ interface ISigilEscrow {
     event ProposalCreated(
         uint256 indexed proposalId,
         address indexed proposer,
+        address indexed token,
         string title,
         uint256 tokenAmount,
         uint256 targetDate,
@@ -63,11 +63,16 @@ interface ISigilEscrow {
     event ProposalDisputed(uint256 indexed proposalId);
     event ProtocolOverride(uint256 indexed proposalId, uint256 tokensReleased);
 
-    event TokensDeposited(address indexed from, uint256 amount);
+    event TokensDeposited(address indexed token, address indexed from, uint256 amount);
 
     // ─── Functions ───────────────────────────────────────
 
+    function deposit(address token, uint256 amount) external;
+
+    function syncBalance(address token) external;
+
     function createProposal(
+        address token,
         string calldata title,
         string calldata description,
         uint256 tokenAmount,
@@ -89,6 +94,4 @@ interface ISigilEscrow {
     function finalizeCompletion(uint256 proposalId) external;
 
     function protocolOverride(uint256 proposalId) external;
-
-    function deposit(uint256 amount) external;
 }

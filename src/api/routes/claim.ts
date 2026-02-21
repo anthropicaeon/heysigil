@@ -207,7 +207,7 @@ claim.openapi(
                 }
             });
 
-            // After DB commit: call assignDev on FeeVault to unlock escrowed fees
+            // After DB commit: call setDevForPool on FeeVault to unlock escrowed fees
             if (projectPoolId) {
                 tryAssignDev(
                     projectPoolId,
@@ -217,7 +217,7 @@ claim.openapi(
                 ).catch((err) => {
                     // Non-blocking — fees can still be assigned via backfill service
                     console.warn(
-                        `assignDev failed for ${verification.projectId}: ${getErrorMessage(err)}`,
+                        `setDevForPool failed for ${verification.projectId}: ${getErrorMessage(err)}`,
                     );
                 });
             }
@@ -332,7 +332,7 @@ claim.openapi(
                 ).catch((err) => {
                     log.warn(
                         { err, projectId: consumed.projectId },
-                        "assignDev after launch-token claim failed",
+                        "setDevForPool after launch-token claim failed",
                     );
                 });
             }
@@ -528,10 +528,10 @@ claim.openapi(
 
 export { claim };
 
-// ─── assignDev Helper ───────────────────────────────────
+// ─── Fee Routing Helper ─────────────────────────────────
 
 /**
- * After a successful claim, try to call assignDev() on the FeeVault
+ * After a successful claim, try to call setDevForPool() on the FeeVault
  * to move escrowed fees into the dev's claimable balance.
  *
  * This is non-blocking — if it fails, the startup backfill service
@@ -554,8 +554,6 @@ async function tryAssignDev(
             projectId,
             poolId: `${poolId.slice(0, 18)}...`,
             walletAddress,
-            hookRoutingUpdated: routing.hookRoutingUpdated,
-            hookRoutingBlockedByPoolAssigned: routing.hookRoutingBlockedByPoolAssigned,
             lockerRoutingUpdated: routing.lockerRoutingUpdated,
             escrowAction: routing.escrowAction,
         },

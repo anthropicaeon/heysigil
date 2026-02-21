@@ -3,14 +3,14 @@
  *
  * Purpose
  * - Backfill fee routing for projects that already launched but still have escrowed fees.
- * - For each project with a poolId, resolve a dev wallet and call one of:
- *   - assignDev(poolId, devWallet) when pool is unassigned
- *   - reassignDev(poolId, devWallet) when pool is already assigned
+ * - For each project with a poolId, resolve a dev wallet and call:
+ *   - setDevForPool(poolId, devWallet) — idempotent, works whether assigned or not
  *
  * What this script can do
  * - Move unclaimed escrowed fees to a dev wallet claimable balance.
  * - Recover projects where assignment happened previously but wallet routing needs correction.
  * - Print a per-project action log and final summary for incident audits.
+ * - Uses idempotent setDevForPool — safe to re-run without checking assignment state.
  *
  * What this script does not do
  * - It does not claim dev fees to a wallet. Claiming is handled by /api/fees/claim.
@@ -60,7 +60,7 @@
  * [DETAIL] poolId: 0x1234abcd...
  * [DETAIL] dev wallet: 0x999...888
  * [DETAIL] unclaimed 0x8335...2913: 1600000000
- * [ACTION] calling reassignDev...
+ * [ACTION] calling setDevForPool...
  * [TX] 0x5e4f...
  * [OK] dev reassigned, gasUsed=121337
  *
@@ -102,8 +102,7 @@ interface ScriptStats {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const FEE_VAULT_ABI = [
-    "function assignDev(bytes32 poolId, address dev) external",
-    "function reassignDev(bytes32 poolId, address dev) external",
+    "function setDevForPool(bytes32 poolId, address dev) external",
     "function poolAssigned(bytes32 poolId) view returns (bool)",
     "function getUnclaimedFeeBalances(bytes32 poolId) view returns (address[] tokens, uint256[] balances, uint256 depositedAt, bool expired, bool assigned)",
 ] as const;
@@ -262,22 +261,17 @@ async function main(): Promise<void> {
 
         try {
             const nonce = await provider.getTransactionCount(wallet.address, "latest");
-            const action = alreadyAssigned ? "reassignDev" : "assignDev";
-            console.log(`[ACTION] calling ${action}...`);
+            console.log(`[ACTION] calling setDevForPool (idempotent)...`);
 
-            const tx = alreadyAssigned
-                ? await vault.reassignDev(project.poolId, devWallet, { nonce })
-                : await vault.assignDev(project.poolId, devWallet, { nonce });
+            const tx = await vault.setDevForPool(project.poolId, devWallet, { nonce });
 
             console.log(`[TX] ${tx.hash}`);
             const receipt = await tx.wait(1);
             stats.updated += 1;
-            console.log(
-                `[OK] dev ${alreadyAssigned ? "reassigned" : "assigned"}, gasUsed=${receipt.gasUsed}`,
-            );
+            console.log(`[OK] dev assigned, gasUsed=${receipt.gasUsed}`);
         } catch (err) {
             stats.failed += 1;
-            console.log(`[FAIL] assign/reassign failed: ${shortError(err)}`);
+            console.log(`[FAIL] setDevForPool failed: ${shortError(err)}`);
         }
 
         logDivider();

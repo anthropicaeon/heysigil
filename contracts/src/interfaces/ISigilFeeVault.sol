@@ -10,7 +10,7 @@ interface ISigilFeeVault {
     ///
     ///         If dev == address(0), the dev share goes to escrow (unclaimed fees)
     ///         keyed by poolId instead of a dev address. These can be assigned later
-    ///         via assignDev() or swept to protocol after 30 days.
+    ///         via setDevForPool() or swept to protocol after 30 days.
     ///
     /// @param poolId The pool identifier (bytes32)
     /// @param dev The developer who receives the dev share (address(0) = unclaimed)
@@ -25,10 +25,10 @@ interface ISigilFeeVault {
         uint256 protocolAmount
     ) external;
 
-    /// @notice Assign a verified dev to an unclaimed pool's escrowed fees.
-    ///         Moves all accumulated unclaimed fees for that pool to the dev's balance.
+    /// @notice Assign or re-assign a dev to a pool's escrowed fees. Idempotent.
+    ///         Moves all unclaimed fees for the pool to the dev's balance.
     ///         Only callable by owner (backend after verification).
     /// @param poolId The pool identifier
     /// @param dev The verified developer wallet
-    function assignDev(bytes32 poolId, address dev) external;
+    function setDevForPool(bytes32 poolId, address dev) external;
 }

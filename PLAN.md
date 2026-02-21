@@ -398,7 +398,6 @@ testoooor/
 │   │   ├── schema.ts          # Schema registration
 │   │   └── types.ts
 │   ├── contracts/
-│   │   ├── PoolReward.sol     # Reward claiming contract
 │   │   ├── Verifier.sol       # On-chain attestation checker
 │   │   └── interfaces/
 │   ├── api/

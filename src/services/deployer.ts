@@ -9,7 +9,6 @@
 
 import { ethers } from "ethers";
 import { getEnv } from "../config/env.js";
-import { createPhantomUser, findUserByPlatform } from "./identity.js";
 import { checkDeployRateLimit } from "../middleware/rate-limit.js";
 import { linkPoolToProject } from "../db/repositories/index.js";
 import { verifyTokenOnBasescan } from "./contract-verifier.js";
@@ -22,7 +21,7 @@ const log = loggers.deployer;
 const FACTORY_ABI = [
     "function launch(string name, string symbol, string projectId, address dev) external returns (address token, bytes32 poolId)",
     "function getLaunchCount() external view returns (uint256)",
-    "function getLaunchInfo(address token) external view returns (tuple(address token, address dev, string projectId, bytes32 poolId, address pool, uint256 lpTokenId, uint256 launchedAt, address launchedBy))",
+    "function getLaunchInfo(address token) external view returns (tuple(address token, address dev, string projectId, bytes32 poolId, address pool, uint256[] lpTokenIds, uint256 launchedAt, address launchedBy))",
     "event TokenLaunched(address indexed token, address indexed dev, string projectId, bytes32 poolId, address launchedBy, uint256 supply)",
 ];
 
@@ -125,53 +124,9 @@ export async function deployToken(
     if (params.devAddress) {
         // Explicit dev address provided (self-launch with known wallet)
         devAddress = params.devAddress;
-    } else if (params.isSelfLaunch === false && params.devLinks?.length) {
-        // Third-party launch: check if dev already exists in our system
-        // Try agent:// links first (for autonomous agent launches)
-        const agentLink = params.devLinks.find((l) => l.startsWith("agent://"));
-        const githubLink = params.devLinks.find((l) => l.includes("github.com"));
-
-        if (agentLink) {
-            // Agent launch: resolve via agent platform identity
-            const agentId = agentLink.replace("agent://", "");
-            const existingAgent = await findUserByPlatform("agent", agentId);
-            if (existingAgent && existingAgent.status === "claimed") {
-                devAddress = existingAgent.walletAddress;
-                log.info({ agentId, devAddress }, "Agent already verified (direct routing)");
-            } else if (existingAgent && existingAgent.status === "phantom") {
-                devAddress = existingAgent.walletAddress;
-                log.info({ agentId, devAddress }, "Existing phantom agent");
-            } else {
-                const result = await createPhantomUser("agent", agentId, options?.sessionId);
-                devAddress = result.walletAddress;
-                log.info({ agentId, devAddress }, "Created phantom agent user");
-            }
-        } else if (githubLink) {
-            // Extract org/repo from GitHub URL
-            const match = githubLink.match(/github\.com\/([^/]+\/[^/]+)/);
-            const repoId = match ? match[1].replace(/\.git$/, "") : githubLink;
-
-            // 1. Check if this dev is already verified → use their existing wallet
-            const existingUser = await findUserByPlatform("github", repoId);
-            if (existingUser && existingUser.status === "claimed") {
-                devAddress = existingUser.walletAddress;
-                log.info({ repoId, devAddress }, "Dev already verified (direct routing)");
-            } else if (existingUser && existingUser.status === "phantom") {
-                // 2. Phantom exists from a previous launch → reuse their wallet
-                devAddress = existingUser.walletAddress;
-                log.info({ repoId, devAddress }, "Existing phantom user");
-            } else {
-                // 3. Brand new — create phantom user + wallet
-                const result = await createPhantomUser("github", repoId, options?.sessionId);
-                devAddress = result.walletAddress;
-                log.info({ repoId, devAddress }, "Created phantom user");
-            }
-        } else {
-            // No GitHub or agent link — fall back to address(0) → contract escrow
-            devAddress = ethers.ZeroAddress;
-        }
     } else {
-        // No dev info at all — fees go to contract escrow
+        // Unknown dev (third-party launch or no dev info)
+        // Fees go to vault escrow → assigned when dev verifies via setDevForPool
         devAddress = ethers.ZeroAddress;
     }
 

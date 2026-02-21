@@ -66,11 +66,13 @@ contract SigilLPLocker {
     // ─── State ───────────────────────────────────────────
 
     INonfungiblePositionManager public immutable positionManager;
-    ISigilFeeVaultV3 public immutable feeVault;
+    ISigilFeeVaultV3 public feeVault;
     address public immutable factory;
     address public immutable usdc;
     address public tokenEscrow;
     address public owner;
+    address public pendingOwner;
+    bool public paused;
 
     /// @notice Locked position data
     struct LockedPosition {
@@ -101,15 +103,22 @@ contract SigilLPLocker {
     event DevUpdated(uint256 indexed tokenId, address oldDev, address newDev);
     event NativeTokenEscrowed(uint256 indexed tokenId, address token, uint256 amount);
     event TokenEscrowUpdated(address oldEscrow, address newEscrow);
+    event FeeVaultUpdated(address oldVault, address newVault);
+    event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
+    event Paused(address account);
+    event Unpaused(address account);
 
     // ─── Errors ──────────────────────────────────────────
 
     error OnlyFactory();
     error OnlyOwner();
+    error OnlyPendingOwner();
     error PositionNotLocked();
     error AlreadyLocked();
     error ZeroAddress();
     error CannotRemoveLiquidity();
+    error ContractPaused();
+    error ContractNotPaused();
 
     // ─── Constructor ─────────────────────────────────────
 
@@ -162,7 +171,7 @@ contract SigilLPLocker {
     /// @notice Collect accrued LP fees from a locked position and route to FeeVault.
     ///         Anyone can call this — incentive-compatible since fees go to dev/protocol.
     /// @param tokenId The V3 NFT token ID to collect from
-    function collectFees(uint256 tokenId) external {
+    function collectFees(uint256 tokenId) external whenNotPaused {
         LockedPosition storage pos = positions[tokenId];
         if (!pos.locked) revert PositionNotLocked();
 
@@ -188,7 +197,7 @@ contract SigilLPLocker {
     }
 
     /// @notice Batch collect fees from multiple positions
-    function collectFeesMulti(uint256[] calldata tokenIds) external {
+    function collectFeesMulti(uint256[] calldata tokenIds) external whenNotPaused {
         for (uint256 i; i < tokenIds.length; ++i) {
             LockedPosition storage pos = positions[tokenIds[i]];
             if (!pos.locked) continue;
@@ -244,7 +253,7 @@ contract SigilLPLocker {
 
     // ─── Admin ───────────────────────────────────────────
 
-    /// @notice Update the dev address for a position (after verification).
+    /// @notice Update the dev address for a single position (after verification).
     function updateDev(uint256 tokenId, address newDev) external {
         if (msg.sender != owner) revert OnlyOwner();
         if (newDev == address(0)) revert ZeroAddress();
@@ -256,6 +265,24 @@ contract SigilLPLocker {
         pos.dev = newDev;
 
         emit DevUpdated(tokenId, oldDev, newDev);
+    }
+
+    /// @notice Batch update dev address across multiple positions atomically.
+    ///         Use this for multi-LP launches (6 positions per pool) where all
+    ///         positions must point to the same dev.
+    function updateDevMulti(uint256[] calldata tokenIds, address newDev) external {
+        if (msg.sender != owner) revert OnlyOwner();
+        if (newDev == address(0)) revert ZeroAddress();
+
+        for (uint256 i; i < tokenIds.length; ++i) {
+            LockedPosition storage pos = positions[tokenIds[i]];
+            if (!pos.locked) revert PositionNotLocked();
+
+            address oldDev = pos.dev;
+            pos.dev = newDev;
+
+            emit DevUpdated(tokenIds[i], oldDev, newDev);
+        }
     }
 
     /// @notice Register an orphaned LP NFT that was transferred but never registered.
@@ -280,10 +307,31 @@ contract SigilLPLocker {
         emit PositionLocked(tokenId, poolId, dev);
     }
 
-    function setOwner(address newOwner) external {
+    // ─── Ownership (2-step transfer) ────────────────────
+
+    /// @notice Start ownership transfer. The new owner must call acceptOwnership().
+    function transferOwnership(address newOwner) external {
         if (msg.sender != owner) revert OnlyOwner();
         if (newOwner == address(0)) revert ZeroAddress();
-        owner = newOwner;
+        pendingOwner = newOwner;
+        emit OwnershipTransferStarted(owner, newOwner);
+    }
+
+    /// @notice Accept ownership transfer. Only callable by the pending owner.
+    function acceptOwnership() external {
+        if (msg.sender != pendingOwner) revert OnlyPendingOwner();
+        owner = pendingOwner;
+        pendingOwner = address(0);
+    }
+
+    // ─── Config Setters ─────────────────────────────────
+
+    /// @notice Update the fee vault address (enables vault migration).
+    function setFeeVault(address newVault) external {
+        if (msg.sender != owner) revert OnlyOwner();
+        if (newVault == address(0)) revert ZeroAddress();
+        emit FeeVaultUpdated(address(feeVault), newVault);
+        feeVault = ISigilFeeVaultV3(newVault);
     }
 
     /// @notice Update the token escrow address
@@ -292,6 +340,29 @@ contract SigilLPLocker {
         if (newEscrow == address(0)) revert ZeroAddress();
         emit TokenEscrowUpdated(tokenEscrow, newEscrow);
         tokenEscrow = newEscrow;
+    }
+
+    // ─── Pausable ────────────────────────────────────────
+
+    modifier whenNotPaused() {
+        if (paused) revert ContractPaused();
+        _;
+    }
+
+    /// @notice Pause fee collection. Emergency use only.
+    function pause() external {
+        if (msg.sender != owner) revert OnlyOwner();
+        if (paused) revert ContractPaused();
+        paused = true;
+        emit Paused(msg.sender);
+    }
+
+    /// @notice Resume fee collection.
+    function unpause() external {
+        if (msg.sender != owner) revert OnlyOwner();
+        if (!paused) revert ContractNotPaused();
+        paused = false;
+        emit Unpaused(msg.sender);
     }
 
     // ─── Views ───────────────────────────────────────────

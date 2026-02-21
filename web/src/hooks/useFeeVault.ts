@@ -132,7 +132,7 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         try {
             const wallet = walletAddress as `0x${string}`;
 
-            // Read from V2 vault
+            // Read from current vault (V3)
             const v2 = await readVaultFees(FEE_VAULT_ADDRESS, wallet);
 
             // Read from V1 vault (if configured)

@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import {SigilFeeVault} from "../src/SigilFeeVault.sol";
 import {SigilLPLocker} from "../src/SigilLPLocker.sol";
 import {SigilFactoryV3} from "../src/SigilFactoryV3.sol";
-import {SigilEscrow} from "../src/SigilEscrow.sol";
+
 
 /// @title DeployV3 — V3 Migration Deployment
 /// @notice Deploys Sigil V3 contracts on Base mainnet.

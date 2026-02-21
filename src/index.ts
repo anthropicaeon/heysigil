@@ -58,7 +58,7 @@ if (isFeeCollectorConfigured()) {
     feeCollector.start().catch((err) => {
         log.error({ err }, "Failed to start fee collector");
     });
-    log.info("Fee collector started (collects V3 LP fees every 60s)");
+    log.info("Fee collector started (collects V3 LP fees every 24h)");
 
     // Graceful shutdown
     const stopCollector = () => feeCollector.stop();

@@ -128,7 +128,7 @@ export default function ProfileDashboard() {
             : "$0.00";
 
     // Escrowed = total fees in DB minus what's on-chain (lifetime earned + currently claimable)
-    // These are fees still held under poolIds, not yet assignDev'd
+    // These are fees still held under poolIds, not yet assigned via setDevForPool
     const onChainTotal = Number(lifetimeRaw) + Number(claimableRaw);
     const escrowedRaw = BigInt(Math.max(0, totalFees - onChainTotal));
     const escrowedUsdc = formatCurrency(escrowedRaw);

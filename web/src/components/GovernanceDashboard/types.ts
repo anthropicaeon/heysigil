@@ -15,11 +15,13 @@ export type ProposalStatus =
 export interface Proposal {
     id: number;
     proposer: string;
+    token: string;
     title: string;
     description: string;
     tokenAmount: string;
     targetDate: number;
     status: ProposalStatus;
+    snapshotTotalSupply: string;
     votingDeadline: number;
     yesVotes: string;
     noVotes: string;

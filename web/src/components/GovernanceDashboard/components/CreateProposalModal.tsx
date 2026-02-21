@@ -2,25 +2,27 @@
  * CreateProposalModal Component
  *
  * Modal form for creating new proposals.
+ * Calls SigilEscrow.createProposal() via Privy wallet.
  * Implements Cognitive Load Theory: smart defaults, inline validation, input assistance.
- * Updated with pastel design system.
  */
 
 "use client";
 
-import { X } from "lucide-react";
+import { CheckCircle, Loader2, X } from "lucide-react";
 import { useMemo, useState } from "react";
+import type { Address } from "viem";
+import { parseUnits } from "viem";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-
-import type { Proposal } from "../types";
+import { useEscrowWrite } from "@/hooks/useEscrowWrite";
 
 interface CreateProposalModalProps {
+    tokenAddress: Address;
     onClose: () => void;
-    onCreate: (p: Partial<Proposal>) => void;
+    onCreated: () => void;
 }
 
 // Smart default: 30 days from now
@@ -36,11 +38,13 @@ function formatNumberInput(value: string): string {
     return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-export function CreateProposalModal({ onClose, onCreate }: CreateProposalModalProps) {
+export function CreateProposalModal({ tokenAddress, onClose, onCreated }: CreateProposalModalProps) {
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [tokenAmount, setTokenAmount] = useState("");
     const [targetDate, setTargetDate] = useState(getDefaultTargetDate());
+
+    const { createProposal, state } = useEscrowWrite();
 
     // Inline validation states
     const validation = useMemo(() => {
@@ -80,14 +84,26 @@ export function CreateProposalModal({ onClose, onCreate }: CreateProposalModalPr
         setTokenAmount(formatNumberInput(value));
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!isValid) return;
-        onCreate({
+
+        const rawAmount = tokenAmount.replace(/,/g, "");
+        // Convert to wei (18 decimals — standard ERC-20)
+        const amountWei = parseUnits(rawAmount, 18);
+        const targetTimestamp = BigInt(Math.floor(new Date(targetDate).getTime() / 1000));
+
+        const hash = await createProposal(
+            tokenAddress,
             title,
             description,
-            tokenAmount: tokenAmount.replace(/,/g, ""),
-            targetDate: new Date(targetDate).getTime() / 1000,
-        });
+            amountWei,
+            targetTimestamp,
+        );
+
+        if (hash) {
+            // Wait a beat then close and refetch
+            setTimeout(() => onCreated(), 2000);
+        }
     };
 
     return (
@@ -106,124 +122,182 @@ export function CreateProposalModal({ onClose, onCreate }: CreateProposalModalPr
                     </Button>
                 </div>
 
+                {/* Success state */}
+                {state.txHash && (
+                    <div className="px-6 py-8 text-center bg-sage/20 border-border border-b">
+                        <CheckCircle className="size-10 text-muted-foreground mx-auto mb-3" />
+                        <p className="font-semibold text-foreground mb-2">
+                            Proposal Created!
+                        </p>
+                        <a
+                            href={`https://basescan.org/tx/${state.txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-primary hover:underline"
+                        >
+                            View transaction ↗
+                        </a>
+                    </div>
+                )}
+
+                {/* Error state */}
+                {state.error && (
+                    <div className="px-6 py-4 bg-rose/20 border-border border-b">
+                        <p className="text-sm text-foreground">{state.error}</p>
+                    </div>
+                )}
+
                 {/* Form */}
-                <div className="px-6 py-6 space-y-5">
-                    {/* Title */}
-                    <div>
-                        <label
-                            htmlFor="proposal-title"
-                            className="text-sm font-medium text-foreground block mb-2"
-                        >
-                            Title
-                        </label>
-                        <Input
-                            id="proposal-title"
-                            placeholder="e.g. Ship v2.0 — UI Redesign"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            maxLength={100}
-                            className={cn(validation.title && "border-red-500")}
-                        />
-                        {validation.title ? (
-                            <p className="text-xs text-red-500 mt-1">{validation.title}</p>
-                        ) : (
-                            <p className="text-xs text-muted-foreground mt-1">
-                                {title.length}/100 characters
-                            </p>
-                        )}
-                    </div>
+                {!state.txHash && (
+                    <>
+                        <div className="px-6 py-6 space-y-5">
+                            {/* Title */}
+                            <div>
+                                <label
+                                    htmlFor="proposal-title"
+                                    className="text-sm font-medium text-foreground block mb-2"
+                                >
+                                    Title
+                                </label>
+                                <Input
+                                    id="proposal-title"
+                                    placeholder="e.g. Ship v2.0 — UI Redesign"
+                                    value={title}
+                                    onChange={(e) => setTitle(e.target.value)}
+                                    maxLength={100}
+                                    disabled={state.isPending}
+                                    className={cn(validation.title && "border-red-500")}
+                                />
+                                {validation.title ? (
+                                    <p className="text-xs text-red-500 mt-1">{validation.title}</p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        {title.length}/100 characters
+                                    </p>
+                                )}
+                            </div>
 
-                    {/* Description */}
-                    <div>
-                        <label
-                            htmlFor="proposal-description"
-                            className="text-sm font-medium text-foreground block mb-2"
-                        >
-                            Description
-                        </label>
-                        <Textarea
-                            id="proposal-description"
-                            placeholder="Describe the milestone, deliverables, and success criteria..."
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            rows={4}
-                            className={cn(validation.description && "border-red-500")}
-                        />
-                        {validation.description ? (
-                            <p className="text-xs text-red-500 mt-1">{validation.description}</p>
-                        ) : (
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Be specific about what you'll deliver and how the community can
-                                verify it.
-                            </p>
-                        )}
-                    </div>
+                            {/* Description */}
+                            <div>
+                                <label
+                                    htmlFor="proposal-description"
+                                    className="text-sm font-medium text-foreground block mb-2"
+                                >
+                                    Description
+                                </label>
+                                <Textarea
+                                    id="proposal-description"
+                                    placeholder="Describe the milestone, deliverables, and success criteria..."
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    rows={4}
+                                    disabled={state.isPending}
+                                    className={cn(validation.description && "border-red-500")}
+                                />
+                                {validation.description ? (
+                                    <p className="text-xs text-red-500 mt-1">
+                                        {validation.description}
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Be specific about what you&apos;ll deliver and how the
+                                        community can verify it.
+                                    </p>
+                                )}
+                            </div>
 
-                    {/* Token Amount */}
-                    <div>
-                        <label
-                            htmlFor="proposal-amount"
-                            className="text-sm font-medium text-foreground block mb-2"
-                        >
-                            Token Amount
-                        </label>
-                        <div className="relative">
-                            <Input
-                                id="proposal-amount"
-                                inputMode="numeric"
-                                placeholder="1,000,000"
-                                value={tokenAmount}
-                                onChange={(e) => handleTokenAmountChange(e.target.value)}
-                                className={cn("pr-16", validation.tokenAmount && "border-red-500")}
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                                tokens
-                            </span>
+                            {/* Token Amount */}
+                            <div>
+                                <label
+                                    htmlFor="proposal-amount"
+                                    className="text-sm font-medium text-foreground block mb-2"
+                                >
+                                    Token Amount
+                                </label>
+                                <div className="relative">
+                                    <Input
+                                        id="proposal-amount"
+                                        inputMode="numeric"
+                                        placeholder="1,000,000"
+                                        value={tokenAmount}
+                                        onChange={(e) => handleTokenAmountChange(e.target.value)}
+                                        disabled={state.isPending}
+                                        className={cn(
+                                            "pr-16",
+                                            validation.tokenAmount && "border-red-500",
+                                        )}
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                        tokens
+                                    </span>
+                                </div>
+                                {validation.tokenAmount ? (
+                                    <p className="text-xs text-red-500 mt-1">
+                                        {validation.tokenAmount}
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Number of tokens to unlock upon completion.
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Target Date */}
+                            <div>
+                                <label
+                                    htmlFor="proposal-date"
+                                    className="text-sm font-medium text-foreground block mb-2"
+                                >
+                                    Target Completion Date
+                                </label>
+                                <Input
+                                    id="proposal-date"
+                                    type="date"
+                                    value={targetDate}
+                                    onChange={(e) => setTargetDate(e.target.value)}
+                                    min={new Date().toISOString().split("T")[0]}
+                                    disabled={state.isPending}
+                                    className={cn(validation.targetDate && "border-red-500")}
+                                />
+                                {validation.targetDate ? (
+                                    <p className="text-xs text-red-500 mt-1">
+                                        {validation.targetDate}
+                                    </p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Default: 30 days from today. Adjust as needed.
+                                    </p>
+                                )}
+                            </div>
                         </div>
-                        {validation.tokenAmount ? (
-                            <p className="text-xs text-red-500 mt-1">{validation.tokenAmount}</p>
-                        ) : (
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Number of tokens to unlock upon completion.
-                            </p>
-                        )}
-                    </div>
 
-                    {/* Target Date */}
-                    <div>
-                        <label
-                            htmlFor="proposal-date"
-                            className="text-sm font-medium text-foreground block mb-2"
-                        >
-                            Target Completion Date
-                        </label>
-                        <Input
-                            id="proposal-date"
-                            type="date"
-                            value={targetDate}
-                            onChange={(e) => setTargetDate(e.target.value)}
-                            min={new Date().toISOString().split("T")[0]}
-                            className={cn(validation.targetDate && "border-red-500")}
-                        />
-                        {validation.targetDate ? (
-                            <p className="text-xs text-red-500 mt-1">{validation.targetDate}</p>
-                        ) : (
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Default: 30 days from today. Adjust as needed.
-                            </p>
-                        )}
-                    </div>
-                </div>
-
-                {/* Footer */}
-                <div className="flex gap-3 px-6 py-4 border-border border-t bg-sage/30">
-                    <Button variant="outline" onClick={onClose} className="flex-1">
-                        Cancel
-                    </Button>
-                    <Button onClick={handleSubmit} disabled={!isValid} className="flex-1">
-                        Submit Proposal
-                    </Button>
-                </div>
+                        {/* Footer */}
+                        <div className="flex gap-3 px-6 py-4 border-border border-t bg-sage/30">
+                            <Button
+                                variant="outline"
+                                onClick={onClose}
+                                disabled={state.isPending}
+                                className="flex-1"
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                onClick={handleSubmit}
+                                disabled={!isValid || state.isPending}
+                                className="flex-1 gap-2"
+                            >
+                                {state.isPending ? (
+                                    <>
+                                        <Loader2 className="size-4 animate-spin" />
+                                        Submitting...
+                                    </>
+                                ) : (
+                                    "Submit Proposal"
+                                )}
+                            </Button>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

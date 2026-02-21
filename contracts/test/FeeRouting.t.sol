@@ -10,9 +10,10 @@ import {SigilToken} from "../src/SigilToken.sol";
 ///
 ///         1. Self-launch: 80% goes directly to dev, 20% to protocol ✓
 ///         2. Third-party launch (dev=address(0)): 80% goes to escrow ✓
-///         3. Dev verifies → assignDev() moves escrow to dev balance ✓
+///         3. Dev verifies → setDevForPool() moves escrow to dev balance ✓
 ///         4. 30-day expiry → sweepExpiredFees() moves escrow to protocol ✓
 ///         5. Protocol 20% ALWAYS goes to protocol regardless of dev status ✓
+///         6. Dev reassignment: setDevForPool() called multiple times ✓
 ///
 ///         These tests simulate the FeeVault directly (as if the hook is calling
 ///         depositFees). They don't require a V4 fork — they test the vault logic.
@@ -23,12 +24,14 @@ contract FeeRoutingTest is Test {
     // Test accounts
     address deployer = address(0xD1);
     address dev = address(0xD2);
+    address devB = address(0xD3);
     address treasury = address(0xD4);
 
     // Pool IDs for different scenarios
     bytes32 selfLaunchPool = bytes32(uint256(100));
     bytes32 thirdPartyPool = bytes32(uint256(200));
     bytes32 expiryPool = bytes32(uint256(300));
+    bytes32 reassignPool = bytes32(uint256(400));
 
     function setUp() public {
         vm.startPrank(deployer);
@@ -141,12 +144,12 @@ contract FeeRoutingTest is Test {
     }
 
     // ═══════════════════════════════════════════════════════
-    //       SCENARIO 3: DEV VERIFIES → assignDev()
+    //       SCENARIO 3: DEV VERIFIES → setDevForPool()
     //       Escrowed fees move to dev's claimable balance
     // ═══════════════════════════════════════════════════════
 
-    /// @notice Dev verifies → assignDev() moves all escrowed fees to dev
-    function test_assignDev_movesEscrowToDevBalance() public {
+    /// @notice Dev verifies → setDevForPool() moves all escrowed fees to dev
+    function test_setDevForPool_movesEscrowToDevBalance() public {
         // Third-party launch accumulates fees in escrow
         feeVault.depositFees(thirdPartyPool, address(0), address(feeToken), 80 ether, 20 ether);
         feeVault.depositFees(thirdPartyPool, address(0), address(feeToken), 40 ether, 10 ether);
@@ -156,7 +159,7 @@ contract FeeRoutingTest is Test {
 
         // Owner assigns dev after verification
         vm.prank(deployer);
-        feeVault.assignDev(thirdPartyPool, dev);
+        feeVault.setDevForPool(thirdPartyPool, dev);
 
         // Escrow should be empty
         assertEq(feeVault.unclaimedFees(poolKey, address(feeToken)), 0, "Escrow should be empty");
@@ -165,48 +168,124 @@ contract FeeRoutingTest is Test {
         assertEq(feeVault.devFees(dev, address(feeToken)), 120 ether, "Dev should have all escrowed fees");
         assertEq(feeVault.totalDevFeesEarned(dev, address(feeToken)), 120 ether, "Lifetime earnings tracked");
 
+        // poolDev should track the assigned dev
+        assertEq(feeVault.poolDev(thirdPartyPool), dev, "poolDev should track assigned dev");
+
         // Dev can now claim
         vm.prank(dev);
         feeVault.claimDevFees(address(feeToken));
         assertEq(feeToken.balanceOf(dev), 120 ether, "Dev should receive all escrowed tokens");
     }
 
-    /// @notice assignDev can only be called by owner
-    function test_assignDev_revertNotOwner() public {
+    /// @notice setDevForPool can only be called by owner
+    function test_setDevForPool_revertNotOwner() public {
         feeVault.depositFees(thirdPartyPool, address(0), address(feeToken), 80 ether, 20 ether);
 
         vm.prank(address(0xBAD));
         vm.expectRevert(SigilFeeVault.OnlyOwner.selector);
-        feeVault.assignDev(thirdPartyPool, dev);
+        feeVault.setDevForPool(thirdPartyPool, dev);
     }
 
-    /// @notice assignDev reverts if pool already assigned
-    function test_assignDev_revertAlreadyAssigned() public {
-        feeVault.depositFees(thirdPartyPool, address(0), address(feeToken), 80 ether, 20 ether);
-
-        vm.startPrank(deployer);
-        feeVault.assignDev(thirdPartyPool, dev);
-
-        vm.expectRevert(SigilFeeVault.PoolAlreadyAssigned.selector);
-        feeVault.assignDev(thirdPartyPool, dev);
-        vm.stopPrank();
-    }
-
-    /// @notice assignDev reverts with zero address
-    function test_assignDev_revertZeroAddress() public {
+    /// @notice setDevForPool reverts with zero address
+    function test_setDevForPool_revertZeroAddress() public {
         feeVault.depositFees(thirdPartyPool, address(0), address(feeToken), 80 ether, 20 ether);
 
         vm.prank(deployer);
         vm.expectRevert(SigilFeeVault.ZeroAddress.selector);
-        feeVault.assignDev(thirdPartyPool, address(0));
+        feeVault.setDevForPool(thirdPartyPool, address(0));
     }
 
-    /// @notice assignDev reverts if no unclaimed fees exist
-    function test_assignDev_revertNoUnclaimedFees() public {
-        // Don't deposit any fees
+    /// @notice setDevForPool is idempotent — calling with same dev twice is a noop
+    function test_setDevForPool_idempotentSameDev() public {
+        feeVault.depositFees(thirdPartyPool, address(0), address(feeToken), 80 ether, 20 ether);
+
+        vm.startPrank(deployer);
+
+        // First call: moves escrow to dev
+        feeVault.setDevForPool(thirdPartyPool, dev);
+        assertEq(feeVault.devFees(dev, address(feeToken)), 80 ether);
+
+        // Second call: noop (no escrow to move)
+        feeVault.setDevForPool(thirdPartyPool, dev);
+        assertEq(feeVault.devFees(dev, address(feeToken)), 80 ether, "Second call should be noop");
+
+        vm.stopPrank();
+    }
+
+    /// @notice setDevForPool can be called with no unclaimed fees — safe noop
+    function test_setDevForPool_noopWhenNoFees() public {
+        // No deposits for this pool
         vm.prank(deployer);
-        vm.expectRevert(SigilFeeVault.NoUnclaimedFees.selector);
-        feeVault.assignDev(thirdPartyPool, dev);
+        feeVault.setDevForPool(thirdPartyPool, dev);
+
+        // poolDev is set even without fees
+        assertEq(feeVault.poolDev(thirdPartyPool), dev, "poolDev should be set");
+        assertEq(feeVault.devFees(dev, address(feeToken)), 0, "No fees to move");
+    }
+
+    // ═══════════════════════════════════════════════════════
+    //       SCENARIO 3B: DEV REASSIGNMENT
+    //       setDevForPool() called with different dev addresses
+    // ═══════════════════════════════════════════════════════
+
+    /// @notice Reassign: devA gets initial escrow, new fees accumulate, devB gets new escrow
+    function test_setDevForPool_reassignToNewDev() public {
+        // Phase 1: third-party launch, fees accumulate in escrow
+        feeVault.depositFees(reassignPool, address(0), address(feeToken), 80 ether, 20 ether);
+
+        // Phase 2: devA verifies
+        vm.prank(deployer);
+        feeVault.setDevForPool(reassignPool, dev);
+        assertEq(feeVault.devFees(dev, address(feeToken)), 80 ether, "DevA gets initial escrow");
+        assertEq(feeVault.poolDev(reassignPool), dev, "poolDev should be devA");
+
+        // Phase 3: more fees accumulate in escrow (deposited with address(0))
+        feeVault.depositFees(reassignPool, address(0), address(feeToken), 40 ether, 10 ether);
+
+        // Phase 4: devB verifies → reassign
+        vm.prank(deployer);
+        feeVault.setDevForPool(reassignPool, devB);
+
+        // DevA keeps their original 80, devB gets the new 40
+        assertEq(feeVault.devFees(dev, address(feeToken)), 80 ether, "DevA keeps their fees");
+        assertEq(feeVault.devFees(devB, address(feeToken)), 40 ether, "DevB gets new escrow");
+        assertEq(feeVault.poolDev(reassignPool), devB, "poolDev should now be devB");
+
+        // Both can claim
+        vm.prank(dev);
+        feeVault.claimDevFees(address(feeToken));
+        assertEq(feeToken.balanceOf(dev), 80 ether);
+
+        vm.prank(devB);
+        feeVault.claimDevFees(address(feeToken));
+        assertEq(feeToken.balanceOf(devB), 40 ether);
+    }
+
+    /// @notice Reassign multiple times — each call only sweeps current escrow
+    function test_setDevForPool_multipleReassignments() public {
+        vm.startPrank(deployer);
+
+        // Assign devA (no fees yet)
+        feeVault.setDevForPool(reassignPool, dev);
+        assertEq(feeVault.poolDev(reassignPool), dev);
+
+        // Reassign to devB (no fees yet)
+        feeVault.setDevForPool(reassignPool, devB);
+        assertEq(feeVault.poolDev(reassignPool), devB);
+
+        // Reassign back to devA (no fees yet)
+        feeVault.setDevForPool(reassignPool, dev);
+        assertEq(feeVault.poolDev(reassignPool), dev);
+
+        vm.stopPrank();
+
+        // Now deposit and assign — devA gets everything
+        feeVault.depositFees(reassignPool, address(0), address(feeToken), 100 ether, 25 ether);
+        vm.prank(deployer);
+        feeVault.setDevForPool(reassignPool, dev);
+
+        assertEq(feeVault.devFees(dev, address(feeToken)), 100 ether);
+        assertEq(feeVault.devFees(devB, address(feeToken)), 0);
     }
 
     // ═══════════════════════════════════════════════════════
@@ -263,19 +342,22 @@ contract FeeRoutingTest is Test {
         feeVault.sweepExpiredFees(expiryPool);
     }
 
-    /// @notice Sweep reverts if pool was already assigned to a dev
-    function test_sweepExpiredFees_revertIfAssigned() public {
+    /// @notice Sweep reverts if pool has a dev assigned (poolDev != address(0))
+    function test_sweepExpiredFees_revertIfDevAssigned() public {
         feeVault.depositFees(expiryPool, address(0), address(feeToken), 80 ether, 20 ether);
 
         // Assign dev first
         vm.prank(deployer);
-        feeVault.assignDev(expiryPool, dev);
+        feeVault.setDevForPool(expiryPool, dev);
+
+        // Deposit new fees
+        feeVault.depositFees(expiryPool, address(0), address(feeToken), 40 ether, 10 ether);
 
         // Warp forward
         vm.warp(block.timestamp + 30 days + 1);
 
-        // Sweep should fail since it's assigned
-        vm.expectRevert(SigilFeeVault.PoolAlreadyAssigned.selector);
+        // Sweep should fail since pool has an active dev
+        vm.expectRevert(bytes("SIGIL: POOL_HAS_DEV"));
         feeVault.sweepExpiredFees(expiryPool);
     }
 
@@ -315,7 +397,7 @@ contract FeeRoutingTest is Test {
 
         // Assign dev
         vm.prank(deployer);
-        feeVault.assignDev(thirdPartyPool, dev);
+        feeVault.setDevForPool(thirdPartyPool, dev);
 
         // Dev should have both
         assertEq(feeVault.devFees(dev, address(feeToken)), 80 ether);
@@ -350,7 +432,7 @@ contract FeeRoutingTest is Test {
         // 3. At day 15, dev verifies ownership through Sigil
         vm.warp(block.timestamp + 15 days);
         vm.prank(deployer);
-        feeVault.assignDev(thirdPartyPool, dev);
+        feeVault.setDevForPool(thirdPartyPool, dev);
 
         // 4. Dev claims all accumulated fees
         vm.prank(dev);

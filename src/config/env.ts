@@ -27,9 +27,6 @@ const envSchema = z.object({
     SIGIL_FACTORY_ADDRESS: z.string().default(""),
     SIGIL_FEE_VAULT_ADDRESS: z.string().default(""),
     SIGIL_LP_LOCKER_ADDRESS: z.string().default(""),
-    // V1 legacy addresses (old positions, still claimable)
-    SIGIL_FEE_VAULT_ADDRESS_V1: z.string().default(""),
-    SIGIL_LP_LOCKER_ADDRESS_V1: z.string().default(""),
     BASE_RPC_URL: z.string().default("https://mainnet.base.org"),
 
     // Privy (authentication)

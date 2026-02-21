@@ -3,8 +3,8 @@
  */
 import { ethers } from "ethers";
 
-const FEE_VAULT =
-    process.env.SIGIL_FEE_VAULT_ADDRESS || "0xc7A27840141C7e89cb39d58BED0E75689bb6f933";
+const FEE_VAULT = process.env.SIGIL_FEE_VAULT_ADDRESS as string;
+if (!FEE_VAULT) throw new Error("SIGIL_FEE_VAULT_ADDRESS env var is required");
 const RPC_URL = process.env.BASE_RPC_URL || "https://mainnet.base.org";
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 

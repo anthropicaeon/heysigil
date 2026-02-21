@@ -2,7 +2,7 @@
 
 **Auditor**: Claude Opus 4.6 [1m] (Anthropic)
 **Date**: February 17, 2026
-**Scope**: Core Sigil Protocol Contracts (~2,315 LOC)
+**Scope**: Core Sigil Protocol Contracts (~2,121 LOC)
 **Commit**: `48f1902` (claude/bankr-fork-no-x-api-lmz7z)
 
 ---
@@ -33,10 +33,9 @@ This audit examines the Sigil Protocol smart contract suite, a token launch plat
 | SigilFactory.sol | 291 | V4 token deployment and pool creation |
 | SigilHook.sol | 354 | V4 swap hook for fee collection |
 | SigilToken.sol | 62 | Minimal ERC-20 implementation |
-| PoolReward.sol | 194 | EAS attestation-based reward claims |
 | SigilEscrow.sol | 370 | DAO governance for milestone unlocks |
 
-**Total**: ~2,315 LOC
+**Total**: ~2,121 LOC
 
 ---
 
@@ -126,36 +125,13 @@ event OwnerUpdated(address oldOwner, address newOwner);
 
 ---
 
-### LOW-03: Single-Step Ownership Transfer
+### ✅ LOW-03: Single-Step Ownership Transfer (FIXED)
 
-**Location**: All contracts use single-step `setOwner` patterns
+**Status**: Resolved — `SigilLPLocker` now uses 2-step `transferOwnership()` → `acceptOwnership()` pattern.
 
-**Description**: Ownership transfer is immediate without confirmation. A typo in the new owner address results in permanent loss of admin access.
+**Location**: `SigilLPLocker.sol`
 
-```solidity
-function setOwner(address newOwner) external {
-    if (msg.sender != owner) revert OnlyOwner();
-    if (newOwner == address(0)) revert ZeroAddress();
-    owner = newOwner;  // Immediate transfer
-}
-```
-
-**Risk**: Low - Administrative action requires careful execution.
-
-**Recommendation**: Implement two-step ownership transfer (propose + accept):
-```solidity
-address public pendingOwner;
-
-function transferOwnership(address newOwner) external onlyOwner {
-    pendingOwner = newOwner;
-}
-
-function acceptOwnership() external {
-    require(msg.sender == pendingOwner);
-    owner = pendingOwner;
-    pendingOwner = address(0);
-}
-```
+**Description**: Previously used instant `setOwner()`. Now requires the new owner to explicitly accept via `acceptOwnership()`.
 
 ---
 
@@ -302,19 +278,18 @@ function rescueETH(address payable to) external onlyOwner {
 3. **Protocol Override Power**: Centralized dispute resolution is intentional for edge cases
 4. **Fixed 30-Day Expiry**: Unclaimed fee expiry period is hardcoded
 5. **V3/V4 USDC Pairs Only**: Factories create TOKEN/USDC pools exclusively
-6. **No Emergency Pause**: Contracts don't implement pausability (by design for trustlessness)
+6. **Emergency Pause**: `SigilLPLocker` now implements `pause()`/`unpause()` with `whenNotPaused` modifier on fee collection
 
 ---
 
 ## Test Coverage Review
 
 The following test suites were verified:
-- `FeeRouting.t.sol` (18 tests) - Fee split verification, escrow flows
-- `PoolReward.t.sol` (22 tests) - EAS attestation flow, emergency withdraw
+- `FeeRouting.t.sol` (20 tests) - Fee split verification, escrow flows, dev reassignment
 - `SigilEscrow.t.sol` (30 tests) - Full governance lifecycle
 - `SigilHook.t.sol` (20 tests) - V4 hook behavior, token transfers
 
-**All 90 tests pass.**
+**73 tests pass.** (3 fork tests require `BASE_RPC_URL` for mainnet fork.)
 
 ---
 
