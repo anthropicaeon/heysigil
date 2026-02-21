@@ -88,7 +88,7 @@ async function releaseLock() {
 function runDrizzleMigrate() {
     return new Promise((resolve) => {
         const npxCommand = process.platform === "win32" ? "npx.cmd" : "npx";
-        const child = spawn(npxCommand, ["drizzle-kit", "migrate"], {
+        const child = spawn(npxCommand, ["drizzle-kit", "push", "--force"], {
             stdio: "inherit",
             env: process.env,
         });
