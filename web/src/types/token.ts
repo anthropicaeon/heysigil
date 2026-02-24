@@ -41,4 +41,6 @@ export interface LaunchListItem {
     verifiedAt: string | null;
     explorerUrl: string;
     dexUrl: string;
+    marketCap: number | null;
+    volume24h: number | null;
 }

@@ -39,8 +39,6 @@ interface UseFeeVaultReturn {
     loading: boolean;
     /** Claiming tx in progress */
     claiming: boolean;
-    /** Gas funding in progress */
-    fundingGas: boolean;
     /** Last error message */
     error: string | null;
     /** Last successful claim tx hash */
@@ -108,7 +106,6 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
     const [allBalances, setAllBalances] = useState<FeeBalance[]>([]);
     const [loading, setLoading] = useState(false);
     const [claiming, setClaiming] = useState(false);
-    const [fundingGas, setFundingGas] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [lastTxHash, setLastTxHash] = useState<string | null>(null);
 
@@ -190,26 +187,7 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         refresh();
     }, [refresh]);
 
-    // ── Fund gas before claim ──
-    const fundGas = useCallback(async () => {
-        setFundingGas(true);
-        try {
-            const token = await privy?.getAccessToken?.();
-            if (!token) {
-                throw new Error("Not authenticated — sign in to claim fees");
-            }
-            const result = await apiClient.fees.claimGas(token);
-            if (!result.funded) {
-                throw new Error("Failed to fund gas");
-            }
-            // Wait a moment for the gas tx to propagate
-            if (!result.alreadyFunded) {
-                await new Promise((r) => setTimeout(r, 2000));
-            }
-        } finally {
-            setFundingGas(false);
-        }
-    }, [privy]);
+
 
     // ── Server-side claim helper ──
     const claimViaBackend = useCallback(
@@ -265,7 +243,6 @@ export function useFeeVault(walletAddress?: string): UseFeeVaultReturn {
         allBalances,
         loading,
         claiming,
-        fundingGas,
         error,
         lastTxHash,
         claimUsdc,

@@ -59,11 +59,13 @@ import { handler } from "../helpers/route.js";
 import { paginatedResponse } from "../helpers/responses.js";
 import { registerOAuthCallbackRoute } from "../helpers/oauth-route-factory.js";
 import { loggers } from "../../utils/logger.js";
+import { createWalletForUser } from "../../services/wallet.js";
 
 const verify = new OpenAPIHono();
 
 // Rate limit challenge creation (10 per hour per IP - prevents DB spam)
 verify.use("/challenge", verifyChallengeRateLimit());
+verify.use("/challenge", privyAuthOptional());
 
 // Rate limit verification checks (30 per minute per IP - allows reasonable retries)
 verify.use("/check", verifyCheckRateLimit());
@@ -180,11 +182,25 @@ verify.openapi(
     handler(async (c) => {
         const body = getBody(c, ChallengeRequestSchema);
 
-        if (!body.method || !body.projectId || !body.walletAddress) {
+        if (!body.method || !body.projectId) {
             return c.json(
-                { error: "Missing required fields: method, projectId, walletAddress" },
+                { error: "Missing required fields: method, projectId" },
                 400,
             );
+        }
+
+        // Resolve wallet address: use provided, or auto-create a server-side wallet
+        let walletAddress = body.walletAddress;
+        if (!walletAddress) {
+            const privyUserId = getUserId(c);
+            if (!privyUserId) {
+                return c.json(
+                    { error: "Either walletAddress or authentication is required" },
+                    400,
+                );
+            }
+            const wallet = await createWalletForUser(privyUserId);
+            walletAddress = wallet.address;
         }
 
         const challengeCode = `oc-${randomBytes(12).toString("hex")}`;
@@ -204,7 +220,7 @@ verify.openapi(
             .values({
                 method: body.method,
                 projectId,
-                walletAddress: body.walletAddress,
+                walletAddress,
                 challengeCode,
                 status: "pending",
                 expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h expiry
@@ -216,7 +232,7 @@ verify.openapi(
             {
                 method: body.method,
                 projectId: body.projectId,
-                walletAddress: body.walletAddress,
+                walletAddress,
                 challengeCode,
             },
             record.id,
@@ -233,7 +249,7 @@ verify.openapi(
             challengeCode,
             method: body.method,
             projectId: body.projectId,
-            walletAddress: body.walletAddress,
+            walletAddress,
             instructions,
             authUrl: authUrl || undefined,
             expiresAt: record.expiresAt?.toISOString(),
@@ -562,7 +578,7 @@ verify.openapi(
     listRoute,
     handler(async (c) => {
         // Apply auth inline since openapi() middleware typing is strict
-        const authResult = await privyAuth()(c, async () => {});
+        const authResult = await privyAuth()(c, async () => { });
         if (authResult) return authResult;
         const userId = getUserId(c);
         if (!userId) {
@@ -668,7 +684,7 @@ verify.openapi(
     detailRoute,
     handler(async (c) => {
         // Apply auth inline since openapi() middleware typing is strict
-        const authResult = await privyAuth()(c, async () => {});
+        const authResult = await privyAuth()(c, async () => { });
         if (authResult) return authResult;
         const userId = getUserId(c);
         if (!userId) {

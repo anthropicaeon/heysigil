@@ -312,9 +312,9 @@ export const LaunchListQuerySchema = PaginationQuerySchema.extend({
     platform: PlatformSchema.optional().openapi({
         description: "Filter by platform",
     }),
-    sort: z.enum(["newest", "oldest"]).default("newest").openapi({
+    sort: z.enum(["newest", "oldest", "marketCap"]).default("newest").openapi({
         example: "newest",
-        description: "Sort direction by creation time",
+        description: "Sort direction by creation time or market cap",
     }),
 });
 
@@ -347,6 +347,8 @@ export const LaunchListItemSchema = z
         verifiedAt: TimestampSchema.nullable(),
         explorerUrl: z.string().url().openapi({ example: "https://basescan.org/address/0x..." }),
         dexUrl: z.string().url().openapi({ example: "https://dexscreener.com/base/0x..." }),
+        marketCap: z.number().nullable().openapi({ example: 125000, description: "Market cap (FDV) in USD" }),
+        volume24h: z.number().nullable().openapi({ example: 8500, description: "24h trading volume in USD" }),
     })
     .openapi("LaunchListItem");
 

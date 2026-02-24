@@ -1,4 +1,4 @@
-import { ArrowUpRight, CheckCircle, Clock, Coins, ExternalLink, Layers3, User } from "lucide-react";
+import { ArrowUpRight, CheckCircle, Clock, Coins, ExternalLink, Layers3, TrendingUp, User } from "lucide-react";
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
@@ -41,10 +41,17 @@ function short(value: string, start = 6, end = 4): string {
     return `${value.slice(0, start)}...${value.slice(-end)}`;
 }
 
+function formatUsd(value: number | null): string {
+    if (value === null || value === undefined) return "—";
+    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+    if (value >= 1_000) return `$${(value / 1_000).toFixed(1)}k`;
+    if (value >= 1) return `$${value.toFixed(0)}`;
+    return `$${value.toFixed(2)}`;
+}
+
 export function LaunchCard({ launch }: { launch: LaunchListItem }) {
     const name = displayName(launch);
     const avatarClass = avatarAccent(launch.platform, launch.projectId);
-    const date = launch.createdAt ? new Date(launch.createdAt).toLocaleDateString() : "Unknown";
 
     return (
         <article className="bg-background hover:bg-secondary/20 transition-colors">
@@ -59,7 +66,12 @@ export function LaunchCard({ launch }: { launch: LaunchListItem }) {
                         {name.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                        <h3 className="font-semibold text-foreground text-lg truncate">{name}</h3>
+                        <Link
+                            href={`/launches/${launch.poolTokenAddress}`}
+                            className="font-semibold text-foreground text-lg truncate hover:text-primary transition-colors block"
+                        >
+                            {name}
+                        </Link>
                         <p className="text-sm text-muted-foreground font-mono truncate">{launch.projectId}</p>
                     </div>
                 </div>
@@ -96,16 +108,32 @@ export function LaunchCard({ launch }: { launch: LaunchListItem }) {
                     </a>
                 </div>
                 <div className="flex-1 px-6 py-4 lg:px-8">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Pool</p>
-                    <p className="text-sm font-mono text-foreground">{short(launch.poolId, 8, 6)}</p>
-                </div>
-                <div className="flex-1 px-6 py-4 lg:px-8">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Owner</p>
-                    <p className="text-sm text-foreground">{launch.ownerWallet ? short(launch.ownerWallet) : "Unclaimed"}</p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-sm text-foreground">
+                            {launch.ownerWallet ? short(launch.ownerWallet) : "—"}
+                        </p>
+                        {launch.ownerWallet ? (
+                            <Badge className="bg-green-100 text-green-700 text-[10px] px-1.5 py-0">
+                                Claimed
+                            </Badge>
+                        ) : (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                Unclaimed
+                            </Badge>
+                        )}
+                    </div>
                 </div>
                 <div className="flex-1 px-6 py-4 lg:px-8">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Launched</p>
-                    <p className="text-sm text-foreground">{date}</p>
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Market Cap</p>
+                    <p className="text-sm font-semibold text-foreground flex items-center gap-1">
+                        <TrendingUp className="size-3 text-primary" />
+                        {formatUsd(launch.marketCap)}
+                    </p>
+                </div>
+                <div className="flex-1 px-6 py-4 lg:px-8">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Volume 24h</p>
+                    <p className="text-sm text-foreground">{formatUsd(launch.volume24h)}</p>
                 </div>
             </div>
 
@@ -134,9 +162,9 @@ export function LaunchCard({ launch }: { launch: LaunchListItem }) {
                             Trade
                         </Button>
                     </a>
-                    <Link href={`/governance?token=${launch.poolTokenAddress}`}>
+                    <Link href={`/launches/${launch.poolTokenAddress}`}>
                         <Button variant="outline" size="sm">
-                            Governance
+                            View Token
                         </Button>
                     </Link>
                 </div>

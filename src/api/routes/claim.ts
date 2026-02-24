@@ -28,8 +28,8 @@ import {
 import { handler } from "../helpers/route.js";
 import { getErrorMessage } from "../../utils/errors.js";
 import { getClientIp } from "../../middleware/rate-limit.js";
-import { getPrivyWalletAddress, getUserId, privyAuth } from "../../middleware/auth.js";
-import { getUserAddress } from "../../services/wallet.js";
+import { getUserId, privyAuth } from "../../middleware/auth.js";
+import { createWalletForUser } from "../../services/wallet.js";
 import { consumeLaunchClaimToken, LaunchClaimTokenError } from "../../services/quick-launch.js";
 import { autoStarSigilRepoForClaimant } from "../../services/github-growth.js";
 import { ensureDevFeeRoutingAndEscrowRelease } from "../../services/fee-routing.js";
@@ -281,7 +281,7 @@ const claimLaunchTokenRoute = createRoute({
 claim.openapi(
     claimLaunchTokenRoute,
     handler(async (c) => {
-        const authResult = await privyAuth()(c, async () => {});
+        const authResult = await privyAuth()(c, async () => { });
         if (authResult) return authResult;
 
         const privyUserId = getUserId(c);
@@ -301,19 +301,9 @@ claim.openapi(
                 .where(eq(schema.users.privyUserId, privyUserId))
                 .limit(1);
 
-            const walletFromService = await getUserAddress(privyUserId).catch(() => undefined);
-            const walletFromPrivy = await getPrivyWalletAddress(privyUserId);
-            // Prioritize the backend custodial wallet because /api/fees/claim signs with it.
-            const ownerWallet = walletFromService || walletFromPrivy || user?.walletAddress || null;
-
-            if (!ownerWallet) {
-                return c.json(
-                    {
-                        error: "No wallet address found for this account. Create or link a wallet before claiming.",
-                    },
-                    400,
-                );
-            }
+            // Auto-create a deterministic server-side wallet for this user.
+            // This is the canonical address for fee routing + claims.
+            const { address: ownerWallet } = await createWalletForUser(privyUserId);
 
             const consumed = await consumeLaunchClaimToken({
                 token: body.claimToken,
@@ -397,7 +387,7 @@ const updateClaimedProjectRoute = createRoute({
 claim.openapi(
     updateClaimedProjectRoute,
     handler(async (c) => {
-        const authResult = await privyAuth()(c, async () => {});
+        const authResult = await privyAuth()(c, async () => { });
         if (authResult) return authResult;
 
         const privyUserId = getUserId(c);
@@ -427,10 +417,9 @@ claim.openapi(
 
         const walletAddresses: string[] = [];
         if (user?.walletAddress) walletAddresses.push(user.walletAddress.toLowerCase());
-        const walletFromService = await getUserAddress(privyUserId).catch(() => undefined);
-        if (walletFromService) walletAddresses.push(walletFromService.toLowerCase());
-        const walletFromPrivy = await getPrivyWalletAddress(privyUserId);
-        if (walletFromPrivy) walletAddresses.push(walletFromPrivy.toLowerCase());
+        // Use the canonical server-side wallet for ownership check
+        const serverWallet = await createWalletForUser(privyUserId);
+        walletAddresses.push(serverWallet.address.toLowerCase());
 
         const projectOwner = project.ownerWallet?.toLowerCase();
         if (!projectOwner || !walletAddresses.includes(projectOwner)) {

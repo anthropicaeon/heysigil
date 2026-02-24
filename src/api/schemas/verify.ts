@@ -29,8 +29,9 @@ export const ChallengeRequestSchema = z
             example: "org/repo",
             description: "Project identifier (format depends on method)",
         }),
-        walletAddress: WalletAddressSchema.openapi({
-            description: "Wallet address to associate with verification",
+        walletAddress: WalletAddressSchema.optional().openapi({
+            description:
+                "Wallet address to associate with verification. If omitted, a server-side wallet is auto-created for the authenticated user.",
         }),
     })
     .openapi("ChallengeRequest");

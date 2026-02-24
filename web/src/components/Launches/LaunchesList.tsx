@@ -14,7 +14,7 @@ const PAGE_SIZE = 20;
 const PLATFORM_OPTIONS = ["all", "github", "twitter", "facebook", "instagram", "domain"] as const;
 
 type PlatformFilter = (typeof PLATFORM_OPTIONS)[number];
-type SortFilter = "newest" | "oldest";
+type SortFilter = "newest" | "oldest" | "marketCap";
 
 export function LaunchesList() {
     const [launches, setLaunches] = useState<LaunchListItem[]>([]);
@@ -124,6 +124,13 @@ export function LaunchesList() {
                                 ))}
                             </div>
                             <div className="flex items-center gap-2">
+                                <Button
+                                    size="sm"
+                                    variant={sort === "marketCap" ? "default" : "outline"}
+                                    onClick={() => setSort("marketCap")}
+                                >
+                                    Market Cap
+                                </Button>
                                 <Button
                                     size="sm"
                                     variant={sort === "newest" ? "default" : "outline"}

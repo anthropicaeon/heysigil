@@ -200,70 +200,116 @@ async function checkVerificationStatus(
 
 // ─── Public API ─────────────────────────────────────────
 
+const MAX_SUBMIT_RETRIES = 3;
+const POLL_INTERVAL_MS = 5_000;
+const MAX_POLL_ATTEMPTS = 18; // 18 × 5s = 90s
+
 /**
  * Verify a SigilToken on Basescan.
  *
  * Call this after every successful factory.launch().
- * It's fire-and-forget — does not throw on failure.
+ * Retries submission up to 3 times with exponential backoff.
+ *
+ * IMPORTANT: Unverified contracts are automatically flagged by Blockaid
+ * as suspicious/malicious. Verification failure is a critical issue.
  *
  * @param tokenAddress - Deployed token contract address
  * @param name - Token name (constructor arg)
  * @param symbol - Token symbol (constructor arg)
+ * @returns true if verification succeeded, false otherwise
  */
 export async function verifyTokenOnBasescan(
     tokenAddress: string,
     name: string,
     symbol: string,
-): Promise<void> {
+): Promise<boolean> {
     const env = getEnv();
     const apiKey = env.BASESCAN_API_KEY;
 
     if (!apiKey) {
         log.debug({ tokenAddress }, "Skipping Basescan verification (no API key)");
-        return;
+        return false;
     }
 
     const factoryAddress = env.SIGIL_FACTORY_ADDRESS;
     if (!factoryAddress) {
         log.debug({ tokenAddress }, "Skipping Basescan verification (no factory address)");
-        return;
+        return false;
     }
 
     log.info({ tokenAddress, name, symbol }, "Submitting Basescan verification");
 
-    try {
-        const constructorArgs = encodeConstructorArgs(name, symbol, factoryAddress);
-        const guid = await submitVerification(apiKey, tokenAddress, constructorArgs);
+    const constructorArgs = encodeConstructorArgs(name, symbol, factoryAddress);
 
-        log.info({ tokenAddress, guid }, "Basescan verification submitted");
+    // Retry submission up to MAX_SUBMIT_RETRIES times with exponential backoff
+    for (let attempt = 1; attempt <= MAX_SUBMIT_RETRIES; attempt++) {
+        try {
+            const guid = await submitVerification(apiKey, tokenAddress, constructorArgs);
+            log.info({ tokenAddress, guid, attempt }, "Basescan verification submitted");
 
-        // Poll for result (max 60s, check every 5s)
-        for (let i = 0; i < 12; i++) {
-            await new Promise((r) => setTimeout(r, 5000));
+            // Poll for result (max 90s, check every 5s)
+            for (let i = 0; i < MAX_POLL_ATTEMPTS; i++) {
+                await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
 
-            const status = await checkVerificationStatus(apiKey, guid);
+                const status = await checkVerificationStatus(apiKey, guid);
 
-            if (status.verified) {
-                log.info(
-                    { tokenAddress, message: status.message },
-                    "✅ Token verified on Basescan",
-                );
-                return;
+                if (status.verified) {
+                    log.info(
+                        { tokenAddress, message: status.message },
+                        "✅ Token verified on Basescan",
+                    );
+                    return true;
+                }
+
+                if (
+                    status.message !== "Pending in queue" &&
+                    !status.message.includes("Unable to locate")
+                ) {
+                    // Hard failure — break out of polling, retry submission
+                    log.error(
+                        { tokenAddress, message: status.message, attempt },
+                        "❌ Basescan verification failed — unverified contracts trigger Blockaid flags",
+                    );
+                    break;
+                }
             }
-
-            if (
-                status.message !== "Pending in queue" &&
-                !status.message.includes("Unable to locate")
-            ) {
-                // Hard failure — stop polling
-                log.warn({ tokenAddress, message: status.message }, "Basescan verification failed");
-                return;
-            }
+        } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            log.error(
+                { tokenAddress, err: msg, attempt },
+                "❌ Basescan verification error — unverified contracts trigger Blockaid flags",
+            );
         }
 
-        log.warn({ tokenAddress }, "Basescan verification timed out (60s)");
-    } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        log.warn({ tokenAddress, err: msg }, "Basescan verification error");
+        // Exponential backoff before retry: 5s, 10s, 20s
+        if (attempt < MAX_SUBMIT_RETRIES) {
+            const backoff = POLL_INTERVAL_MS * Math.pow(2, attempt - 1);
+            log.info({ tokenAddress, backoffMs: backoff, nextAttempt: attempt + 1 }, "Retrying verification");
+            await new Promise((r) => setTimeout(r, backoff));
+        }
     }
+
+    log.error(
+        { tokenAddress, attempts: MAX_SUBMIT_RETRIES },
+        "❌ All Basescan verification attempts failed — token will be flagged by Blockaid",
+    );
+    return false;
+}
+
+/**
+ * Re-verify an already-deployed token. Use this for tokens that failed
+ * initial verification or were deployed before the verifier was configured.
+ *
+ * @param tokenAddress - Deployed token contract address
+ * @param name - Token name (constructor arg)
+ * @param symbol - Token symbol (constructor arg)
+ * @returns true if verification succeeded
+ */
+export async function retryVerification(
+    tokenAddress: string,
+    name: string,
+    symbol: string,
+): Promise<boolean> {
+    log.info({ tokenAddress, name, symbol }, "Manual re-verification requested");
+    return verifyTokenOnBasescan(tokenAddress, name, symbol);
 }

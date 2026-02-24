@@ -51,6 +51,9 @@ export interface DeployResult {
     deployer: string;
     explorerUrl: string;
     dexUrl: string;
+    /** Whether the token was successfully verified on Basescan.
+     *  Unverified tokens get flagged by Blockaid. */
+    verified: boolean;
 }
 
 // ─── Service ────────────────────────────────────────────
@@ -225,6 +228,7 @@ export async function deployToken(
             tokenAddress !== "pending"
                 ? `https://dexscreener.com/base/${tokenAddress}`
                 : `https://basescan.org/tx/${receipt.hash}`,
+        verified: false,
     };
 
     log.info(
@@ -232,11 +236,17 @@ export async function deployToken(
         "Token deployed successfully",
     );
 
-    // Auto-verify on Basescan (async, non-blocking)
+    // Verify on Basescan — await result so we know if it will be flagged by Blockaid.
+    // verifyTokenOnBasescan has its own retry logic (3 attempts, 90s polling each).
     if (tokenAddress && tokenAddress !== "pending") {
-        verifyTokenOnBasescan(tokenAddress, params.name, params.symbol).catch((err) => {
-            log.warn({ err, tokenAddress }, "Basescan verification failed");
-        });
+        try {
+            result.verified = await verifyTokenOnBasescan(tokenAddress, params.name, params.symbol);
+            if (!result.verified) {
+                log.error({ tokenAddress }, "Token deployed but NOT verified — will be flagged by Blockaid");
+            }
+        } catch (err) {
+            log.error({ err, tokenAddress }, "Basescan verification threw unexpectedly");
+        }
     }
 
     // Link fee distributions to this project (async, fire-and-forget)

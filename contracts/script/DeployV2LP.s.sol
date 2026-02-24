@@ -40,6 +40,23 @@ interface INonfungiblePositionManager {
     function transferFrom(address from, address to, uint256 tokenId) external;
 }
 
+interface ISwapRouter {
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        address recipient;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+    }
+
+    function exactInputSingle(ExactInputSingleParams calldata params)
+        external
+        payable
+        returns (uint256 amountOut);
+}
+
 /// @title DeployV2LP — V2 SIGIL Liquidity Deployment
 /// @notice Creates a V3 pool, mints 5 concentrated LP positions, transfers to SigilV2LPManager.
 ///
@@ -57,6 +74,7 @@ contract DeployV2LP is Script {
     // ─── Base Mainnet Addresses ──────────────────────────
     address constant V3_FACTORY = 0x33128a8fC17869897dcE68Ed026d694621f6FDfD;
     address constant POSITION_MANAGER = 0x03a520b32C04BF3bEEf7BEb72E919cf822Ed34f1;
+    address constant SWAP_ROUTER = 0x2626664c2603336E57B271c5C0b26F421741e481;
     address constant USDC = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
 
     // ─── Pool Config ─────────────────────────────────────
@@ -127,16 +145,16 @@ contract DeployV2LP is Script {
                     amount1Desired: amount1Desired,
                     amount0Min: 0,
                     amount1Min: 0,
-                    recipient: address(this),
-                    deadline: block.timestamp
+                    recipient: deployer,
+                    deadline: block.timestamp + 300
                 })
             );
 
             console2.log("  Position", i, "minted, NFT ID:", tokenId);
 
-            // Transfer NFT to manager
+            // Transfer NFT from deployer to manager
             INonfungiblePositionManager(POSITION_MANAGER).transferFrom(
-                address(this), address(manager), tokenId
+                deployer, address(manager), tokenId
             );
 
             // Register in manager
@@ -144,19 +162,29 @@ contract DeployV2LP is Script {
             console2.log("  Position", i, "registered in manager");
         }
 
-        // 6. Seed swap (1 USDC) to push price into LP range
+        // 6. Seed swap (1 USDC) via SwapRouter to push price into LP range
         uint256 seedBal = IERC20(USDC).balanceOf(deployer);
         if (seedBal >= SEED_AMOUNT) {
-            IERC20(USDC).approve(pool, SEED_AMOUNT);
+            IERC20(USDC).approve(SWAP_ROUTER, SEED_AMOUNT);
             console2.log("");
-            console2.log("Seed swap: sending", SEED_AMOUNT, "USDC to activate pool");
-            // NOTE: Seed swap requires a callback. For manual deployment,
-            // you may prefer to do the seed swap separately via cast or a DEX.
-            // The positions are active once price enters range via any buy.
-            console2.log("IMPORTANT: Do the seed swap manually via cast or DEX after deployment");
+            console2.log("Seed swap: swapping", SEED_AMOUNT, "USDC -> SIGIL to activate pool");
+
+            uint256 amountOut = ISwapRouter(SWAP_ROUTER).exactInputSingle(
+                ISwapRouter.ExactInputSingleParams({
+                    tokenIn: USDC,
+                    tokenOut: v2Token,
+                    fee: POOL_FEE,
+                    recipient: deployer,
+                    amountIn: SEED_AMOUNT,
+                    amountOutMinimum: 0,
+                    sqrtPriceLimitX96: 0
+                })
+            );
+            console2.log("Seed swap done, received:", amountOut / 1 ether, "SIGIL");
         } else {
             console2.log("");
-            console2.log("WARNING: Not enough USDC for seed swap, do it manually after");
+            console2.log("WARNING: Not enough USDC for seed swap (", seedBal, ")");
+            console2.log("Pool will activate on first external buy");
         }
 
         vm.stopBroadcast();
@@ -168,8 +196,7 @@ contract DeployV2LP is Script {
         console2.log("");
         console2.log("Next steps:");
         console2.log("  1. Verify manager + pool on Basescan");
-        console2.log("  2. Do a seed swap (buy 1 USDC worth) to activate liquidity");
-        console2.log("  3. Call sweepFees() on manager to collect accrued LP fees");
+        console2.log("  2. Call sweepFees() on manager to collect accrued LP fees");
     }
 
     // ─── Position Config ─────────────────────────────────

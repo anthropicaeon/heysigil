@@ -31,6 +31,7 @@ import {
 } from "../../services/launch.js";
 import { getDeployerBalance } from "../../services/deployer.js";
 import { getUserAddress } from "../../services/wallet.js";
+import { batchFetchMarketData } from "../../services/dexscreener.js";
 import {
     QuickLaunchIpLimitError,
     annotateQuickLaunchIpProject,
@@ -306,13 +307,13 @@ launch.openapi(
 
         const launchDefaults = customRepo
             ? {
-                  repo: `${customRepo.platform}:${customRepo.projectId}`,
-                  repoUrl: customRepo.displayUrl,
-              }
+                repo: `${customRepo.platform}:${customRepo.projectId}`,
+                repoUrl: customRepo.displayUrl,
+            }
             : {
-                  repo: `${QUICK_LAUNCH_DEFAULT_REPO.platform}:${QUICK_LAUNCH_DEFAULT_REPO.projectId}`,
-                  repoUrl: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
-              };
+                repo: `${QUICK_LAUNCH_DEFAULT_REPO.platform}:${QUICK_LAUNCH_DEFAULT_REPO.projectId}`,
+                repoUrl: QUICK_LAUNCH_DEFAULT_REPO.displayUrl,
+            };
 
         const ip = getClientIp(c);
         if (!ip || ip === "unknown") {
@@ -462,10 +463,10 @@ launch.openapi(
                 quickResult.type === "deployed"
                     ? quickResult.project
                     : {
-                          id: quickResult.project.id,
-                          projectId: quickResult.project.projectId,
-                          name: quickResult.project.name,
-                      },
+                        id: quickResult.project.id,
+                        projectId: quickResult.project.projectId,
+                        name: quickResult.project.name,
+                    },
             token: quickResult.type === "deployed" ? quickResult.token : undefined,
             claimToken: claimToken.token,
             claimTokenExpiresAt: claimToken.expiresAt.toISOString(),
@@ -823,9 +824,38 @@ launch.openapi(
                     verifiedAt: project.verifiedAt?.toISOString() ?? null,
                     explorerUrl: `https://basescan.org/address/${project.poolTokenAddress}`,
                     dexUrl: `https://dexscreener.com/base/${project.poolTokenAddress}`,
+                    marketCap: null as number | null,
+                    volume24h: null as number | null,
                 },
             ];
         });
+
+        // Enrich with DexScreener market data
+        const tokenAddresses = launches.map((l) => l.poolTokenAddress);
+        if (tokenAddresses.length > 0) {
+            try {
+                const marketData = await batchFetchMarketData(tokenAddresses);
+                for (const launch of launches) {
+                    const data = marketData.get(launch.poolTokenAddress.toLowerCase());
+                    if (data) {
+                        launch.marketCap = data.marketCap;
+                        launch.volume24h = data.volume24h;
+                    }
+                }
+            } catch (err) {
+                loggers.server.warn({ error: getErrorMessage(err) }, "DexScreener enrichment failed");
+            }
+        }
+
+        // Sort by market cap if requested (descending, nulls last)
+        if (query.sort === "marketCap") {
+            launches.sort((a, b) => {
+                if (a.marketCap === null && b.marketCap === null) return 0;
+                if (a.marketCap === null) return 1;
+                if (b.marketCap === null) return -1;
+                return b.marketCap - a.marketCap;
+            });
+        }
 
         return c.json({
             launches,

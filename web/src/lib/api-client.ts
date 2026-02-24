@@ -231,7 +231,7 @@ export const apiClient = {
             offset?: number;
             q?: string;
             platform?: "github" | "twitter" | "facebook" | "instagram" | "domain";
-            sort?: "newest" | "oldest";
+            sort?: "newest" | "oldest" | "marketCap";
         }) => {
             const query = new URLSearchParams();
             if (params?.limit) query.set("limit", String(params.limit));
